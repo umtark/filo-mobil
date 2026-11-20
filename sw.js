@@ -1,5 +1,5 @@
-// Yalnızca sayfa kabuğunu önbelleğe alır; öğrenci verisi (/api) asla önbelleğe alınmaz.
-const SURUM = 'filo-v4';
+﻿// YalnÄ±zca sayfa kabuÄŸunu Ã¶nbelleÄŸe alÄ±r; Ã¶ÄŸrenci verisi (/api) asla Ã¶nbelleÄŸe alÄ±nmaz.
+const SURUM = 'filo-v5';
 const KABUK = ['./', 'index.html', 'stil.css', 'ayar.js', 'moduller.js', 'uygulama.js', 'manifest.webmanifest', 'ikon-192.png'];
 
 self.addEventListener('install', e => {
@@ -11,7 +11,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.startsWith('/api/')) return;
-  // Önce ağ (güncel kalsın), ağ yoksa önbellek
+  // Ã–nce aÄŸ (gÃ¼ncel kalsÄ±n), aÄŸ yoksa Ã¶nbellek
   e.respondWith(fetch(e.request).then(r => {
     const kopya = r.clone();
     caches.open(SURUM).then(c => c.put(e.request, kopya));

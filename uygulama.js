@@ -16,7 +16,7 @@ const YOKLAMA_MS = ((window.AYAR && window.AYAR.YOKLAMA_SN) || 30) * 1000;
 const durum = {
   token: localStorage.getItem('token') || '', kullanici: localStorage.getItem('kullanici') || '',
   izinler: JSON.parse(localStorage.getItem('izinler') || '[]'),
-  veri: null, mod: {}, surumler: {}, filtre: 'hepsi', ara: '', evAra: '', gorunum: localStorage.getItem('gorunum') || 'dashboard', kuruldu: false,
+  veri: null, mod: {}, bilinen: {}, filtre: 'hepsi', ara: '', evAra: '', gorunum: localStorage.getItem('gorunum') || 'dashboard', kuruldu: false,
   sonGuncelleme: 0, bagli: true, acik: null, zamanlayici: 0, bekleyen: [],
 };
 const kartlar = new Map();
@@ -132,25 +132,67 @@ async function rpc(a, govde = {}) {
   }
 }
 
+const gorunumModulu = g => VERI_MODULU[g] || g;
+
+function veriKur() {
+  const o = durum.mod.okul || {};
+  durum.veri = { donem_ad: o.donem_ad || '', ogrenciler: o.ogrenciler || [], evraklar: (durum.mod.sirket_evrak || {}).evraklar || [] };
+}
+
+function modulleriUygula(j) {
+  if (j.kimlik) izinleriUygula(j.kimlik.izinler);
+  if (j.surumler) {
+    Object.keys(durum.mod).forEach(k => { if (!(k in j.surumler)) { delete durum.mod[k]; delete durum.bilinen[k]; cacheSil(k); } });   // yetkisi alınan modülün verisi silinir
+  }
+  if (j.moduller) {
+    const ilk = !durum.veri;
+    Object.entries(j.moduller).forEach(([k, v]) => { durum.mod[k] = v; durum.bilinen[k] = v.surum; cacheYaz(k, v); });
+    veriKur(); ciz(ilk, Object.keys(j.moduller));
+  }
+}
+
+let cekMesgul = false;
 async function cek() {
-  if (!durum.token || document.hidden) return;
+  if (!durum.token || document.hidden || cekMesgul) return;
+  cekMesgul = true;
   try {
-    const j = await rpc('veri', { v: durum.surumler });
+    // Önce açık olan ekranın verisi (hızlı açılış), diğer değişen modüller arkadan paralel gelir
+    const oncelik = [gorunumModulu(durum.gorunum)];
+    const j = await rpc('veri', { v: durum.bilinen, m: oncelik });
     durum.bagli = true; durum.sonGuncelleme = Date.now();
-    if (j.kimlik) izinleriUygula(j.kimlik.izinler);
-    if (j.surumler) {
-      durum.surumler = j.surumler;
-      Object.keys(durum.mod).forEach(k => { if (!(k in j.surumler)) delete durum.mod[k]; });   // yetkisi alınan modül verisi silinir
+    modulleriUygula(j);
+    if (!j.ok && j.hata === 'veri_yok') durum.bagli = false;
+    else if (j.surumler) {
+      const eksik = Object.keys(j.surumler).filter(m => !oncelik.includes(m) && durum.bilinen[m] !== j.surumler[m]);
+      await Promise.all(eksik.map(async m => {
+        try { modulleriUygula(await rpc('veri', { v: durum.bilinen, m: [m] })); } catch (e) { if (e.message === 'oturum') throw e; }
+      }));
     }
-    if (j.moduller) {
-      const ilk = !durum.veri;
-      Object.assign(durum.mod, j.moduller);
-      durum.veri = { donem_ad: (durum.mod.okul || {}).donem_ad || '', ogrenciler: (durum.mod.okul || {}).ogrenciler || [], evraklar: (durum.mod.sirket_evrak || {}).evraklar || [] };
-      ciz(ilk, Object.keys(j.moduller));
-    } else if (!j.ok && j.hata === 'veri_yok') durum.bagli = false;
     await bekleyenleriIsle();
   } catch (e) { if (e.message !== 'oturum') durum.bagli = false; }
+  cekMesgul = false;
   canliGuncelle();
+}
+
+/* ---------- telefonda saklanan veri (IndexedDB): uygulama açılınca eski hâl anında görünür, yalnızca değişenler iner ---------- */
+const cacheIs = (kip, fn) => new Promise((res, rej) => {
+  const a = indexedDB.open('filo-cache', 1);
+  a.onupgradeneeded = () => a.result.createObjectStore('k');
+  a.onerror = () => rej(a.error);
+  a.onsuccess = () => { const t = a.result.transaction('k', kip), r = fn(t.objectStore('k')); t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error); };
+}).catch(() => null);
+const cacheYaz = (k, v) => cacheIs('readwrite', o => o.put(v, 'm:' + k));
+const cacheSil = k => cacheIs('readwrite', o => o.delete('m:' + k));
+async function cacheYukle() {
+  const kul = await cacheIs('readonly', o => o.get('kullanici'));
+  if (kul !== durum.kullanici) { await cacheIs('readwrite', o => { o.clear(); o.put(durum.kullanici, 'kullanici'); }); return; }   // başka kullanıcının verisi kullanılmaz
+  const anahtarlar = (await cacheIs('readonly', o => o.getAllKeys())) || [], degerler = (await cacheIs('readonly', o => o.getAll())) || [];
+  const yuklenen = [];
+  anahtarlar.forEach((a, i) => {
+    const k = String(a).startsWith('m:') ? a.slice(2) : '';
+    if (k && durum.izinler.includes(k) && degerler[i] && degerler[i].surum) { durum.mod[k] = degerler[i]; durum.bilinen[k] = degerler[i].surum; yuklenen.push(k); }
+  });
+  if (yuklenen.length) { veriKur(); ciz(true, yuklenen); }
 }
 
 function yoklamaBaslat() { clearInterval(durum.zamanlayici); durum.zamanlayici = setInterval(cek, YOKLAMA_MS); }
@@ -162,16 +204,18 @@ function girisGoster() {
   setTimeout(() => ($('#g-kullanici').value ? $('#g-pin') : $('#g-kullanici')).focus(), 50);
 }
 
-function anaGoster() {
+async function anaGoster() {
   $('#giris').hidden = true; $('#ana').hidden = false;
   if (!durum.kuruldu) { modulleriKur(); durum.kuruldu = true; }
   filtreleriKur(); izinleriUygula(durum.izinler, true);
+  await cacheYukle();   // önceki veri anında görünür, ağ yanıtı gelince güncellenir
   cek(); yoklamaBaslat();
 }
 
 function cikis(sessiz) {
   clearInterval(durum.zamanlayici);
-  durum.token = ''; durum.veri = null; durum.mod = {}; durum.surumler = {}; durum._onceki = null; durum.navImza = '';
+  durum.token = ''; durum.veri = null; durum.mod = {}; durum.bilinen = {}; durum._onceki = null; durum.navImza = '';
+  if (!sessiz) cacheIs('readwrite', o => o.clear());   // oturum süresi dolduğunda veri kalır (aynı kullanıcı girerse hızlı açılır); çıkışta silinir
   ['token', 'izinler', 'bekleyen'].forEach(k => localStorage.removeItem(k)); durum.bekleyen = [];
   kartlar.forEach(k => k.li.remove()); kartlar.clear(); $('#ev-liste').innerHTML = '';
   document.querySelectorAll('.gorunum[data-modul]').forEach(s => s.remove()); durum.kuruldu = false;
@@ -185,11 +229,19 @@ $('#giris-form').addEventListener('submit', async e => {
   hata.textContent = ''; btn.classList.add('bekle');
   const sal = () => { kart.classList.remove('salla'); void kart.offsetWidth; kart.classList.add('salla'); };
   try {
-    const k = $('#g-kullanici').value.trim();
-    const t = await rpc('tuz', { k });
-    const h = await parolaOzeti($('#g-pin').value, t.tuz, t.tur || 150000);
-    const g = await rpc('giris', { k, h });
+    const k = $('#g-kullanici').value.trim(), anahtar = 'tuz:' + k.toLowerCase();
+    // Tuz gizli değildir; bir kez alınıp saklanır, sonraki girişler tek istekle olur
+    let t = null, saklidan = false;
+    try { t = JSON.parse(localStorage.getItem(anahtar) || 'null'); saklidan = !!t; } catch { t = null; }
+    if (!t) t = await rpc('tuz', { k });
+    let h = await parolaOzeti($('#g-pin').value, t.tuz, t.tur || 150000);
+    let g = await rpc('giris', { k, h });
+    if (!g.ok && g.hata === 'giris' && saklidan) {   // şifre değişmiş olabilir (tuz yenilenir); aynı tuzsa gerçekten hatalıdır, tekrar denenmez
+      const y = await rpc('tuz', { k });
+      if (y.tuz !== t.tuz) { t = y; h = await parolaOzeti($('#g-pin').value, t.tuz, t.tur || 150000); g = await rpc('giris', { k, h }); }
+    }
     if (g.ok) {
+      localStorage.setItem(anahtar, JSON.stringify({ tuz: t.tuz, tur: t.tur }));
       durum.token = g.token; durum.kullanici = g.kullanici; durum.izinler = g.izinler;
       localStorage.setItem('token', g.token); localStorage.setItem('kullanici', g.kullanici);
       localStorage.setItem('izinler', JSON.stringify(g.izinler));
