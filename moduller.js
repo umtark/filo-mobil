@@ -3,10 +3,10 @@
    uygulama.js'ten ÖNCE yüklenir; yardımcıları ($, TL, esc, sade, rpc, durum, toast, sayfa işlevleri) çağrı anında kullanır. */
 
 const MODULLER = [
-  { id: 'dashboard', izin: 'dashboard', ad: 'Ana Sayfa' }, { id: 'tahsilat', izin: 'okul', ad: 'Tahsilat' },
-  { id: 'evrak', izin: 'sirket_evrak', ad: 'Evraklar' }, { id: 'fatura', izin: 'fatura', ad: 'Fatura' },
-  { id: 'arac', izin: 'arac', ad: 'Araç' }, { id: 'esnaf', izin: 'esnaf', ad: 'Esnaf' },
-  { id: 'petrol', izin: 'petrol', ad: 'Akaryakıt' }, { id: 'ic_hizmet', izin: 'ic_hizmet', ad: 'İç Hizmet' },
+  { id: 'dashboard', izin: 'dashboard', ad: 'Ana Sayfa' }, { id: 'tahsilat', izin: 'okul', ad: 'Okul Yönetimi' },
+  { id: 'evrak', izin: 'sirket_evrak', ad: 'Evraklar' }, { id: 'fatura', izin: 'fatura', ad: 'Faturalar' },
+  { id: 'arac', izin: 'arac', ad: 'Araçlar' }, { id: 'esnaf', izin: 'esnaf', ad: 'Esnaflar' },
+  { id: 'petrol', izin: 'petrol', ad: 'Akaryakıt' }, { id: 'ic_hizmet', izin: 'ic_hizmet', ad: 'İç Hizmetler' },
 ];
 // Görünüm kimliği ile veri modülü farklı olanlar: tahsilat -> okul, evrak -> sirket_evrak
 const VERI_MODULU = { tahsilat: 'okul', evrak: 'sirket_evrak' };
