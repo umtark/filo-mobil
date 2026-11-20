@@ -1,6 +1,6 @@
 ﻿// YalnÄ±zca sayfa kabuÄŸunu Ã¶nbelleÄŸe alÄ±r; Ã¶ÄŸrenci verisi (/api) asla Ã¶nbelleÄŸe alÄ±nmaz.
-const SURUM = 'filo-v6';
-const KABUK = ['./', 'index.html', 'stil.css', 'ayar.js', 'moduller.js', 'uygulama.js', 'manifest.webmanifest', 'ikon-192.png'];
+const SURUM = 'filo-v7';
+const KABUK = ['./', 'index.html', 'stil.css', 'ayar.js', 'moduller.js', 'uygulama.js', 'manifest.webmanifest', 'ikon-192.png', 'favicon.ico', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(SURUM).then(c => c.addAll(KABUK)).then(() => self.skipWaiting()));

@@ -1,13 +1,16 @@
 {
-  "name": "Filo Muhasebe · Tahsilat",
-  "short_name": "Tahsilat",
+  "name": "Filo Muhasebe",
+  "short_name": "Filo",
+  "description": "Filo Muhasebe mobil erişim",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#14101f",
   "theme_color": "#14101f",
   "icons": [
     { "src": "ikon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "ikon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "ikon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "ikon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
