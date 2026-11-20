@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14101f">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Filo">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="ikon-192.png">
+<link rel="apple-touch-icon" href="ikon-192.png">
+<link rel="stylesheet" href="stil.css">
+<title>Filo Muhasebe</title>
+</head>
+<body>
+
+<main id="giris" class="giris" hidden>
+  <form id="giris-form" class="giris-kart" autocomplete="on">
+    <img class="logo" src="ikon-192.png" alt="" width="84" height="84">
+    <h1>Filo Muhasebe</h1>
+    <p class="alt">Mobil erişim</p>
+    <label class="alan"><span>Kullanıcı adı</span>
+      <input id="g-kullanici" name="username" autocomplete="username" autocapitalize="words" required>
+    </label>
+    <label class="alan"><span>Şifre</span>
+      <input id="g-pin" name="password" type="password" autocomplete="current-password" required>
+    </label>
+    <p id="g-hata" class="hata" role="alert"></p>
+    <button class="btn-ana" type="submit"><span>Giriş yap</span><i class="yukleniyor"></i></button>
+  </form>
+</main>
+
+<div id="ana" class="ana" hidden>
+  <header class="ust">
+    <div class="ust-sol">
+      <h1 id="baslik">Tahsilat</h1>
+      <span id="donem" class="rozet">—</span>
+    </div>
+    <div class="ust-sag">
+      <span id="canli" class="canli"><i></i><b>Canlı</b></span>
+      <button id="cikis" class="ikon-btn" aria-label="Çıkış" title="Çıkış">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <section id="v-tahsilat" class="gorunum">
+    <section class="ozet" aria-label="Özet">
+      <div class="ozet-kart" data-tone="mor"><small>Toplam ücret</small><strong id="o-ucret">0 ₺</strong></div>
+      <div class="ozet-kart" data-tone="yesil"><small>Tahsil edilen</small><strong id="o-odenen">0 ₺</strong></div>
+      <div class="ozet-kart" data-tone="kehribar"><small>Kalan</small><strong id="o-kalan">0 ₺</strong></div>
+      <div class="ozet-kart" data-tone="mavi"><small>Tahsilat oranı</small><strong id="o-oran">%0</strong>
+        <span class="bar"><i id="o-bar"></i></span></div>
+    </section>
+    <div class="arama">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="ara" type="search" placeholder="Öğrenci, sınıf veya plaka ara" autocomplete="off" enterkeyhint="search">
+    </div>
+    <nav id="filtreler" class="filtreler" aria-label="Filtre"></nav>
+    <ul id="liste" class="liste" aria-live="polite"></ul>
+    <p id="bos" class="bos" hidden>Sonuç bulunamadı.</p>
+  </section>
+
+  <section id="v-evrak" class="gorunum" hidden>
+    <div class="arama">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="ev-ara" type="search" placeholder="Evrak, firma veya kategori ara" autocomplete="off" enterkeyhint="search">
+    </div>
+    <div id="ev-liste" class="ev-liste"></div>
+    <p id="ev-bos" class="bos" hidden>Evrak bulunamadı.</p>
+  </section>
+</div>
+
+<nav id="alt-nav" class="alt-nav" hidden aria-label="Bölümler"></nav>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="perde" class="perde" hidden></div>
+<aside id="sayfa" class="sayfa" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="tutamac" id="tutamac"></div>
+  <div id="sayfa-icerik"></div>
+</aside>
+
+<script src="ayar.js"></script>
+<script src="moduller.js"></script>
+<script src="uygulama.js"></script>
+</body>
+</html>
