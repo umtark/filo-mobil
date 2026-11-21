@@ -49,7 +49,7 @@ button { cursor: pointer; }
 .marka { display: flex; width: fit-content; max-width: 100%; height: 84px; margin: 0 auto 20px; border-radius: 20px; overflow: hidden;
   box-shadow: 0 10px 22px -10px rgba(0, 0, 0, .55); animation: logoGel .5s var(--egri) both; animation-delay: 40ms; }
 .marka img { display: block; height: 100%; width: auto; max-width: 100%; object-fit: contain; }
-.marka.logolu { padding: 10px 18px; background: var(--logo-zemin); border: 1px solid var(--cizgi); }
+.marka.logolu { padding: 0; background: transparent; border: 0; box-shadow: none; border-radius: 0; overflow: visible; }
 .giris-kart h1 { margin: 0; font-size: 26px; font-weight: 600; text-wrap: balance; overflow-wrap: anywhere; }
 .giris-kart .alt { margin: 4px 0 28px; color: var(--soluk); font-size: 14px; }
 .sifre-sar { position: relative; }
@@ -59,7 +59,7 @@ button { cursor: pointer; }
 .goz .kapali, .goz[aria-pressed=true] .acik { display: none; } .goz[aria-pressed=true] .kapali { display: block; }
 .goz:focus-visible, .tema-btn:focus-visible, .eylem:focus-visible, .segment button:focus-visible, .alt-nav button:focus-visible, .hizli button:focus-visible,
 .daha:focus-visible, .fab:focus-visible, .btn-tehlike:focus-visible, .geri:focus-visible, .kucuk:focus-visible, .ay-sec:focus-visible, .tutamac:focus-visible { outline: 2px solid var(--ana); outline-offset: 2px; }
-.ust-logo { flex: none; height: 36px; width: auto; max-width: 96px; object-fit: contain; padding: 4px 8px; border-radius: 10px; background: var(--logo-zemin); border: 1px solid var(--cizgi); }
+.ust-logo { flex: none; height: 36px; width: auto; max-width: 96px; object-fit: contain; background: transparent; }
 .tema-btn svg { grid-area: 1 / 1; transition: transform .45s var(--egri), opacity .25s; }
 html[data-tema=koyu] .tema-btn .ay, html[data-tema=acik] .tema-btn .gunes { opacity: 0; transform: rotate(-70deg) scale(.5); }
 .alan { display: block; text-align: left; margin-bottom: 14px; }
