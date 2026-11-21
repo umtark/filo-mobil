@@ -15,12 +15,51 @@ const YOKLAMA_MS = ((window.AYAR && window.AYAR.YOKLAMA_SN) || 30) * 1000;
 
 const durum = {
   token: localStorage.getItem('token') || '', kullanici: localStorage.getItem('kullanici') || '',
-  izinler: JSON.parse(localStorage.getItem('izinler') || '[]'),
+  izinler: (() => { try { const a = JSON.parse(localStorage.getItem('izinler') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
   veri: null, mod: {}, bilinen: {}, filtre: 'hepsi', ara: '', evAra: '', gorunum: localStorage.getItem('gorunum') || 'dashboard', kuruldu: false,
   sonGuncelleme: 0, bagli: true, acik: null, zamanlayici: 0, bekleyen: [],
 };
 const kartlar = new Map();
 const sayilar = {};
+const AZ_HAREKET = matchMedia('(prefers-reduced-motion: reduce)');
+
+/* ---------- tema (koyu / açık) ---------- */
+const TEMA_RENK = { koyu: '#0a0e13', acik: '#eceff2' };
+function temaUygula(t, kaydet) {
+  const k = document.documentElement;
+  if (kaydet) { k.classList.add('tema-gecis'); setTimeout(() => k.classList.remove('tema-gecis'), 350); }
+  k.setAttribute('data-tema', t);
+  if (kaydet) { try { localStorage.setItem('tema', t); } catch { /* yoksay */ } }
+  $('meta[name=theme-color]').setAttribute('content', TEMA_RENK[t]);
+  document.querySelectorAll('[data-tema-degistir]').forEach(b => {
+    const y = t === 'koyu' ? 'Açık temaya geç' : 'Koyu temaya geç';
+    b.setAttribute('aria-label', y); b.title = y;
+  });
+}
+document.querySelectorAll('[data-tema-degistir]').forEach(b => b.addEventListener('click', () =>
+  temaUygula(document.documentElement.getAttribute('data-tema') === 'koyu' ? 'acik' : 'koyu', true)));
+temaUygula(document.documentElement.getAttribute('data-tema') === 'acik' ? 'acik' : 'koyu', false);
+
+/* ---------- marka: şirket adı + logo (masaüstü yazar; giriş ekranı oturumsuz gösterir) ---------- */
+const LOGO_RX = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
+function markaUygula(m) {
+  const logo = m && typeof m.logo === 'string' && LOGO_RX.test(m.logo) ? m.logo : '';
+  const ad = m && typeof m.ad === 'string' ? m.ad.trim() : '';
+  $('#g-marka').classList.toggle('logolu', !!logo);
+  $('#g-logo').src = logo || 'ikon-192.png';
+  $('#g-baslik').textContent = ad || 'Filo Muhasebe';
+  $('#g-alt').textContent = ad ? 'Filo Muhasebe · Mobil' : 'Tahsilat, evrak ve araç kayıtların telefonunda.';
+  const u = $('#ust-logo'); u.hidden = !logo; if (logo) u.src = logo;
+}
+async function markaYenile() {
+  try {
+    const j = await rpc('marka');
+    if (!j.ok) return;
+    const m = { ad: String(j.ad || ''), logo: String(j.logo || '') };
+    try { localStorage.setItem('marka', JSON.stringify(m)); } catch { /* kota: yoksay */ }
+    markaUygula(m);
+  } catch { /* çevrimdışı: saklanan marka kalır */ }
+}
 
 /* ---------- bekleyen (gönderilmemiş / işlenmemiş) ödemeler ---------- */
 try { durum.bekleyen = JSON.parse(localStorage.getItem('bekleyen') || '[]'); } catch { durum.bekleyen = []; }
@@ -119,9 +158,10 @@ async function parolaOzeti(sifre, tuz, tur) {
 /* ---------- ağ ---------- */
 async function rpc(a, govde = {}) {
   let r;
+  const ac = new AbortController(), zaman = setTimeout(() => ac.abort(), 25000);   // asılı kalan istek yoklamayı kilitlemesin
   try {
     // text/plain: tarayıcı ön kontrol (preflight) yapmasın; Apps Script bunu kabul eder
-    r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, signal: ac.signal,
       body: JSON.stringify({ a, ...(durum.token ? { t: durum.token } : {}), ...govde }) });
     if (!r.ok) throw new Error('ag');
     const j = await r.json();
@@ -129,7 +169,7 @@ async function rpc(a, govde = {}) {
     return j;
   } catch (e) {
     throw e.message === 'oturum' ? e : new Error('ag');
-  }
+  } finally { clearTimeout(zaman); }
 }
 
 const gorunumModulu = g => VERI_MODULU[g] || g;
@@ -203,12 +243,21 @@ function girisGoster() {
   $('#ana').hidden = true; $('#alt-nav').hidden = true; $('#giris').hidden = false;
   $('#g-kullanici').value = durum.kullanici;
   setTimeout(() => ($('#g-kullanici').value ? $('#g-pin') : $('#g-kullanici')).focus(), 50);
+  markaYenile();
+}
+
+function iskeletKaldir() { document.querySelectorAll('#liste .iskelet').forEach(x => x.remove()); }
+function iskeletGoster() {
+  const ul = $('#liste');
+  if (ul.childElementCount || !durum.izinler.includes('okul')) return;
+  ul.innerHTML = '<li class="iskelet" aria-hidden="true"><div class="iskelet-kart"></div></li>'.repeat(4);
+  setTimeout(iskeletKaldir, 10000);   // bağlantı yoksa sonsuza dek dönmesin
 }
 
 async function anaGoster() {
   $('#giris').hidden = true; $('#ana').hidden = false;
   if (!durum.kuruldu) { modulleriKur(); durum.kuruldu = true; }
-  filtreleriKur(); izinleriUygula(durum.izinler, true);
+  filtreleriKur(); izinleriUygula(durum.izinler, true); iskeletGoster();
   await cacheYukle();   // önceki veri anında görünür, ağ yanıtı gelince güncellenir
   cek(); yoklamaBaslat();
 }
@@ -218,7 +267,9 @@ function cikis(sessiz) {
   durum.token = ''; durum.veri = null; durum.mod = {}; durum.bilinen = {}; durum._onceki = null; durum.navImza = '';
   ayarDurum.liste = null; ayarDurum.hata = '';
   if (!sessiz) cacheIs('readwrite', o => o.clear());   // oturum süresi dolduğunda veri kalır (aynı kullanıcı girerse hızlı açılır); çıkışta silinir
-  ['token', 'izinler', 'bekleyen'].forEach(k => localStorage.removeItem(k)); durum.bekleyen = [];
+  ['token', 'izinler'].forEach(k => localStorage.removeItem(k));
+  // Oturum süresi dolunca gönderilmemiş ödemeler kaybolmasın: kuyruk yalnızca bilinçli çıkışta silinir (farklı kullanıcı girerse girişte temizlenir)
+  if (!sessiz) { localStorage.removeItem('bekleyen'); durum.bekleyen = []; }
   kartlar.forEach(k => k.li.remove()); kartlar.clear(); $('#ev-liste').innerHTML = '';
   document.querySelectorAll('.gorunum[data-modul]').forEach(s => s.remove()); durum.kuruldu = false;
   kapat(); $('#sayfa-icerik').innerHTML = ''; girisGoster();
@@ -230,6 +281,8 @@ $('#giris-form').addEventListener('submit', async e => {
   const btn = $('.btn-ana'), kart = $('.giris-kart'), hata = $('#g-hata');
   hata.textContent = ''; btn.classList.add('bekle');
   const sal = () => { kart.classList.remove('salla'); void kart.offsetWidth; kart.classList.add('salla'); };
+  const girdiler = [$('#g-kullanici'), $('#g-pin')], gecersiz = v => girdiler.forEach(i => i.setAttribute('aria-invalid', v ? 'true' : 'false'));
+  gecersiz(false);
   try {
     const k = $('#g-kullanici').value.trim(), anahtar = 'tuz:' + k.toLowerCase();
     // Tuz gizli değildir; bir kez alınıp saklanır, sonraki girişler tek istekle olur
@@ -244,26 +297,35 @@ $('#giris-form').addEventListener('submit', async e => {
     }
     if (g.ok) {
       localStorage.setItem(anahtar, JSON.stringify({ tuz: t.tuz, tur: t.tur }));
+      if (g.kullanici !== durum.kullanici && durum.bekleyen.length) { durum.bekleyen = []; bekleyenKaydet(); }   // başkasının bekleyen ödemesi bu hesaba gitmesin
       durum.token = g.token; durum.kullanici = g.kullanici; durum.izinler = g.izinler;
       localStorage.setItem('token', g.token); localStorage.setItem('kullanici', g.kullanici);
       localStorage.setItem('izinler', JSON.stringify(g.izinler));
       $('#g-pin').value = ''; anaGoster();
     } else {
       hata.textContent = g.hata === 'cok_deneme' ? 'Çok fazla hatalı deneme. On dakika sonra tekrar dene.' : 'Kullanıcı adı ya da şifre hatalı.';
-      sal();
+      gecersiz(true); sal(); $('#g-pin').select();
     }
-  } catch (err) { hata.textContent = 'Sunucuya ulaşılamıyor.'; }
+  } catch (err) { hata.textContent = 'Sunucuya ulaşılamadı. İnternetini kontrol edip tekrar dene.'; }
   btn.classList.remove('bekle');
+});
+['#g-kullanici', '#g-pin'].forEach(s => $(s).addEventListener('input', () => {   // düzeltmeye başlayınca hata temizlenir, yazılanlar korunur
+  $('#g-hata').textContent = ''; $('#g-kullanici').setAttribute('aria-invalid', 'false'); $('#g-pin').setAttribute('aria-invalid', 'false');
+}));
+$('#g-goz').addEventListener('click', e => {
+  const b = e.currentTarget, ac = b.getAttribute('aria-pressed') !== 'true', pin = $('#g-pin'), son = pin.selectionStart;
+  b.setAttribute('aria-pressed', String(ac)); b.setAttribute('aria-label', ac ? 'Şifreyi gizle' : 'Şifreyi göster');
+  pin.type = ac ? 'text' : 'password'; pin.focus(); try { pin.setSelectionRange(son, son); } catch { /* yoksay */ }
 });
 $('#cikis').addEventListener('click', () => cikis(false));
 
 /* ---------- yetkiye göre sekmeler ---------- */
 function izinleriUygula(izinler, zorla) {
-  durum.izinler = izinler; localStorage.setItem('izinler', JSON.stringify(izinler));
+  durum.izinler = izinler; try { localStorage.setItem('izinler', JSON.stringify(izinler)); } catch { /* yoksay */ }
   const acik = MODULLER.filter(m => izinler.includes(m.izin)), nav = $('#alt-nav'), imza = acik.map(m => m.id).join();
   if (zorla || durum.navImza !== imza) {   // yoklama her turda geldiği için yalnızca yetki değişince yeniden kurulur
     durum.navImza = imza;
-    nav.innerHTML = acik.map(m => `<button data-g="${m.id}"><img src="ikon/${m.id}.png" alt="" width="34" height="34" draggable="false"><span>${m.ad}</span></button>`).join('');
+    nav.innerHTML = acik.map(m => `<button type="button" data-g="${m.id}"><img src="ikon/${m.id}.png" alt="" width="34" height="34" draggable="false"><span>${m.ad}</span></button>`).join('');
   }
   nav.hidden = acik.length < 2;
   document.body.classList.toggle('altnavli', acik.length > 1);
@@ -277,14 +339,18 @@ function gorunumGoster(g, kaydir) {
   document.querySelectorAll('.gorunum').forEach(s => { s.hidden = s.id !== 'v-' + g; });
   $('#baslik').textContent = (MODULLER.find(m => m.id === g) || {}).ad || '';
   $('#donem').hidden = g !== 'tahsilat';
-  document.querySelectorAll('#alt-nav button').forEach(b => b.classList.toggle('secili', b.dataset.g === g));
+  document.querySelectorAll('#alt-nav button').forEach(b => { const s = b.dataset.g === g; b.classList.toggle('secili', s); if (s) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  if (kaydir) {   // sekme değişiminde yeni ekran kısaca yükselerek gelir
+    const s = $('#v-' + g);
+    if (s) { s.classList.remove('gecis'); void s.offsetWidth; s.classList.add('gecis'); s.addEventListener('animationend', () => s.classList.remove('gecis'), { once: true }); }
+  }
   if (g === 'ayarlar') ayarlarYenile();
   if (kaydir) window.scrollTo({ top: 0 });
 }
 $('#alt-nav').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   kapat(); gorunumGoster(b.dataset.g, true);
-  const nav = $('#alt-nav'); nav.scrollTo({ left: b.offsetLeft - (nav.clientWidth - b.clientWidth) / 2, behavior: 'smooth' });
+  const nav = $('#alt-nav'); nav.scrollTo({ left: b.offsetLeft - (nav.clientWidth - b.clientWidth) / 2, behavior: AZ_HAREKET.matches ? 'auto' : 'smooth' });
 });
 
 /* ---------- tahsilat listesi ---------- */
@@ -312,7 +378,7 @@ function filtreSayilari() {
 
 function sayac(el, hedef, bicim) {
   const bas = sayilar[el.id] ?? 0; sayilar[el.id] = hedef;
-  if (bas === hedef) { el.textContent = bicim(hedef); return; }
+  if (bas === hedef || AZ_HAREKET.matches) { el.textContent = bicim(hedef); return; }
   const t0 = performance.now(), sure = 900;
   const adim = t => {
     const p = Math.min(1, (t - t0) / sure), e = 1 - Math.pow(1 - p, 3);
@@ -331,25 +397,23 @@ function ozetCiz() {
   requestAnimationFrame(() => { $('#o-bar').style.width = Math.min(100, oran) + '%'; });
 }
 
-const RENKLER = [['#8b5cf6', '#6d28d9'], ['#38bdf8', '#2563eb'], ['#f472b6', '#be185d'], ['#34d399', '#047857'], ['#fbbf24', '#b45309'], ['#fb7185', '#be123c']];
 const bas = ad => ad.trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('').toLocaleUpperCase('tr');
-const renk = ad => RENKLER[[...ad].reduce((a, c) => a + c.charCodeAt(0), 0) % RENKLER.length];
 const yuzde = o => o.ucret > 0 ? Math.min(100, o.odenen / o.ucret * 100) : (o.odenen > 0 ? 100 : 0);
-const DURUM_AD = { odendi: 'Ödendi', kismi: 'Kısmi', bekliyor: 'Ödemedi' };
+const DURUM_AD = { odendi: 'Ödendi', kismi: 'Kısmi', bekliyor: 'Ödenmedi' };
 
 function kartHtml(o) {
-  const [a1, a2] = renk(o.ad);
   const bek = durum.bekleyen.filter(p => p.ogrenci === o.id && p.durum !== 'islendi').length;
   return `<div class="k-ust">
-    <div class="avatar" style="--a1:${a1};--a2:${a2}">${esc(bas(o.ad))}</div>
+    <div class="avatar">${esc(bas(o.ad))}</div>
     <div class="k-orta"><div class="k-ad">${esc(o.ad)}</div><div class="k-alt">${esc(o.sinif)} · ${esc(o.plaka)}</div></div>
     <div class="k-sag"><div class="k-kalan ${o.kalan <= 0.01 ? 'sifir' : ''}">${o.kalan <= 0.01 ? 'Borç yok' : TL(o.kalan)}</div>
-      <span class="rozet-d ${o.durum}">${DURUM_AD[o.durum]}</span>${o.pesin ? '<span class="rozet-d pesin">Peşin</span>' : ''}${bek ? '<span class="rozet-d bek">⏳ ' + bek + '</span>' : ''}</div>
+      <span class="rozet-d ${o.durum}">${DURUM_AD[o.durum]}</span>${o.pesin ? '<span class="rozet-d pesin">Peşin</span>' : ''}${bek ? '<span class="rozet-d bek">' + bek + ' bekliyor</span>' : ''}</div>
   </div>
   <div class="k-bar"><i class="${o.durum}" data-w="${yuzde(o).toFixed(1)}"></i></div>`;
 }
 
 function listeyiCiz(ilk, degisenler = new Set()) {
+  iskeletKaldir();
   const q = sade(durum.ara.trim());
   const secili = durum.veri.ogrenciler.filter(o => filtreUygun(o, durum.filtre) && aramaUygun(o, q));
   const ul = $('#liste'), gor = new Set(secili.map(o => o.id));
@@ -361,7 +425,8 @@ function listeyiCiz(ilk, degisenler = new Set()) {
     let k = kartlar.get(o.id);
     if (!k) {
       const li = document.createElement('li'), b = document.createElement('button');
-      b.type = 'button'; b.className = 'kart yeni'; b.style.animationDelay = Math.min(i, 12) * 35 + 'ms';
+      b.type = 'button'; b.className = 'kart' + (ilk ? ' yeni' : '');
+      if (ilk) b.style.animationDelay = Math.min(i, 8) * 30 + 'ms';   // yalnızca ilk açılışta; filtre/arama değişince kartlar sakin kalır
       b.addEventListener('click', () => ac(o.id));
       li.append(b); k = { li, el: b, imza: '' }; kartlar.set(o.id, k);
       b.addEventListener('animationend', ev => { if (ev.animationName === 'yuksel') b.classList.remove('yeni'); });
@@ -378,6 +443,7 @@ function listeyiCiz(ilk, degisenler = new Set()) {
   });
   ul.append(parca);
   $('#bos').hidden = secili.length > 0;
+  $('#sonuc').textContent = secili.length + ' sonuç';
 }
 
 /* ---------- evraklar ---------- */
@@ -401,8 +467,9 @@ $('#ev-liste').addEventListener('click', async e => {
   try {
     const r = await rpc('evrak', { id: b.dataset.id });
     if (!r.ok) throw new Error(r.hata);
-    if (r.link) {   // çok büyük dosya: Drive'da açılır
-      window.open(r.link, '_blank', 'noopener');
+    if (r.link) {   // çok büyük dosya: Drive'da açılır (yalnızca Google adresleri)
+      if (!/^https:\/\/(drive|docs)\.google\.com\//.test(r.link)) throw new Error('evrak');
+      window.open(r.link, '_blank', 'noopener,noreferrer');
       toast('Büyük dosya Drive\'da açılıyor: ' + r.ad); b.classList.remove('yukleniyor-k'); return;
     }
     const bayt = Uint8Array.from(atob(r.b64), c => c.charCodeAt(0));
@@ -412,7 +479,7 @@ $('#ev-liste').addEventListener('click', async e => {
     setTimeout(() => URL.revokeObjectURL(url), 60000);
     toast('Evrak indirildi: ' + r.ad);
   } catch (err) {
-    toast(err.message === 'buyuk' ? 'Dosya telefona indirilemeyecek kadar büyük.' : err.message === 'ag' ? 'Bağlantı hatası.' : 'Evrak indirilemedi.', 'hata');
+    toast(err.message === 'buyuk' ? 'Dosya telefona indirilemeyecek kadar büyük.' : err.message === 'ag' ? 'Bağlantı kurulamadı. Tekrar dene.' : 'Evrak indirilemedi. Tekrar dene.', 'hata');
   }
   b.classList.remove('yukleniyor-k');
 });
@@ -432,6 +499,7 @@ function ciz(ilk, degisen = []) {
 }
 
 function canliGuncelle() {
+  if (document.hidden) return;   // arka plandaki sekmede saniyelik yazım yapılmaz
   const sn = Math.max(0, Math.round((Date.now() - durum.sonGuncelleme) / 1000));
   const bagli = durum.bagli && sn < YOKLAMA_MS / 1000 * 2.5;
   $('#canli').classList.toggle('kopuk', !bagli);
@@ -448,11 +516,14 @@ $('#ara').addEventListener('input', e => {
 let toastZ = 0;
 function toast(m, tip = 'ok') {
   const t = $('#toast'); t.textContent = m; t.className = 'toast goster ' + tip;
-  clearTimeout(toastZ); toastZ = setTimeout(() => t.classList.remove('goster'), 3200);
+  clearTimeout(toastZ);
+  // hata/uyarı okunabilsin diye daha uzun kalır
+  toastZ = setTimeout(() => t.classList.remove('goster'), tip === 'ok' ? 3200 : 6000);
 }
 
 /* ---------- alt sayfa (ayrıntı ve ödeme formu) ---------- */
 const sayfa = $('#sayfa'), perde = $('#perde');
+let sayfaOnceki = null;
 
 function waNumara(tel) {
   const d = tel.replace(/\D/g, '');
@@ -464,28 +535,27 @@ function waNumara(tel) {
 const BEK_AD = { bekliyor: 'Masaüstü bekleniyor', islendi: 'İşlendi', red: 'Reddedildi' };
 
 function detayDoldur(o, anim) {
-  const [a1, a2] = renk(o.ad);
   const tel = o.tel.replace(/[^\d+]/g, '');
   const bek = durum.bekleyen.filter(p => p.ogrenci === o.id && p.durum !== 'islendi');
   $('#sayfa-icerik').innerHTML = `
-    <div class="d-baslik"><div class="avatar" style="--a1:${a1};--a2:${a2}">${esc(bas(o.ad))}</div>
+    <div class="d-baslik"><div class="avatar">${esc(bas(o.ad))}</div>
       <div><h2>${esc(o.ad)}</h2><p>${esc(o.sinif)} · ${esc(o.plaka)}${o.pesin ? ' · Peşin ödeyen' : ''}</p></div></div>
     <div class="d-ucluk"><div><small>Ücret</small><strong>${TL(o.ucret)}</strong></div>
       <div class="y"><small>Ödenen</small><strong>${TL(o.odenen)}</strong></div>
       <div class="k"><small>Kalan</small><strong>${TL(o.kalan)}</strong></div></div>
     <button class="btn-ana" id="d-odeme-ekle" type="button">+ Ödeme ekle</button>
     <div class="d-eylem">
-      <a class="eylem ${tel ? '' : 'devre'}" href="${tel ? 'tel:' + esc(tel) : '#'}">Ara</a>
-      <a class="eylem ${tel ? '' : 'devre'}" href="${tel ? 'https://wa.me/' + waNumara(tel) : '#'}" target="_blank" rel="noopener">WhatsApp</a>
+      ${tel ? `<a class="eylem" href="tel:${esc(tel)}">Ara</a>` : '<span class="eylem devre" role="link" aria-disabled="true">Ara</span>'}
+      ${tel ? `<a class="eylem" href="https://wa.me/${waNumara(tel)}" target="_blank" rel="noopener">WhatsApp</a>` : '<span class="eylem devre" role="link" aria-disabled="true">WhatsApp</span>'}
     </div>
     ${bek.length ? `<h3 class="d-sec">Gönderilen ödemeler</h3><ul class="zaman bekleyen">${bek.map(p => `
       <li class="${p.durum}"><div class="z-ust"><span>${TL(p.tutar)}</span><span>${esc(p.tarih)}</span></div>
-      <div class="z-alt">${p.durum === 'red' ? '✖ Reddedildi: ' + esc(p.neden || '') : p.gitti ? '⏳ ' + BEK_AD.bekliyor : '📡 Gönderilmeyi bekliyor (bağlantı yok)'}
-      ${p.durum === 'red' ? `<button class="kucuk" data-sil="${p.id}">Kapat</button>` : ''}</div></li>`).join('')}</ul>` : ''}
+      <div class="z-alt">${p.durum === 'red' ? 'Reddedildi: ' + esc(p.neden || '') : p.gitti ? BEK_AD.bekliyor : 'Bağlantı bekleniyor; gelince gönderilecek'}
+      ${p.durum === 'red' ? `<button class="kucuk" data-sil="${esc(p.id)}">Kapat</button>` : ''}</div></li>`).join('')}</ul>` : ''}
     <h3 class="d-sec">Ödemeler</h3>
     ${o.odemeler.length ? `<ul class="zaman">${o.odemeler.map((g, i) => `
       <li style="animation-delay:${anim ? 80 + i * 60 : 0}ms"><div class="z-ust"><span>${TL(g.tutar)}</span><span>${esc(g.tarih)}</span></div>
-      <div class="z-alt">${esc(YONTEM[g.yontem] || g.yontem)}${g.not ? ' · ' + esc(g.not) : ''}${g.dekont ? ' · 📎' : ''}</div></li>`).join('')}</ul>`
+      <div class="z-alt">${esc(YONTEM[g.yontem] || g.yontem)}${g.not ? ' · ' + esc(g.not) : ''}${g.dekont ? ' · Dekont var' : ''}</div></li>`).join('')}</ul>`
       : '<p class="z-alt">Henüz ödeme yok.</p>'}`;
   const ekle = $('#d-odeme-ekle');
   ekle.hidden = !durum.izinler.includes('okul');
@@ -501,19 +571,35 @@ function ac(id) {
 }
 
 function sayfaAc() {
-  perde.hidden = false; sayfa.setAttribute('aria-hidden', 'false'); sayfa.scrollTop = 0;
-  requestAnimationFrame(() => { perde.classList.add('acik'); sayfa.classList.add('acik'); });
+  sayfaOnceki = document.activeElement;
+  perde.hidden = false; sayfa.setAttribute('aria-hidden', 'false'); sayfa.inert = false; sayfa.scrollTop = 0;
+  requestAnimationFrame(() => { perde.classList.add('acik'); sayfa.classList.add('acik'); sayfa.focus({ preventScroll: true }); });
   document.body.style.overflow = 'hidden';
+  history.pushState({ sayfa: 1 }, '');   // geri hareketi uygulamadan çıkmak yerine sayfayı kapatır
 }
 
 function kapat() {
   if (!durum.acik) return;
+  const geri = history.state && history.state.sayfa;
   durum.acik = null; perde.classList.remove('acik'); sayfa.classList.remove('acik'); sayfa.style.transform = '';
-  sayfa.setAttribute('aria-hidden', 'true'); document.body.style.overflow = '';
+  sayfa.setAttribute('aria-hidden', 'true'); sayfa.inert = true; document.body.style.overflow = '';
+  if (sayfaOnceki && sayfaOnceki.isConnected) sayfaOnceki.focus({ preventScroll: true });   // odak, sayfayı açan düğmeye döner
+  sayfaOnceki = null;
+  if (geri) history.back();
   setTimeout(() => { if (!durum.acik) perde.hidden = true; }, 320);
 }
 perde.addEventListener('click', kapat);
-document.addEventListener('keydown', e => { if (e.key === 'Escape') kapat(); });
+window.addEventListener('popstate', () => { if (durum.acik) kapat(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') kapat();
+  if (e.key === 'Tab' && durum.acik) {   // odak açık sayfanın dışına kaçmasın
+    const o = [...sayfa.querySelectorAll('a[href], button:not([disabled]), input:not([type=hidden]):not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])')].filter(x => x.offsetParent !== null);
+    if (!o.length) { e.preventDefault(); return; }
+    const ilk = o[0], son = o[o.length - 1];
+    if (e.shiftKey && (document.activeElement === ilk || document.activeElement === sayfa)) { e.preventDefault(); son.focus(); }
+    else if (!e.shiftKey && document.activeElement === son) { e.preventDefault(); ilk.focus(); }
+  }
+});
 
 (() => {
   let y0 = null, dy = 0;
@@ -522,9 +608,14 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') kapat(); });
   t.addEventListener('pointermove', e => { if (y0 === null) return; dy = Math.max(0, e.clientY - y0); sayfa.style.transform = `translateY(${dy}px)`; });
   const bitir = () => { if (y0 === null) return; y0 = null; sayfa.classList.remove('surukleniyor'); if (dy > 110) kapat(); else sayfa.style.transform = ''; };
   t.addEventListener('pointerup', bitir); t.addEventListener('pointercancel', bitir);
+  t.addEventListener('click', () => { if (dy < 4) kapat(); });   // dokunma/klavye ile de kapanır
+  t.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); kapat(); } });
 })();
 
 /* ---------- ödeme formu ---------- */
+const SVG_A = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+const IKON_KAMERA = SVG_A + '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>';
+const IKON_GALERI = SVG_A + '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
 const bugunISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const trTarih = iso => iso.split('-').reverse().join('.');
 const yeniId = () => [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -550,14 +641,15 @@ function odemeFormu(o) {
         ${Object.entries(YONTEM).map(([k, ad], i) => `<button type="button" data-y="${k}" class="${i ? '' : 'secili'}">${ad}</button>`).join('')}</div></div>
       <label class="alan"><span>Not (isteğe bağlı)</span><input id="f-not" maxlength="200" autocomplete="off"></label>
       <div class="alan"><span>Dekont / fiş fotoğrafı (isteğe bağlı)</span>
-        <div class="foto-sec"><label class="eylem">📷 Fotoğraf çek<input id="f-kamera" type="file" accept="image/*" capture="environment" hidden></label>
-        <label class="eylem">🖼 Galeriden seç<input id="f-galeri" type="file" accept="image/*,application/pdf" hidden></label></div>
+        <div class="foto-sec"><label class="eylem">${IKON_KAMERA}Fotoğraf çek<input id="f-kamera" type="file" accept="image/*" capture="environment" hidden></label>
+        <label class="eylem">${IKON_GALERI}Galeriden seç<input id="f-galeri" type="file" accept="image/*,application/pdf" hidden></label></div>
         <div id="f-onizleme" class="onizleme" hidden></div></div>
       <p id="f-hata" class="hata" role="alert"></p>
       <button class="btn-ana" id="f-gonder" type="submit"><span>Gönder</span><i class="yukleniyor"></i></button>
       <p class="not-kucuk">Ödeme masaüstü uygulamasına iletilir ve orada işlenir; işlenince listede görünür.</p>
     </form>`;
   let yontem = 'nakit', dosya = null;
+  $('#odeme-form').addEventListener('input', e => { e.target.removeAttribute('aria-invalid'); $('#f-hata').textContent = ''; });
   $('#f-geri').addEventListener('click', () => { durum.acik.form = false; detayDoldur(o, false); });
   $('#f-yontem').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return; yontem = b.dataset.y;
@@ -576,9 +668,9 @@ function odemeFormu(o) {
   $('#f-galeri').addEventListener('change', e => dosyaSec(e.target.files[0]));
   $('#odeme-form').addEventListener('submit', async e => {
     e.preventDefault();
-    const hata = $('#f-hata'), tutar = tutarCoz($('#f-tutar').value), tarih = $('#f-tarih').value;
-    hata.textContent = '';
-    if (!(tutar > 0) || tutar > 10000000) { hata.textContent = 'Geçerli bir tutar gir.'; $('#f-tutar').focus(); return; }
+    const hata = $('#f-hata'), tutar = tutarCoz($('#f-tutar').value), tarih = $('#f-tarih').value;$('#f-tarih').setAttribute('aria-invalid', 'true'); $('#f-tarih').focus(); 
+    hata.textContent = ''; $('#f-tutar').removeAttribute('aria-invalid'); $('#f-tarih').removeAttribute('aria-invalid');
+    if (!(tutar > 0) || tutar > 10000000) { hata.textContent = 'Geçerli bir tutar gir.'; $('#f-tutar').setAttribute('aria-invalid', 'true'); $('#f-tutar').focus(); return; }
     if (!tarih || tarih > bugunISO()) { hata.textContent = 'Geçerli bir tarih seç (bugünden sonrası olamaz).'; return; }
     if (o.ucret > 0 && tutar > o.kalan + 0.01 &&
         !confirm(`Girilen tutar (${TL(tutar)}) kalan borçtan (${TL(o.kalan)}) fazla. Yine de gönderilsin mi?`)) return;
@@ -636,7 +728,7 @@ async function bekleyenleriIsle() {
       if (d.ok) durum.bekleyen.forEach(p => {
         const s = d.durumlar[p.id]; if (!s || s.d === 'bekliyor') return;
         p.durum = s.d === 'islendi' ? 'islendi' : 'red'; p.neden = s.m;
-        if (p.durum === 'islendi') { toast(p.tur === 'kayit' ? 'Kayıt işlendi ✔' : 'Ödeme işlendi ✔'); yenileGerek = true; }
+        if (p.durum === 'islendi') { toast(p.tur === 'kayit' ? 'Kayıt işlendi.' : 'Ödeme işlendi.'); yenileGerek = true; }
       });
     }
   } catch (e) { /* ağ hatası: bir sonraki turda */ }
@@ -654,5 +746,6 @@ setInterval(() => { if (durum.token && durum.bekleyen.some(p => p.durum === 'bek
 /* ---------- başlangıç ---------- */
 document.addEventListener('visibilitychange', () => { if (!document.hidden) cek(); });
 window.addEventListener('online', cek);
+try { markaUygula(JSON.parse(localStorage.getItem('marka') || 'null')); } catch { /* bozuk kayıt: varsayılan marka */ }
 if (durum.token) anaGoster(); else girisGoster();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
