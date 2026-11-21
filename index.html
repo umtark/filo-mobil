@@ -72,11 +72,16 @@
     </div>
   </header>
 
+  <div id="veri-uyari" class="veri-uyari" role="status" hidden>
+    <p>Veriler alınamadı. Bağlantını kontrol edip tekrar dene.</p>
+    <button type="button" class="daha" id="yeniden">Yeniden dene</button>
+  </div>
+
   <section id="v-tahsilat" class="gorunum">
-    <section class="ozet" aria-label="Özet">
+    <section class="ozet vurgulu" aria-label="Özet">
+      <div class="ozet-kart" data-tone="kehribar"><small>Kalan</small><strong id="o-kalan">0 ₺</strong></div>
       <div class="ozet-kart" data-tone="mor"><small>Toplam ücret</small><strong id="o-ucret">0 ₺</strong></div>
       <div class="ozet-kart" data-tone="yesil"><small>Tahsil edilen</small><strong id="o-odenen">0 ₺</strong></div>
-      <div class="ozet-kart" data-tone="kehribar"><small>Kalan</small><strong id="o-kalan">0 ₺</strong></div>
       <div class="ozet-kart" data-tone="mavi"><small>Tahsilat oranı</small><strong id="o-oran">%0</strong>
         <span class="bar"><i id="o-bar"></i></span></div>
     </section>

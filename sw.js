@@ -1,5 +1,5 @@
 ﻿// Yalnızca sayfa kabuğunu önbelleğe alır; öğrenci verisi (/api) asla önbelleğe alınmaz.
-const SURUM = 'filo-v14';
+const SURUM = 'filo-v15';
 const KABUK = ['./', 'index.html', 'stil.css', 'ayar.js', 'moduller.js', 'uygulama.js', 'manifest.webmanifest',
   'ikon-192.png', 'ikon-512.png', 'ikon-maskable-512.png', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png',
   ...['dashboard', 'tahsilat', 'evrak', 'fatura', 'arac', 'esnaf', 'petrol', 'ic_hizmet', 'ayarlar'].map(i => 'ikon/' + i + '.png')];
@@ -13,12 +13,20 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.startsWith('/api/')) return;
-  // Önce ağ (güncel kalsın), ağ yoksa önbellek; yalnızca başarılı yanıtlar önbelleğe yazılır
-  e.respondWith(fetch(e.request, { cache: 'no-cache' }).then(r => {
-    if (r.ok && r.type === 'basic') {
-      const kopya = r.clone();
-      e.waitUntil(caches.open(SURUM).then(c => c.put(e.request, kopya)));
-    }
+  // Önce ağ (güncel kalsın); ağ yanıt vermiyorsa 3,5 sn sonra önbellekten açılır. Yalnızca başarılı yanıtlar önbelleğe yazılır
+  const ag = fetch(e.request, { cache: 'no-cache' }).then(r => {
+    if (r.ok && r.type === 'basic') { const kopya = r.clone(); caches.open(SURUM).then(c => c.put(e.request, kopya)); }
     return r;
-  }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(m => m || (e.request.mode === 'navigate' ? caches.match('./') : Response.error()))));
+  });
+  e.waitUntil(ag.catch(() => {}));   // yanıt önbellekten verilse bile ağ isteği tamamlanıp önbelleği tazeler
+  const yedek = () => caches.match(e.request, { ignoreSearch: true }).then(m => m || (e.request.mode === 'navigate' ? caches.match('./') : null));
+  e.respondWith((async () => {
+    try {
+      const hizli = await Promise.race([ag, new Promise(r => setTimeout(() => r(null), 3500))]);
+      if (hizli) return hizli;
+      return (await yedek()) || await ag;   // önbellekte yoksa ağı beklemeye devam
+    } catch (err) {
+      return (await yedek()) || Response.error();
+    }
+  })());
 });

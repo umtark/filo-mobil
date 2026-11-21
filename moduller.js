@@ -214,7 +214,7 @@ function formAc(cfg) {
       if (ilk) { ilk.setAttribute('aria-invalid', 'true'); ilk.focus(); }
       return;
     }
-    if (cfg.onay && !confirm(cfg.onay(veri))) return;
+    if (cfg.onay && !(await onay('Gönderilsin mi?', cfg.onay(veri), 'Gönder'))) return;
     const p = { id: yeniId(), tur: 'kayit', modul: cfg.modul, islem: cfg.islem, veri, ozet: cfg.ozet(veri),
                 foto: dosya ? { mime: dosya.mime, b64: dosya.b64 } : null, gitti: false, durum: 'bekliyor' };
     durum.bekleyen.push(p); bekleyenKaydet();
@@ -262,7 +262,7 @@ const FATURA = {
   kartlar: l => {
     const gelir = topla(l.filter(x => x.tip === 'giden'), x => x.top), gider = topla(l.filter(x => x.tip === 'gelen'), x => x.top);
     return [{ ad: 'Gelir (giden)', deger: gelir, bicim: TL, ton: 'yesil' }, { ad: 'Gider (gelen)', deger: gider, bicim: TL, ton: 'kehribar' },
-            { ad: 'Fark', deger: gelir - gider, bicim: TL, ton: 'mor' }, { ad: 'Fatura sayısı', deger: l.length, bicim: v => String(Math.round(v)), ton: 'mavi' }];
+            { ad: 'Fark', deger: gelir - gider, bicim: TL, ton: gelir - gider >= 0 ? 'yesil' : 'kirmizi' }, { ad: 'Fatura sayısı', deger: l.length, bicim: v => String(Math.round(v)), ton: 'mavi' }];
   },
   satir: x => satirHtml(esc(x.firma || x.no), `${esc(trGoster(x.t))} · ${esc(x.no)}`, TL(x.top), rozet(x.tip === 'gelen' ? 'Gelen' : 'Giden', x.tip === 'gelen' ? 'bekliyor' : 'odendi')),
   detay: x => `<div class="d-baslik"><div><h2>${esc(x.firma)}</h2><p>${esc(trGoster(x.t))} · ${x.tip === 'gelen' ? 'Gelen' : 'Giden'} fatura</p></div></div>
@@ -432,13 +432,23 @@ const IC = {
 /* ---------- Ana Sayfa ---------- */
 const anaDurum = { hepsi: false, sec: null, aylik: [] };
 const grOku = a => `<b>${esc(ayAdi(a.ay))}</b><span class="g">Gelir ${TL(a.gelir)}</span><span class="d">Gider ${TL(a.gider)}</span>`;
-document.addEventListener('click', e => {
-  if (e.target.closest('#dik-daha')) { anaDurum.hepsi = !anaDurum.hepsi; anaCiz(); return; }
-  const g = e.target.closest('.b-grup'), a = g && anaDurum.aylik[+g.dataset.i];
-  if (!a) return;
+function grafikSec(g) {
+  const a = anaDurum.aylik[+g.dataset.i]; if (!a) return;
   anaDurum.sec = +g.dataset.i;
   document.querySelectorAll('.b-grup').forEach(x => { const s = x === g; x.classList.toggle('secili', s); x.setAttribute('aria-pressed', String(s)); });
   $('#gr-oku').innerHTML = grOku(a);
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('#dik-daha')) { anaDurum.hepsi = !anaDurum.hepsi; anaCiz(); return; }
+  const g = e.target.closest('.b-grup'); if (g) grafikSec(g);
+});
+// Parmağı grafik üzerinde kaydırınca ay ay seçilir: 12 dar sütuna tek tek isabet etmek gerekmez
+document.addEventListener('pointermove', e => {
+  if (e.pointerType === 'mouse' && !e.buttons) return;
+  const gr = e.target.closest && e.target.closest('.grafik'); if (!gr) return;
+  const r = gr.getBoundingClientRect();
+  const g = document.elementFromPoint(Math.min(Math.max(e.clientX, r.left + 1), r.right - 1), r.top + r.height / 2)?.closest('.b-grup');
+  if (g && !g.classList.contains('secili')) grafikSec(g);
 });
 function anaCiz() {
   const s = $('#v-dashboard'); if (!s) return;
@@ -448,15 +458,16 @@ function anaCiz() {
   anaDurum.aylik = v.aylik;
   const sec = Math.min(anaDurum.sec ?? v.aylik.length - 1, v.aylik.length - 1);
   const belgeler = v.belgeler.map(b => ({ ...b, g: gunFarki(b.son) })).filter(b => b.g !== null && b.g <= 30).sort((a, b) => a.g - b.g);
+  const ilkCizim = !anaDurum.cizildi; anaDurum.cizildi = true;   // çubuklar yalnızca ilk çizimde büyür; veri tazelenince yeniden oynamaz
   const bar = (a, i) => { const h1 = Math.max(0, a.gelir) / maks * 100, h2 = Math.max(0, a.gider) / maks * 100;
-    return `<button type="button" class="b-grup${i === sec ? ' secili' : ''}" data-i="${i}" aria-pressed="${i === sec}" aria-label="${esc(ayAdi(a.ay))}: gelir ${TL(a.gelir)}, gider ${TL(a.gider)}"><div class="b-cift"><i class="gelir" style="height:${h1}%;animation-delay:${i * 40}ms"></i><i class="gider" style="height:${h2}%;animation-delay:${i * 40 + 20}ms"></i></div><small>${AYLAR[+a.ay.slice(5) - 1].slice(0, 3)}</small></button>`; };
-  s.innerHTML = `<section class="ozet"><div class="ozet-kart" data-tone="yesil"><small>${esc(ayAdi(bu.ay))} gelir</small><strong>${TLK(bu.gelir)}</strong></div>
+    return `<button type="button" class="b-grup${i === sec ? ' secili' : ''}" data-i="${i}" aria-pressed="${i === sec}" aria-label="${esc(ayAdi(a.ay))}: gelir ${TL(a.gelir)}, gider ${TL(a.gider)}"><div class="b-cift"><i class="gelir" style="height:${h1}%;animation-delay:${i * 15}ms"></i><i class="gider" style="height:${h2}%;animation-delay:${i * 15 + 10}ms"></i></div><small>${AYLAR[+a.ay.slice(5) - 1].slice(0, 3)}</small></button>`; };
+  s.innerHTML = `<section class="ozet vurgulu"><div class="ozet-kart" data-tone="${bu.gelir - bu.gider >= 0 ? 'yesil' : 'kirmizi'}"><small>${esc(ayAdi(bu.ay))} farkı</small><strong>${TLK(bu.gelir - bu.gider)}</strong></div>
+    <div class="ozet-kart" data-tone="yesil"><small>${esc(ayAdi(bu.ay))} gelir</small><strong>${TLK(bu.gelir)}</strong></div>
     <div class="ozet-kart" data-tone="kehribar"><small>${esc(ayAdi(bu.ay))} gider</small><strong>${TLK(bu.gider)}</strong></div>
-    <div class="ozet-kart" data-tone="${bu.gelir - bu.gider >= 0 ? 'yesil' : 'kirmizi'}"><small>Fark</small><strong>${TLK(bu.gelir - bu.gider)}</strong></div>
     <div class="ozet-kart" data-tone="mavi"><small>Esnaf borcu</small><strong>${TLK(v.esnaf_borc)}</strong></div>
     <div class="ozet-kart" data-tone="mor"><small>Araç sayısı</small><strong>${SAYI(+v.arac_sayisi || 0)}</strong></div>
     <div class="ozet-kart" data-tone="${belgeler.length ? 'kehribar' : 'yesil'}"><small>Dikkat gerektiren belge</small><strong>${belgeler.length}</strong></div></section>
-    <h3 class="d-sec">Son 12 ay</h3><p class="gr-oku" id="gr-oku" aria-live="polite">${v.aylik.length ? grOku(v.aylik[sec]) : ''}</p><div class="grafik sec">${v.aylik.map(bar).join('')}</div>
+    <h3 class="d-sec">Son 12 ay</h3><p class="gr-oku" id="gr-oku" aria-live="polite">${v.aylik.length ? grOku(v.aylik[sec]) : ''}</p><div class="grafik sec${ilkCizim ? ' ilk-cizim' : ''}">${v.aylik.map(bar).join('')}</div>
     <div class="lejant"><span><i class="gelir"></i>Gelir</span><span><i class="gider"></i>Gider</span></div>
     <h3 class="d-sec">Dikkat edilmesi gerekenler <b class="sayi-rozet">${belgeler.length}</b></h3>
     ${belgeler.length ? `<ul class="belge-liste">${(anaDurum.hepsi ? belgeler : belgeler.slice(0, 6)).map(b => `<li><div><b>${esc(b.plaka)} · ${esc(b.ad)}</b><small>${esc(b.firma)} · ${esc(b.son)}</small></div>${rozet(gunYazi(b.g), b.g < 0 ? 'bekliyor' : 'kismi')}</li>`).join('')}</ul>
@@ -515,7 +526,7 @@ function kullaniciDetay(u) {
     <button class="btn-tehlike" id="ku-sil" type="button">Kullanıcıyı sil</button>`;
   $('#ku-duzenle').addEventListener('click', () => kullaniciForm(u));
   $('#ku-sil').addEventListener('click', async () => {
-    if (!confirm(`"${u.ad}" silinsin mi? Telefondan ve masaüstünden girişi kapanır.`)) return;
+    if (!(await onay('Kullanıcı silinsin mi?', `"${u.ad}" silinirse telefondan ve masaüstünden girişi kapanır.`, 'Sil', true))) return;
     kapat(); await ayarGonder({ eylem: 'sil', ad: u.ad }, `Kullanıcıyı sil: ${u.ad}`);
   });
   sayfaAc();
