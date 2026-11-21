@@ -27,10 +27,14 @@ const AZ_HAREKET = matchMedia('(prefers-reduced-motion: reduce)');
 const TEMA_RENK = { koyu: '#0a0e13', acik: '#eceff2' };
 function temaUygula(t, kaydet) {
   const k = document.documentElement;
-  if (kaydet) { k.classList.add('tema-gecis'); setTimeout(() => k.classList.remove('tema-gecis'), 350); }
-  k.setAttribute('data-tema', t);
+  const uygula = () => {
+    k.setAttribute('data-tema', t);
+    $('meta[name=theme-color]').setAttribute('content', TEMA_RENK[t]);
+  };
+  // Geçişte yüzlerce elemanı tek tek animasyonlamak takılıyordu; tarayıcı eski/yeni görüntüyü tek karede çapraz karıştırır
+  if (kaydet && document.startViewTransition && !AZ_HAREKET.matches) document.startViewTransition(uygula);
+  else uygula();
   if (kaydet) { try { localStorage.setItem('tema', t); } catch { /* yoksay */ } }
-  $('meta[name=theme-color]').setAttribute('content', TEMA_RENK[t]);
   document.querySelectorAll('[data-tema-degistir]').forEach(b => {
     const y = t === 'koyu' ? 'Açık temaya geç' : 'Koyu temaya geç';
     b.setAttribute('aria-label', y); b.title = y;

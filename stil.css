@@ -342,7 +342,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .kart:hover { border-color: var(--kenar); } .chip:hover { border-color: var(--kenar); color: var(--yazi); }
   .chip.secili:hover { color: var(--on-ana); } .alt-nav button:hover:not(.secili) { color: var(--yazi); } .ikon-btn:hover { color: var(--yazi); border-color: var(--kenar); }
 }
-html.tema-gecis, html.tema-gecis *:not(svg):not(.sayfa):not(.perde) { transition: background-color .3s ease, border-color .3s ease, color .3s ease !important; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .35s; animation-timing-function: ease; mix-blend-mode: normal; }
 .sayfa:focus { outline: none; }
 
 /* ---------- animasyonlar ---------- */
