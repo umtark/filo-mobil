@@ -17,7 +17,7 @@ const durum = {
   token: localStorage.getItem('token') || '', kullanici: localStorage.getItem('kullanici') || '',
   izinler: (() => { try { const a = JSON.parse(localStorage.getItem('izinler') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
   veri: null, mod: {}, bilinen: {}, filtre: 'hepsi', ara: '', evAra: '', gorunum: localStorage.getItem('gorunum') || 'dashboard', kuruldu: false,
-  sonGuncelleme: 0, bagli: true, acik: null, zamanlayici: 0, bekleyen: [],
+  sonGuncelleme: 0, bagli: true, acik: null, zamanlayici: 0, bekleyen: [], okSekme: 'ogr',
 };
 const kartlar = new Map();
 const sayilar = {};
@@ -176,7 +176,8 @@ const gorunumModulu = g => VERI_MODULU[g] || g;
 
 function veriKur() {
   const o = durum.mod.okul || {};
-  durum.veri = { donem_ad: o.donem_ad || '', ogrenciler: o.ogrenciler || [], evraklar: (durum.mod.sirket_evrak || {}).evraklar || [] };
+  durum.veri = { donem_ad: o.donem_ad || '', ogrenciler: o.ogrenciler || [], servisler: o.servisler || [], servis_yok: o.servis_yok || [], atanmamis: o.atanmamis || [],
+    evraklar: (durum.mod.sirket_evrak || {}).evraklar || [] };
 }
 
 function modulleriUygula(j) {
@@ -394,7 +395,7 @@ function filtreleriKur() {
 
 function filtreSayilari() {
   const liste = durum.veri ? durum.veri.ogrenciler : [];
-  document.querySelectorAll('.chip').forEach(c => {
+  document.querySelectorAll('#filtreler .chip').forEach(c => {
     c.classList.toggle('secili', c.dataset.k === durum.filtre);
     c.setAttribute('aria-pressed', String(c.dataset.k === durum.filtre));
     c.querySelector('b').textContent = liste.filter(o => filtreUygun(o, c.dataset.k)).length;
@@ -476,6 +477,91 @@ function listeyiCiz(ilk, degisenler = new Set()) {
   $('#sonuc').textContent = secili.length + ' sonuç';
 }
 
+/* ---------- okul: servisler, servis kullanmayanlar, atanmamışlar, indirim / kayıp ---------- */
+const OK_SEKMELER = [['ogr', 'Öğrenciler'], ['srv', 'Servisler'], ['yok', 'Servis kullanmayan'], ['atan', 'Atanmamış'], ['ind', 'İndirim / Kayıp']];
+function okSayi(k) {
+  const v = durum.veri; if (!v) return 0;
+  return k === 'ogr' ? v.ogrenciler.length : k === 'srv' ? v.servisler.length : k === 'yok' ? v.servis_yok.length : k === 'atan' ? v.atanmamis.length : v.ogrenciler.filter(o => o.indirim > 0).length;
+}
+function okulSekmeCiz() {
+  const nav = $('#ok-sekme');
+  if (!nav.childElementCount) OK_SEKMELER.forEach(([k, ad]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.dataset.k = k; b.innerHTML = `${esc(ad)}<b>0</b>`;
+    b.addEventListener('click', () => { durum.okSekme = k; okulSekmeCiz(); okulDigerCiz(); });
+    nav.append(b);
+  });
+  nav.querySelectorAll('.chip').forEach(c => {
+    const s = c.dataset.k === durum.okSekme; c.classList.toggle('secili', s); c.setAttribute('aria-pressed', String(s)); c.querySelector('b').textContent = okSayi(c.dataset.k);
+  });
+  $('#ok-ogr').hidden = durum.okSekme !== 'ogr'; $('#ok-diger').hidden = durum.okSekme === 'ogr';
+}
+
+const kisiKart = k => `<li><button type="button" class="kart" data-ogr="${esc(k.id)}"><div class="k-ust"><div class="avatar">${esc(bas(k.ad))}</div>
+  <div class="k-orta"><div class="k-ad">${esc(k.ad)}</div><div class="k-alt">${esc(k.sinif || '—')}${k.tel ? ' · ' + esc(k.tel) : ''}</div></div></div></button></li>`;
+
+function servisKart(s) {
+  const belge = s.belgeler.map(b => { const g = gunFarki(b.son); return g === null ? '' : rozet(`${b.ad}: ${gunYazi(g)}`, g < 0 ? 'bekliyor' : g <= 30 ? 'kismi' : 'odendi'); }).join('');
+  const tel = (s.tel || '').replace(/[^\d+]/g, '');
+  return `<li><div class="kart sabit"><div class="k-ust"><div class="k-orta"><div class="k-ad">${esc(s.plaka)}${s.no ? ' · ' + esc(s.no) : ''}</div>
+    <div class="k-alt">${esc([s.tip, s.guz].filter(Boolean).join(' · ') || '—')}</div></div>
+    <div class="k-sag"><div class="k-kalan ${s.kalan <= 0.01 ? 'sifir' : ''}">${s.kalan <= 0.01 ? 'Borç yok' : TL(s.kalan)}</div><div class="k-alt">${SAYI(s.ogr)} öğrenci</div></div></div>
+    <div class="srv-satir"><span>${s.sofor ? esc(s.sofor) : 'Şoför yok'}${tel ? ` · <a href="tel:${esc(tel)}">${esc(s.tel)}</a>` : ''}</span><span>Ücret ${TL(s.ucret)} · Tahsil ${TL(s.odenen)}</span></div>
+    ${s.sahip ? `<div class="srv-satir"><span>Sahibi: ${esc(s.sahip)}</span></div>` : ''}${belge ? `<div class="srv-rozet">${belge}</div>` : ''}</div></li>`;
+}
+
+function indirimHtml(v) {
+  const l = v.ogrenciler.filter(o => o.normal > 0), ind = l.filter(o => o.indirim > 0).sort((a, b) => b.indirim - a.indirim);
+  const aylik = topla(ind, o => o.indirim), normal = topla(l, o => o.normal), ucret = topla(l, o => o.ucret);
+  return `<section class="ozet vurgulu" aria-label="Özet"><div class="ozet-kart" data-tone="kirmizi"><small>Aylık toplam indirim</small><strong>${TL(aylik)}</strong></div>
+    <div class="ozet-kart" data-tone="mor"><small>Normal liste fiyatı</small><strong>${TLK(normal)}</strong></div><div class="ozet-kart" data-tone="yesil"><small>Uygulanan ücret</small><strong>${TLK(ucret)}</strong></div>
+    <div class="ozet-kart" data-tone="kehribar"><small>İndirimli öğrenci</small><strong>${ind.length} / ${l.length}</strong></div></section>
+    <p class="z-alt ok-not">Normal liste fiyatı girilmiş öğrenciler karşılaştırılır; fark, o öğrencideki aylık indirimdir.</p>
+    ${ind.length ? `<ul class="liste">${ind.map(o => `<li><div class="kart sabit"><div class="k-ust"><div class="avatar">${esc(bas(o.ad))}</div>
+      <div class="k-orta"><div class="k-ad">${esc(o.ad)}</div><div class="k-alt">${esc(o.sinif)} · ${esc(o.plaka)}</div><div class="k-alt">${TL(o.normal)} → ${TL(o.ucret)} · %${SAYI(Math.round(o.indirim / o.normal * 1000) / 10)}</div></div>
+      <div class="k-sag"><div class="k-kalan kirmizi-y">−${TL(o.indirim)}</div></div></div></div></li>`).join('')}</ul>`
+      : '<p class="bos">İndirimli öğrenci yok.</p>'}`;
+}
+
+function okulDigerCiz() {
+  const y = $('#ok-diger'), v = durum.veri, k = durum.okSekme;
+  if (!v || k === 'ogr') return;
+  if (k === 'srv') y.innerHTML = v.servisler.length ? `<ul class="liste">${v.servisler.map(servisKart).join('')}</ul>` : '<p class="bos">Kayıtlı servis aracı yok.</p>';
+  else if (k === 'ind') y.innerHTML = indirimHtml(v);
+  else {
+    const l = k === 'yok' ? v.servis_yok : v.atanmamis;
+    y.innerHTML = `<p class="z-alt ok-not">${k === 'yok' ? 'Servis kullanmadığı işaretlenen öğrenciler tahsilat listesinde yer almaz.' : 'Henüz bir servis aracına atanmamış öğrenciler tahsilat listesinde yer almaz.'} Dokununca bilgilerini düzenleyebilir ya da servise atayabilirsin.</p>`
+      + (l.length ? `<ul class="liste">${l.map(kisiKart).join('')}</ul>` : '<p class="bos">Kayıt yok.</p>');
+  }
+}
+$('#ok-diger').addEventListener('click', e => {
+  const b = e.target.closest('[data-ogr]'); if (!b || !durum.izinler.includes('okul')) return;
+  const k = [...durum.veri.servis_yok, ...durum.veri.atanmamis].find(x => x.id === b.dataset.ogr); if (!k) return;
+  ogrenciForm(k, false); sayfaAc();
+});
+
+// Ad, sınıf, telefon ve servis ataması; masaüstüne iletilir ve orada uygulanır
+function ogrenciForm(k, detaydan) {
+  const mevcut = k.plaka || '';
+  formAc({
+    modul: 'okul', islem: 'ogrenci', baslik: 'Öğrenci bilgileri', alt: k.ad,
+    geri: detaydan ? () => { durum.acik = { tur: 'ogrenci', id: k.id, form: false }; detayDoldur(durum.veri.ogrenciler.find(x => x.id === k.id) || k, false); } : null,
+    alanlar: [{ k: 'ad', etiket: 'Ad soyad', tur: 'metin', zorunlu: true, maks: 120, varsayilan: k.ad }, { k: 'sinif', etiket: 'Sınıf', tur: 'metin', maks: 40, varsayilan: k.sinif || '' },
+      { k: 'tel', etiket: 'Veli telefonu', tur: 'metin', maks: 30, varsayilan: k.tel || '' },
+      { k: 'servis', etiket: 'Servis', tur: 'sec', secenekler: [['', mevcut ? `Değiştirme (${mevcut})` : 'Değiştirme'], ['YOK', 'Servis kullanmıyor'],
+        ...durum.veri.servisler.map(s => [s.plaka, s.plaka + (s.sofor ? ' · ' + s.sofor : '')])], varsayilan: '' }],
+    hazirla: d => {
+      const v = { ogrenci: k.id }, ad = gerekli(d('ad'), 'Ad soyad'), sinif = d('sinif').trim(), tel = d('tel').trim(), servis = d('servis');
+      if (ad !== k.ad) v.ad = ad;
+      if (sinif && sinif !== (k.sinif || '')) v.sinif = sinif;
+      if (tel && tel !== (k.tel || '')) v.tel = tel;
+      if (servis) v.servis = servis;
+      if (Object.keys(v).length === 1) throw new Error('Değiştirilmiş bir bilgi yok.');
+      return v;
+    },
+    ozet: () => `Öğrenci bilgisi: ${k.ad}`,
+  });
+}
+
 /* ---------- evraklar ---------- */
 function evrakCiz() {
   const q = sade(durum.evAra.trim());
@@ -484,7 +570,10 @@ function evrakCiz() {
   liste.forEach(e => (gruplar[e.kategori || 'Diğer'] ||= []).push(e));
   $('#ev-liste').innerHTML = Object.entries(gruplar).map(([kat, l]) => `
     <h3 class="d-sec">${esc(kat)} <b>${l.length}</b></h3>
-    <ul class="liste">${l.map(e => `<li><button class="kart ev" data-id="${esc(e.id)}">
+    <ul class="liste">${l.map(e => e.yuklu === false ? `<li><div class="kart ev-yok" aria-disabled="true">
+      <div class="k-ust"><div class="avatar ev-ikon">${esc((e.dosya_adi.split('.').pop() || '').slice(0, 4).toUpperCase())}</div>
+      <div class="k-orta"><div class="k-ad">${esc(e.baslik)}</div><div class="k-alt">${esc(e.firma)}${e.yil ? ' · ' + esc(e.yil) : ''} · Drive'a yüklenmemiş</div></div></div></div></li>`
+      : `<li><button class="kart ev" data-id="${esc(e.id)}">
       <div class="k-ust"><div class="avatar ev-ikon">${esc((e.dosya_adi.split('.').pop() || '').slice(0, 4).toUpperCase())}</div>
       <div class="k-orta"><div class="k-ad">${esc(e.baslik)}</div><div class="k-alt">${esc(e.firma)}${e.yil ? ' · ' + esc(e.yil) : ''}${e.gecerlilik ? ' · Geçerlilik ' + esc(e.gecerlilik) : ''}</div></div>
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M5 21h14"/></svg></div></button></li>`).join('')}</ul>`).join('');
@@ -522,7 +611,7 @@ function ciz(ilk, degisen = []) {
   durum.veri.ogrenciler.forEach(o => { const p = onceki.get(o.id); if (p && p.odenen !== o.odenen) degisenler.add(o.id); });
   durum._onceki = new Map(durum.veri.ogrenciler.map(o => [o.id, { odenen: o.odenen }]));
   $('#donem').textContent = durum.veri.donem_ad;
-  if (durum.izinler.includes('okul') && degisen.includes('okul')) { ozetCiz(); filtreSayilari(); listeyiCiz(ilk, degisenler); }
+  if (durum.izinler.includes('okul') && degisen.includes('okul')) { ozetCiz(); filtreSayilari(); listeyiCiz(ilk, degisenler); okulSekmeCiz(); okulDigerCiz(); }
   if (durum.izinler.includes('sirket_evrak') && degisen.includes('sirket_evrak')) evrakCiz();
   modullerCiz(degisen);
   if (durum.acik?.tur === 'ogrenci') { const o = durum.veri.ogrenciler.find(x => x.id === durum.acik.id); if (o && !durum.acik.form) detayDoldur(o, false); }
@@ -592,6 +681,7 @@ function detayDoldur(o, anim) {
       ${tel ? `<a class="eylem" href="tel:${esc(tel)}">Ara</a>` : '<span class="eylem devre" role="link" aria-disabled="true">Ara</span>'}
       ${tel ? `<a class="eylem" href="https://wa.me/${waNumara(tel)}" target="_blank" rel="noopener">WhatsApp</a>` : '<span class="eylem devre" role="link" aria-disabled="true">WhatsApp</span>'}
     </div>
+    <div class="d-eylem tek"><button class="eylem" id="d-duzenle" type="button">Bilgileri düzenle / servis değiştir</button></div>
     ${bek.length ? `<h3 class="d-sec">Gönderilen ödemeler</h3><ul class="zaman bekleyen">${bek.map(p => `
       <li class="${p.durum}"><div class="z-ust"><span>${TL(p.tutar)}</span><span>${esc(p.tarih)}</span></div>
       <div class="z-alt">${p.durum === 'red' ? 'Reddedildi: ' + esc(p.neden || '') : p.gitti ? BEK_AD.bekliyor : 'Bağlantı bekleniyor; gelince gönderilecek'}
@@ -609,6 +699,8 @@ function detayDoldur(o, anim) {
   const ekle = $('#d-odeme-ekle');
   ekle.hidden = !durum.izinler.includes('okul');
   ekle.addEventListener('click', () => odemeFormu(o));
+  const duz = $('#d-duzenle'); duz.hidden = !durum.izinler.includes('okul');
+  duz.addEventListener('click', () => ogrenciForm(o, true));
   $('#sayfa-icerik').querySelectorAll('[data-sil]').forEach(b => b.addEventListener('click', () => {
     durum.bekleyen = durum.bekleyen.filter(p => p.id !== b.dataset.sil); bekleyenKaydet(); detayDoldur(o, false); listeyiCiz(false);
   }));
