@@ -22,28 +22,31 @@ button { cursor: pointer; }
 /* ---------- giriş ---------- */
 .giris { min-height: 100dvh; display: grid; place-items: center; padding: 24px; padding-top: calc(24px + var(--ust-bosluk)); }
 .giris-kart {
-  width: min(100%, 380px); padding: 32px 24px 24px; border-radius: 24px; text-align: center;
-  background: linear-gradient(180deg, rgba(42, 32, 64, .85), rgba(31, 24, 48, .85)); border: 1px solid var(--cizgi);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, .45); backdrop-filter: blur(10px); animation: yuksel .7s var(--egri) both;
+  width: min(100%, 380px); padding: 36px 24px 24px; border-radius: 24px; text-align: center;
+  background: var(--yuz); border: 1px solid var(--cizgi);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .3), 0 24px 48px -12px rgba(0, 0, 0, .55); animation: yuksel .6s var(--egri) both;
 }
-.giris-kart .logo { border-radius: 22px; margin-bottom: 14px; animation: nefes 4s ease-in-out infinite; }
-.giris-kart h1 { margin: 0; font-size: 24px; letter-spacing: .2px; }
-.giris-kart .alt { margin: 2px 0 22px; color: var(--soluk); }
+.giris-kart .logo { border-radius: 22px; margin-bottom: 18px; box-shadow: 0 6px 16px rgba(0, 0, 0, .4); }
+.giris-kart h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -.02em; text-wrap: balance; }
+.giris-kart .alt { margin: 4px 0 28px; color: var(--soluk); font-size: 14px; }
 .alan { display: block; text-align: left; margin-bottom: 14px; }
-.alan span { display: block; font-size: 12px; color: var(--soluk); margin: 0 0 6px 4px; }
+.alan span { display: block; font-size: 13px; font-weight: 600; color: var(--soluk); margin: 0 0 6px 2px; }
 .alan input {
-  width: 100%; height: 50px; padding: 0 16px; border-radius: 14px; border: 1px solid var(--cizgi);
-  background: var(--bg); outline: none; font-size: 17px; transition: border-color .2s, box-shadow .2s;
+  width: 100%; height: 52px; padding: 0 16px; border-radius: 14px; border: 1px solid var(--cizgi);
+  background: var(--bg); outline: none; font-size: 17px; caret-color: var(--mor-a); transition: border-color .2s, box-shadow .2s;
 }
-.alan input:focus { border-color: var(--mor-a); box-shadow: 0 0 0 4px rgba(124, 58, 237, .25); }
+.alan input:focus { border-color: var(--mor-a); box-shadow: 0 0 0 3px rgba(167, 139, 250, .28); }
 .hata { min-height: 20px; margin: 0 0 10px; color: #fca5a5; font-size: 13px; }
 .giris-kart.salla { animation: salla .45s; }
 .btn-ana {
-  position: relative; width: 100%; height: 52px; border: 0; border-radius: 14px; font-weight: 700; font-size: 16px;
-  background: linear-gradient(135deg, #8b5cf6, #6d28d9); box-shadow: 0 10px 24px rgba(109, 40, 217, .4);
-  transition: transform .15s var(--egri), filter .2s;
+  position: relative; width: 100%; height: 52px; border: 0; border-radius: 14px; font-weight: 700; font-size: 16px; color: #fff;
+  background: var(--mor); box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 16px -4px rgba(124, 58, 237, .45);
+  transition: transform .15s var(--egri), background .2s;
 }
+.btn-ana:hover { background: #8b4df0; }
 .btn-ana:active { transform: scale(.97); }
+.btn-ana:focus-visible, .ikon-btn:focus-visible, .chip:focus-visible, .kart:focus-visible { outline: 2px solid var(--mor-a); outline-offset: 3px; }
+::selection { background: rgba(167, 139, 250, .35); color: #fff; }
 .btn-ana .yukleniyor { display: none; position: absolute; right: 18px; top: 50%; width: 18px; height: 18px; margin-top: -9px;
   border: 2px solid rgba(255, 255, 255, .35); border-top-color: #fff; border-radius: 50%; animation: don .7s linear infinite; }
 .btn-ana.bekle { filter: saturate(.7); pointer-events: none; }
