@@ -172,6 +172,7 @@ async function cek() {
   } catch (e) { if (e.message !== 'oturum') durum.bagli = false; }
   cekMesgul = false;
   canliGuncelle();
+  if (durum.gorunum === 'ayarlar') ayarlarYenile();
 }
 
 /* ---------- telefonda saklanan veri (IndexedDB): uygulama açılınca eski hâl anında görünür, yalnızca değişenler iner ---------- */
@@ -215,6 +216,7 @@ async function anaGoster() {
 function cikis(sessiz) {
   clearInterval(durum.zamanlayici);
   durum.token = ''; durum.veri = null; durum.mod = {}; durum.bilinen = {}; durum._onceki = null; durum.navImza = '';
+  ayarDurum.liste = null; ayarDurum.hata = '';
   if (!sessiz) cacheIs('readwrite', o => o.clear());   // oturum süresi dolduğunda veri kalır (aynı kullanıcı girerse hızlı açılır); çıkışta silinir
   ['token', 'izinler', 'bekleyen'].forEach(k => localStorage.removeItem(k)); durum.bekleyen = [];
   kartlar.forEach(k => k.li.remove()); kartlar.clear(); $('#ev-liste').innerHTML = '';
@@ -276,6 +278,7 @@ function gorunumGoster(g, kaydir) {
   $('#baslik').textContent = (MODULLER.find(m => m.id === g) || {}).ad || '';
   $('#donem').hidden = g !== 'tahsilat';
   document.querySelectorAll('#alt-nav button').forEach(b => b.classList.toggle('secili', b.dataset.g === g));
+  if (g === 'ayarlar') ayarlarYenile();
   if (kaydir) window.scrollTo({ top: 0 });
 }
 $('#alt-nav').addEventListener('click', e => {
@@ -621,8 +624,9 @@ async function bekleyenleriIsle() {
           : await rpc('odeme', { id: p.id, ogrenci: p.ogrenci, tutar: p.tutar, tarih: p.tarih, yontem: p.yontem, not: p.not, foto: !!p.foto });
         if (!r.ok) throw Object.assign(new Error(r.hata), { sunucu: true });
         p.gitti = true; p.foto = null;
+        if (p.modul === 'ayarlar' && p.veri) p.veri = { ...p.veri, sifre: '' };   // düz şifre telefonda gönderimden sonra tutulmaz
       } catch (e) {
-        if (e.sunucu) { p.durum = 'red'; p.neden = HATA_AD[e.message] || 'sunucu reddetti'; }
+        if (e.sunucu) { p.durum = 'red'; p.neden = HATA_AD[e.message] || 'sunucu reddetti'; if (p.modul === 'ayarlar' && p.veri) p.veri = { ...p.veri, sifre: '' }; }
         else break;   // bağlantı yok: sonra tekrar denenecek
       }
     }
@@ -639,7 +643,7 @@ async function bekleyenleriIsle() {
   durum.bekleyen = durum.bekleyen.filter(p => p.durum !== 'islendi' || Date.now() - (p.islendiZ ||= Date.now()) < 120000);
   bekleyenKaydet(); kuyrukMesgul = false;
   // İşlenen ödeme listeye hemen yansısın (özet masaüstünde birkaç saniye içinde güncellenir)
-  if (yenileGerek) { setTimeout(cek, 600); setTimeout(cek, 8000); }
+  if (yenileGerek) { setTimeout(cek, 600); setTimeout(cek, 8000); setTimeout(ayarlarYenile, 800); setTimeout(ayarlarYenile, 8000); }
   if (durum.veri && durum.izinler.includes('okul')) listeyiCiz(false);
   bekleyenleriGoster();
   if (durum.acik?.tur === 'ogrenci' && !durum.acik.form) { const o = durum.veri?.ogrenciler.find(x => x.id === durum.acik.id); if (o) detayDoldur(o, false); }

@@ -220,6 +220,24 @@ body:not(.altnavli) .fab { bottom: calc(24px + var(--alt-bosluk)); }
 .bek-liste li { padding: 10px 14px; border-radius: 14px; background: rgba(161, 83, 5, .1); border: 1px solid rgba(161, 83, 5, .35); font-size: 13.5px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .bek-liste li.red { background: rgba(192, 57, 43, .1); border-color: rgba(192, 57, 43, .4); }
 .bek-liste small { color: var(--soluk); flex: 1 1 100%; }
+
+/* ---------- ayarlar: kullanıcı yönetimi ---------- */
+.ay-not { margin: 0 0 6px; }
+.ay-durum { margin: 0 0 12px; min-height: 18px; }
+.onay-blok { margin-bottom: 14px; }
+.onay-etiket { margin: 0 0 6px 2px; font-size: 13px; font-weight: 600; color: var(--soluk); }
+.onay-grup { display: grid; border: 1px solid var(--kenar); border-radius: 14px; background: var(--yuz); overflow: hidden; }
+.onay { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 16px; font-size: 15px; cursor: pointer; }
+.onay + .onay { border-top: 1px solid var(--cizgi); }
+.onay input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--ana); }
+.izin-liste { list-style: none; margin: 0 0 18px; padding: 0; border: 1px solid var(--cizgi); border-radius: 14px; background: var(--yuz); overflow: hidden; }
+.izin-liste li { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 14px; color: var(--soluk); font-size: 14.5px; }
+.izin-liste li + li { border-top: 1px solid var(--cizgi); }
+.izin-liste li.var { color: var(--yazi); font-weight: 600; }
+.izin-liste i { flex: none; width: 20px; text-align: center; font-style: normal; color: var(--kenar); }
+.izin-liste li.var i { color: var(--yesil); }
+.btn-tehlike { width: 100%; height: 48px; margin-top: 10px; border-radius: 14px; border: 1px solid var(--kirmizi); background: transparent; color: var(--kirmizi); font-weight: 700; font-size: 15px; transition: transform .15s var(--egri), background .2s; }
+.btn-tehlike:active { transform: scale(.97); background: rgba(192, 57, 43, .08); }
 .d-satir { display: flex; justify-content: space-between; gap: 16px; padding: 10px 2px; border-bottom: 1px solid var(--cizgi); font-size: 14px; }
 .d-satir span { color: var(--soluk); flex: none; } .d-satir b { font-weight: 600; text-align: right; overflow-wrap: anywhere; }
 .d-satir a, .zaman a { color: var(--ana); text-underline-offset: 3px; }

@@ -1,5 +1,5 @@
 ﻿// YalnÄ±zca sayfa kabuÄŸunu Ã¶nbelleÄŸe alÄ±r; Ã¶ÄŸrenci verisi (/api) asla Ã¶nbelleÄŸe alÄ±nmaz.
-const SURUM = 'filo-v10';
+const SURUM = 'filo-v11';
 const KABUK = ['./', 'index.html', 'stil.css', 'ayar.js', 'moduller.js', 'uygulama.js', 'manifest.webmanifest', 'ikon-192.png', 'favicon.ico', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {

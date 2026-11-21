@@ -7,6 +7,7 @@ const MODULLER = [
   { id: 'evrak', izin: 'sirket_evrak', ad: 'Evraklar' }, { id: 'fatura', izin: 'fatura', ad: 'Faturalar' },
   { id: 'arac', izin: 'arac', ad: 'Araçlar' }, { id: 'esnaf', izin: 'esnaf', ad: 'Esnaflar' },
   { id: 'petrol', izin: 'petrol', ad: 'Akaryakıt' }, { id: 'ic_hizmet', izin: 'ic_hizmet', ad: 'İç Hizmetler' },
+  { id: 'ayarlar', izin: 'ayarlar', ad: 'Ayarlar' },
 ];
 // Görünüm kimliği ile veri modülü farklı olanlar: tahsilat -> okul, evrak -> sirket_evrak
 const VERI_MODULU = { tahsilat: 'okul', evrak: 'sirket_evrak' };
@@ -149,6 +150,11 @@ function alanHtml(a) {
   if (a.tur === 'sec') {
     return `<label class="alan">${etiket}<select id="${id}">${a.secenekler.map(([v, ad]) => `<option value="${esc(v)}"${String(a.varsayilan ?? '') === String(v) ? ' selected' : ''}>${esc(ad)}</option>`).join('')}</select></label>`;
   }
+  if (a.tur === 'onay') {
+    const sec = new Set(a.varsayilan || []);
+    return `<div class="onay-blok"><p class="onay-etiket">${esc(a.etiket)}</p><div class="onay-grup" id="${id}">${a.secenekler.map(([v, ad]) =>
+      `<label class="onay"><input type="checkbox" value="${esc(v)}"${sec.has(v) ? ' checked' : ''}><span>${esc(ad)}</span></label>`).join('')}</div></div>`;
+  }
   const tip = { tarih: 'date', saat: 'time' }[a.tur] || 'text', mod = { tutar: 'decimal', sayi: 'numeric' }[a.tur] || '';
   const liste = a.liste ? `<datalist id="${id}-l">${a.liste.map(v => `<option value="${esc(v)}">`).join('')}</datalist>` : '';
   return `<label class="alan">${etiket}<input id="${id}" type="${tip}" ${mod ? `inputmode="${mod}"` : ''} ${a.liste ? `list="${id}-l"` : ''} autocomplete="off"
@@ -169,7 +175,11 @@ function formAc(cfg) {
       <button class="btn-ana" id="fm-gonder" type="submit"><span>Gönder</span><i class="yukleniyor"></i></button>
       <p class="not-kucuk">Kayıt masaüstü uygulamasına iletilir ve orada işlenir; işlenince listede görünür.</p>
     </form>`;
-  const deger = k => { const el = $('#fm-' + k); return el.classList.contains('segment') ? el.querySelector('.secili')?.dataset.v : el.value; };
+  const deger = k => {
+    const el = $('#fm-' + k);
+    if (el.classList.contains('onay-grup')) return [...el.querySelectorAll('input:checked')].map(i => i.value);
+    return el.classList.contains('segment') ? el.querySelector('.secili')?.dataset.v : el.value;
+  };
   const ayarla = (k, v) => { const el = $('#fm-' + k); if (el) el.value = v; };
   let dosya = null;
   const hesapYaz = () => { const h = cfg.hesap && cfg.hesap(deger), y = $('#fm-onizleme-hesap'); y.hidden = !h; y.innerHTML = h || ''; };
@@ -435,6 +445,101 @@ function anaCiz() {
     ${v.istasyonlar.length ? `<h3 class="d-sec">İstasyon bakiyeleri</h3><div class="ist-sirasi">${v.istasyonlar.map(i => `<div class="ist"><small>${esc(i.ad)}</small><strong>${TL(i.bakiye)}</strong></div>`).join('')}</div>` : ''}`;
 }
 
+/* ---------- Ayarlar: kullanıcı yönetimi (yalnızca yönetici) ---------- */
+// Masaüstündeki Kullanıcı Yönetimi ile aynı yetki listesi. Değişiklik masaüstüne iletilir, orada uygulanır;
+// liste Drive'daki kullanıcı özetinden okunur (parola özeti bile telefona gelmez).
+const KUL_IZINLERI = [['dashboard', 'Ana Sayfa'], ['fatura', 'Fatura Yönetimi'], ['arac', 'Araç Yönetimi'], ['esnaf', 'Esnaf Defteri'], ['petrol', 'Akaryakıt'],
+  ['ic_hizmet', 'İç Hizmetler'], ['okul', 'Okul Yönetimi'], ['sirket_evrak', 'Şirket Evrakları'], ['ayarlar', 'Ayarlar']];
+const kulIzinAd = k => (KUL_IZINLERI.find(x => x[0] === k) || [k, k])[1];
+const ayarDurum = { liste: null, hata: '', mesgul: false };
+
+async function ayarlarYenile() {
+  if (ayarDurum.mesgul || !durum.token || !durum.izinler.includes('ayarlar')) return;
+  ayarDurum.mesgul = true;
+  try {
+    const j = await rpc('kullanicilar');
+    if (j.ok) { ayarDurum.liste = j.kullanicilar; ayarDurum.hata = ''; }
+    else ayarDurum.hata = j.hata === 'veri_yok' ? 'Sunucuda veri klasörü bulunamadı.' : 'Kullanıcı listesi alınamadı.';
+  } catch (e) {
+    ayarDurum.mesgul = false;
+    if (e.message === 'oturum') return;
+    ayarDurum.hata = 'Bağlantı yok; kullanıcı listesi alınamadı.'; ayarlarCiz(); return;
+  }
+  ayarDurum.mesgul = false; ayarlarCiz();
+}
+
+function ayarlarCiz() {
+  const s = $('#v-ayarlar'); if (!s) return;
+  const l = ayarDurum.liste, ul = $('.liste', s);
+  $('.bek-yer', s).innerHTML = bekleyenHtml('ayarlar');
+  ul._liste = l || [];
+  ul.innerHTML = (l || []).map((u, i) => `<li><button type="button" class="kart" data-i="${i}">${satirHtml(esc(u.ad),
+    esc(u.izinler.map(kulIzinAd).join(' · ') || 'Hiçbir sayfaya erişemez'), `${u.izinler.length} sayfa`, '')}</button></li>`).join('');
+  $('.ay-durum', s).textContent = ayarDurum.hata || (l ? '' : 'Yükleniyor…');
+  $('.bos', s).hidden = !l || l.length > 0;
+}
+
+async function ayarGonder(veri, ozet) {
+  const p = { id: yeniId(), tur: 'kayit', modul: 'ayarlar', islem: 'kullanici', veri, ozet, foto: null, gitti: false, durum: 'bekliyor' };
+  durum.bekleyen.push(p); bekleyenKaydet();
+  await bekleyenleriIsle(); bekleyenleriGoster();
+  toast(p.gitti ? 'Gönderildi, masaüstü işleyecek.' : 'Bağlantı yok; bağlanınca otomatik gönderilecek.', p.gitti ? 'ok' : 'uyari');
+}
+
+function kullaniciDetay(u) {
+  durum.acik = { tur: 'kul', id: u.ad, form: false };
+  const var_ = k => u.izinler.includes(k);
+  $('#sayfa-icerik').innerHTML = `<div class="d-baslik"><div><h2>${esc(u.ad)}</h2><p>${u.izinler.length ? `${u.izinler.length} sayfaya erişebilir` : 'Hiçbir sayfaya erişemez'}</p></div></div>
+    <h3 class="d-sec">Erişebildiği sayfalar</h3>
+    <ul class="izin-liste">${KUL_IZINLERI.map(([k, ad]) => `<li class="${var_(k) ? 'var' : ''}"><i aria-hidden="true">${var_(k) ? '✔' : '–'}</i>${esc(ad)}</li>`).join('')}</ul>
+    <button class="btn-ana" id="ku-duzenle" type="button">Düzenle</button>
+    <button class="btn-tehlike" id="ku-sil" type="button">Kullanıcıyı sil</button>`;
+  $('#ku-duzenle').addEventListener('click', () => kullaniciForm(u));
+  $('#ku-sil').addEventListener('click', async () => {
+    if (!confirm(`"${u.ad}" silinsin mi? Telefondan ve masaüstünden girişi kapanır.`)) return;
+    kapat(); await ayarGonder({ eylem: 'sil', ad: u.ad }, `Kullanıcıyı sil: ${u.ad}`);
+  });
+  sayfaAc();
+}
+
+function kullaniciForm(u) {
+  const yeni = !u;
+  formAc({
+    modul: 'ayarlar', islem: 'kullanici', baslik: yeni ? 'Yeni kullanıcı' : u.ad,
+    alt: yeni ? 'Bu bilgilerle telefona ve masaüstüne giriş yapar' : 'Şifre alanını boş bırakırsan şifre değişmez',
+    geri: yeni ? null : () => kullaniciDetay(u),
+    alanlar: [{ k: 'ad', etiket: 'Kullanıcı adı', tur: 'metin', zorunlu: true, maks: 64, varsayilan: yeni ? '' : u.ad },
+      { k: 'sifre', etiket: yeni ? 'Şifre' : 'Yeni şifre (isteğe bağlı)', tur: 'metin', zorunlu: yeni, maks: 64, ipucu: 'En az 4 karakter' },
+      { k: 'izinler', etiket: 'Erişebileceği sayfalar', tur: 'onay', secenekler: KUL_IZINLERI, varsayilan: yeni ? [] : u.izinler }],
+    hazirla: d => {
+      const ad = gerekli(d('ad'), 'Kullanıcı adı'), sifre = yeni ? gerekli(d('sifre'), 'Şifre') : d('sifre').trim();
+      if (sifre && (sifre.length < 4 || sifre.length > 64)) throw new Error('Şifre 4 ile 64 karakter arasında olmalı.');
+      const kendi = u ? u.ad.toLowerCase() : '';
+      if (ad.toLowerCase() !== kendi && (ayarDurum.liste || []).some(x => x.ad.toLowerCase() === ad.toLowerCase())) throw new Error('Bu kullanıcı adı zaten var.');
+      return yeni ? { eylem: 'ekle', ad, sifre, izinler: d('izinler') }
+        : { eylem: 'guncelle', ad: u.ad, yeni_ad: ad !== u.ad ? ad : '', sifre, izinler: d('izinler') };
+    },
+    ozet: v => `${v.eylem === 'ekle' ? 'Yeni kullanıcı' : 'Kullanıcıyı güncelle'}: ${v.yeni_ad || v.ad}`,
+  });
+}
+
+function ayarlarKur() {
+  const s = document.createElement('section');
+  s.id = 'v-ayarlar'; s.className = 'gorunum'; s.hidden = true; s.dataset.modul = 'ayarlar';
+  s.innerHTML = `<div class="bek-yer"></div>
+    <h3 class="d-sec">Kullanıcılar</h3>
+    <p class="z-alt ay-not">Kimin hangi sayfaları görebileceğini buradan belirlersin. Değişiklikler masaüstü uygulamasına iletilir ve orada işlenir; yönetici hesabı telefondan değiştirilemez.</p>
+    <p class="z-alt ay-durum" role="status"></p>
+    <ul class="liste"></ul><p class="bos" hidden>Henüz kullanıcı eklenmemiş.</p>
+    <button class="fab" aria-label="Kullanıcı ekle" type="button"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>`;
+  $('#ana').append(s);
+  $('.liste', s).addEventListener('click', e => {
+    const b = e.target.closest('.kart'); if (!b) return;
+    const u = $('.liste', s)._liste[+b.dataset.i]; if (u) kullaniciDetay(u);
+  });
+  $('.fab', s).addEventListener('click', () => { kullaniciForm(null); sayfaAc(); });
+}
+
 const CFG = { fatura: FATURA, arac: ARAC, esnaf: ESNAF, petrol: PETROL, ic_hizmet: IC };
 
 // uygulama.js başlarken bir kez: modül sayfalarını oluşturur
@@ -443,6 +548,7 @@ function modulleriKur() {
   a.id = 'v-dashboard'; a.className = 'gorunum'; a.hidden = true; a.dataset.modul = 'dashboard';
   $('#ana').append(a);
   Object.values(CFG).forEach(listeKur);
+  ayarlarKur();
 }
 
 function modullerCiz(degisen) {
