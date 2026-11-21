@@ -317,7 +317,11 @@ $('#g-goz').addEventListener('click', e => {
   b.setAttribute('aria-pressed', String(ac)); b.setAttribute('aria-label', ac ? 'Şifreyi gizle' : 'Şifreyi göster');
   pin.type = ac ? 'text' : 'password'; pin.focus(); try { pin.setSelectionRange(son, son); } catch { /* yoksay */ }
 });
-$('#cikis').addEventListener('click', () => cikis(false));
+$('#cikis').addEventListener('click', () => {
+  const n = durum.bekleyen.filter(p => p.durum === 'bekliyor').length;
+  if (n && !confirm(`${n} gönderilmemiş kayıt var, çıkarsan silinir. Çıkılsın mı?`)) return;
+  cikis(false);
+});
 
 /* ---------- yetkiye göre sekmeler ---------- */
 function izinleriUygula(izinler, zorla) {
@@ -346,6 +350,10 @@ function gorunumGoster(g, kaydir) {
   }
   if (g === 'ayarlar') ayarlarYenile();
   if (kaydir) window.scrollTo({ top: 0 });
+  else {   // açılışta seçili sekme ekran dışında kalmasın
+    const nav = $('#alt-nav'), b = nav.querySelector('[aria-current]');
+    if (b) nav.scrollLeft = b.offsetLeft - (nav.clientWidth - b.clientWidth) / 2;
+  }
 }
 $('#alt-nav').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
@@ -372,6 +380,7 @@ function filtreSayilari() {
   const liste = durum.veri ? durum.veri.ogrenciler : [];
   document.querySelectorAll('.chip').forEach(c => {
     c.classList.toggle('secili', c.dataset.k === durum.filtre);
+    c.setAttribute('aria-pressed', String(c.dataset.k === durum.filtre));
     c.querySelector('b').textContent = liste.filter(o => filtreUygun(o, c.dataset.k)).length;
   });
 }
@@ -637,12 +646,12 @@ function odemeFormu(o) {
       <label class="alan"><span>Tutar (₺)</span><input id="f-tutar" inputmode="decimal" autocomplete="off" placeholder="0" required></label>
       <div class="hizli">${o.kalan > 0.01 ? `<button type="button" data-t="${Math.round(o.kalan * 100) / 100}">Kalanı öde · ${TL(o.kalan)}</button>` : ''}</div>
       <label class="alan"><span>Tarih</span><input id="f-tarih" type="date" value="${bugunISO()}" max="${bugunISO()}" required></label>
-      <div class="alan"><span>Ödeme yöntemi</span><div class="segment" id="f-yontem">
-        ${Object.entries(YONTEM).map(([k, ad], i) => `<button type="button" data-y="${k}" class="${i ? '' : 'secili'}">${ad}</button>`).join('')}</div></div>
+      <div class="alan"><span id="f-yontem-ad">Ödeme yöntemi</span><div class="segment" id="f-yontem" role="group" aria-labelledby="f-yontem-ad">
+        ${Object.entries(YONTEM).map(([k, ad], i) => `<button type="button" data-y="${k}" class="${i ? '' : 'secili'}" aria-pressed="${i ? 'false' : 'true'}">${ad}</button>`).join('')}</div></div>
       <label class="alan"><span>Not (isteğe bağlı)</span><input id="f-not" maxlength="200" autocomplete="off"></label>
       <div class="alan"><span>Dekont / fiş fotoğrafı (isteğe bağlı)</span>
-        <div class="foto-sec"><label class="eylem">${IKON_KAMERA}Fotoğraf çek<input id="f-kamera" type="file" accept="image/*" capture="environment" hidden></label>
-        <label class="eylem">${IKON_GALERI}Galeriden seç<input id="f-galeri" type="file" accept="image/*,application/pdf" hidden></label></div>
+        <div class="foto-sec"><label class="eylem">${IKON_KAMERA}Fotoğraf çek<input id="f-kamera" type="file" accept="image/*" capture="environment"></label>
+        <label class="eylem">${IKON_GALERI}Galeriden seç<input id="f-galeri" type="file" accept="image/*,application/pdf"></label></div>
         <div id="f-onizleme" class="onizleme" hidden></div></div>
       <p id="f-hata" class="hata" role="alert"></p>
       <button class="btn-ana" id="f-gonder" type="submit"><span>Gönder</span><i class="yukleniyor"></i></button>
@@ -653,7 +662,7 @@ function odemeFormu(o) {
   $('#f-geri').addEventListener('click', () => { durum.acik.form = false; detayDoldur(o, false); });
   $('#f-yontem').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return; yontem = b.dataset.y;
-    $('#f-yontem').querySelectorAll('button').forEach(x => x.classList.toggle('secili', x === b));
+    $('#f-yontem').querySelectorAll('button').forEach(x => { x.classList.toggle('secili', x === b); x.setAttribute('aria-pressed', String(x === b)); });
   });
   $('.hizli').addEventListener('click', e => { const b = e.target.closest('button'); if (b) $('#f-tutar').value = String(b.dataset.t).replace('.', ','); });
   const dosyaSec = async f => {
@@ -668,10 +677,10 @@ function odemeFormu(o) {
   $('#f-galeri').addEventListener('change', e => dosyaSec(e.target.files[0]));
   $('#odeme-form').addEventListener('submit', async e => {
     e.preventDefault();
-    const hata = $('#f-hata'), tutar = tutarCoz($('#f-tutar').value), tarih = $('#f-tarih').value;$('#f-tarih').setAttribute('aria-invalid', 'true'); $('#f-tarih').focus(); 
+    const hata = $('#f-hata'), tutar = tutarCoz($('#f-tutar').value), tarih = $('#f-tarih').value;
     hata.textContent = ''; $('#f-tutar').removeAttribute('aria-invalid'); $('#f-tarih').removeAttribute('aria-invalid');
     if (!(tutar > 0) || tutar > 10000000) { hata.textContent = 'Geçerli bir tutar gir.'; $('#f-tutar').setAttribute('aria-invalid', 'true'); $('#f-tutar').focus(); return; }
-    if (!tarih || tarih > bugunISO()) { hata.textContent = 'Geçerli bir tarih seç (bugünden sonrası olamaz).'; return; }
+    if (!tarih || tarih > bugunISO()) { hata.textContent = 'Geçerli bir tarih seç (bugünden sonrası olamaz).'; $('#f-tarih').setAttribute('aria-invalid', 'true'); $('#f-tarih').focus(); return; }
     if (o.ucret > 0 && tutar > o.kalan + 0.01 &&
         !confirm(`Girilen tutar (${TL(tutar)}) kalan borçtan (${TL(o.kalan)}) fazla. Yine de gönderilsin mi?`)) return;
     const p = { id: yeniId(), ogrenci: o.id, tutar, tarih: trTarih(tarih), yontem, not: $('#f-not').value.trim(),
@@ -718,6 +727,7 @@ async function bekleyenleriIsle() {
         p.gitti = true; p.foto = null;
         if (p.modul === 'ayarlar' && p.veri) p.veri = { ...p.veri, sifre: '' };   // düz şifre telefonda gönderimden sonra tutulmaz
       } catch (e) {
+        if (e.sunucu && e.message === 'cok_istek') break;   // geçici: sonraki turda yeniden denenir
         if (e.sunucu) { p.durum = 'red'; p.neden = HATA_AD[e.message] || 'sunucu reddetti'; if (p.modul === 'ayarlar' && p.veri) p.veri = { ...p.veri, sifre: '' }; }
         else break;   // bağlantı yok: sonra tekrar denenecek
       }
@@ -740,7 +750,7 @@ async function bekleyenleriIsle() {
   bekleyenleriGoster();
   if (durum.acik?.tur === 'ogrenci' && !durum.acik.form) { const o = durum.veri?.ogrenciler.find(x => x.id === durum.acik.id); if (o) detayDoldur(o, false); }
 }
-const HATA_AD = { yetki: 'Bu işlem için yetkin yok', tutar: 'Tutar geçersiz', tarih: 'Tarih geçersiz', yontem: 'Yöntem geçersiz', buyuk: 'Fotoğraf çok büyük', tur: 'Dosya türü desteklenmiyor', cok_istek: 'Çok fazla istek, biraz bekle', veri_yok: 'Sunucuda veri klasörü bulunamadı', istek: 'Geçersiz istek' };
+const HATA_AD = { yetki: 'Bu işlem için yetkin yok', tutar: 'Tutar geçersiz', tarih: 'Tarih geçersiz', yontem: 'Yöntem geçersiz', buyuk: 'Dosya çok büyük', tur: 'Dosya türü desteklenmiyor', cok_istek: 'Çok fazla istek, biraz bekle', veri_yok: 'Sunucuda veri klasörü bulunamadı', istek: 'Geçersiz istek' };
 setInterval(() => { if (durum.token && durum.bekleyen.some(p => p.durum === 'bekliyor')) bekleyenleriIsle(); }, 8000);
 
 /* ---------- başlangıç ---------- */

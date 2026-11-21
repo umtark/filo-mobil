@@ -107,7 +107,7 @@ html[data-tema=koyu] .tema-btn .ay, html[data-tema=acik] .tema-btn .gunes { opac
 /* Renk yalnızca durum anlatır: yeşil artı/tahsil, kehribar bekleyen/gider, kırmızı eksi. Diğer sayılar nötr kalır. */
 .ozet-kart[data-tone=yesil] { --ton: var(--yesil); } .ozet-kart[data-tone=kehribar] { --ton: var(--kehribar); } .ozet-kart[data-tone=kirmizi] { --ton: var(--kirmizi); }
 .ozet-kart small { display: block; color: var(--soluk); font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-.ozet-kart strong { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ton, var(--yazi)); }
+.ozet-kart strong { font-size: clamp(17px, 5.6vw, 22px); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ton, var(--yazi)); }
 .bar { display: block; height: 6px; border-radius: 3px; background: var(--yuz2); margin-top: 8px; overflow: hidden; }
 .bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--ana); transition: width 1s var(--egri); }
 
@@ -229,7 +229,9 @@ body.altnavli .toast { bottom: calc(92px + var(--alt-bosluk)); }
 .segment button { height: 44px; border: 0; border-radius: 10px; background: transparent; color: var(--soluk); font-size: 13px; font-weight: 600; transition: background-color .2s var(--egri), color .2s var(--egri); }
 .segment button.secili { background: var(--ana); color: var(--on-ana); }
 .foto-sec { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.foto-sec .eylem { cursor: pointer; font-size: 14px; }
+.foto-sec .eylem { cursor: pointer; font-size: 14px; position: relative; }
+.foto-sec input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.foto-sec .eylem:focus-within { outline: 2px solid var(--ana); outline-offset: 2px; }
 .onizleme { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 8px; border-radius: 14px; background: var(--bg); border: 1px solid var(--cizgi); font-size: 12.5px; color: var(--soluk); }
 .onizleme img, .onizleme .pdf { flex: none; width: 56px; height: 56px; border-radius: 10px; object-fit: cover; }
 .onizleme .pdf { display: grid; place-items: center; background: var(--yuz2); font-weight: 600; color: var(--ana); }
@@ -294,11 +296,11 @@ body:not(.altnavli) .fab { bottom: calc(24px + var(--alt-bosluk)); }
 .b-grup:focus-visible { outline: 2px solid var(--ana); outline-offset: 1px; }
 .b-cift { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
 .b-cift i { flex: 1; max-width: 9px; min-height: 2px; border-radius: 3px 3px 0 0; transform-origin: bottom; animation: buyu .8s var(--egri) both; transition: opacity .25s; }
-.grafik.sec .b-grup:not(.secili) .b-cift i { opacity: .45; }
+.grafik.sec .b-grup:not(.secili) .b-cift i { opacity: .7; }
 .b-cift i.gelir, .lejant i.gelir { background: var(--yesil); }
 /* Gider çubuğu çizgili: yeşil/kehribar ayrımı renk körlüğünde de okunur */
 .b-cift i.gider, .lejant i.gider { background: repeating-linear-gradient(135deg, var(--kehribar) 0 3px, color-mix(in srgb, var(--kehribar) 35%, var(--yuz)) 3px 6px); }
-.b-grup small { font-size: 11px; color: var(--soluk); padding-bottom: 2px; } .b-grup.secili small { color: var(--yazi); font-weight: 700; }
+.b-grup small { font-size: 12px; color: var(--soluk); padding-bottom: 2px; } .b-grup.secili small { color: var(--yazi); font-weight: 700; }
 .gr-oku { min-height: 22px; margin: 0 0 8px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; font-size: 13px; color: var(--soluk); font-variant-numeric: tabular-nums; }
 .gr-oku b { margin-right: auto; color: var(--yazi); font-weight: 700; } .gr-oku .g { color: var(--yesil); font-weight: 700; } .gr-oku .d { color: var(--kehribar); font-weight: 700; }
 .lejant { display: flex; gap: 16px; justify-content: center; margin: 8px 0 4px; font-size: 12px; color: var(--soluk); }

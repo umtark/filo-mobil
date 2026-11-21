@@ -2,6 +2,7 @@
   "name": "Filo Muhasebe",
   "short_name": "Filo",
   "description": "Filo Muhasebe mobil erişim",
+  "lang": "tr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

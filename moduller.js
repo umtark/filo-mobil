@@ -58,7 +58,7 @@ function bolumOlustur(cfg) {
   s.innerHTML = `<div class="bek-yer"></div>
     <section class="ozet" aria-label="Özet"></section>
     <div class="arama"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input type="search" placeholder="${esc(cfg.araYazi)}" autocomplete="off" enterkeyhint="search"></div>
+      <input type="search" placeholder="${esc(cfg.araYazi)}" aria-label="${esc(cfg.araYazi)}" autocomplete="off" enterkeyhint="search"></div>
     <div class="filtre-satir"><nav class="filtreler"></nav><select class="ay-sec" aria-label="Dönem"></select></div>
     <ul class="liste"></ul><button class="daha" type="button" hidden></button><p class="bos" hidden>Eşleşen kayıt yok. Aramayı, filtreyi veya dönemi değiştir.</p>
     ${cfg.ekle ? '<button class="fab" aria-label="Yeni kayıt" type="button"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>' : ''}`;
@@ -91,7 +91,7 @@ function listeKur(cfg) {
       });
       nav.querySelectorAll('.chip').forEach(c => {
         const f = cfg.filtreler.find(x => x[0] === c.dataset.k)[2];
-        c.classList.toggle('secili', c.dataset.k === d.filtre); c.querySelector('b').textContent = donem.filter(x => f(x)).length;
+        c.classList.toggle('secili', c.dataset.k === d.filtre); c.setAttribute('aria-pressed', String(c.dataset.k === d.filtre)); c.querySelector('b').textContent = donem.filter(x => f(x)).length;
       });
     }
     if (!cfg.filtreler) nav.hidden = true;
@@ -143,8 +143,8 @@ function alanHtml(a) {
   const id = 'fm-' + a.k, etiket = `<span>${esc(a.etiket)}${a.zorunlu ? ' *' : ''}</span>`;
   if (a.tur === 'segment') {
     const vars = a.varsayilan ?? a.secenekler[0][0];
-    return `<div class="alan">${etiket}<div class="segment" id="${id}" style="grid-template-columns:repeat(${a.secenekler.length},minmax(0,1fr))">${a.secenekler.map(([v, ad]) =>
-      `<button type="button" data-v="${esc(v)}" class="${String(vars) === String(v) ? 'secili' : ''}">${esc(ad)}</button>`).join('')}</div></div>`;
+    return `<div class="alan"><span id="${id}-ad">${esc(a.etiket)}${a.zorunlu ? ' *' : ''}</span><div class="segment" id="${id}" role="group" aria-labelledby="${id}-ad" style="grid-template-columns:repeat(${a.secenekler.length},minmax(0,1fr))">${a.secenekler.map(([v, ad]) =>
+      `<button type="button" data-v="${esc(v)}" class="${String(vars) === String(v) ? 'secili' : ''}" aria-pressed="${String(vars) === String(v)}">${esc(ad)}</button>`).join('')}</div></div>`;
   }
   if (a.tur === 'sec') {
     return `<label class="alan">${etiket}<select id="${id}">${a.secenekler.map(([v, ad]) => `<option value="${esc(v)}"${String(a.varsayilan ?? '') === String(v) ? ' selected' : ''}>${esc(ad)}</option>`).join('')}</select></label>`;
@@ -169,8 +169,8 @@ function formAc(cfg) {
     <form id="modul-form" novalidate>${cfg.alanlar.map(alanHtml).join('')}
       <div id="fm-onizleme-hesap" class="hesap" hidden></div>
       ${cfg.foto ? `<div class="alan"><span>${esc(cfg.foto)}</span>
-        <div class="foto-sec"><label class="eylem">${IKON_KAMERA}Fotoğraf çek<input id="fm-kamera" type="file" accept="image/*" capture="environment" hidden></label>
-        <label class="eylem">${IKON_GALERI}Galeriden seç<input id="fm-galeri" type="file" accept="image/*,application/pdf" hidden></label></div>
+        <div class="foto-sec"><label class="eylem">${IKON_KAMERA}Fotoğraf çek<input id="fm-kamera" type="file" accept="image/*" capture="environment"></label>
+        <label class="eylem">${IKON_GALERI}Galeriden seç<input id="fm-galeri" type="file" accept="image/*,application/pdf"></label></div>
         <div id="fm-onizleme" class="onizleme" hidden></div></div>` : ''}
       <p id="fm-hata" class="hata" role="alert"></p>
       <button class="btn-ana" id="fm-gonder" type="submit"><span>Gönder</span><i class="yukleniyor"></i></button>
@@ -186,7 +186,7 @@ function formAc(cfg) {
   const hesapYaz = () => { const h = cfg.hesap && cfg.hesap(deger), y = $('#fm-onizleme-hesap'); y.hidden = !h; y.innerHTML = h || ''; };
   $('#modul-form').addEventListener('click', e => {
     const b = e.target.closest('.segment button'); if (!b) return;
-    b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('secili', x === b));
+    b.parentElement.querySelectorAll('button').forEach(x => { x.classList.toggle('secili', x === b); x.setAttribute('aria-pressed', String(x === b)); });
     if (cfg.degisti) cfg.degisti(b.parentElement.id.slice(3), deger, ayarla); hesapYaz();
   });
   $('#modul-form').addEventListener('input', e => {
@@ -510,7 +510,7 @@ function kullaniciDetay(u) {
   const var_ = k => u.izinler.includes(k);
   $('#sayfa-icerik').innerHTML = `<div class="d-baslik"><div><h2>${esc(u.ad)}</h2><p>${u.izinler.length ? `${u.izinler.length} sayfaya erişebilir` : 'Hiçbir sayfaya erişemez'}</p></div></div>
     <h3 class="d-sec">Erişebildiği sayfalar</h3>
-    <ul class="izin-liste">${KUL_IZINLERI.map(([k, ad]) => `<li class="${var_(k) ? 'var' : ''}"><i aria-hidden="true">${var_(k) ? '✔' : '–'}</i>${esc(ad)}</li>`).join('')}</ul>
+    <ul class="izin-liste">${KUL_IZINLERI.map(([k, ad]) => `<li class="${var_(k) ? 'var' : ''}"><i aria-hidden="true">${var_(k) ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>' : '–'}</i>${esc(ad)}<span class="gizli">${var_(k) ? ': erişebilir' : ': erişemez'}</span></li>`).join('')}</ul>
     <button class="btn-ana" id="ku-duzenle" type="button">Düzenle</button>
     <button class="btn-tehlike" id="ku-sil" type="button">Kullanıcıyı sil</button>`;
   $('#ku-duzenle').addEventListener('click', () => kullaniciForm(u));
