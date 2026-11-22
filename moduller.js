@@ -645,29 +645,32 @@ const IC = {
 };
 
 /* ---------- Ana Sayfa ---------- */
-const anaDurum = { hepsi: false, sec: null, aylik: [] };
-// Üstteki ay kartı: seçili ayın gelir/gider/net değerleri (ay listesinden ya da grafikten seçilir)
+const anaDurum = { hepsi: false, ay: null, aylik: [], harita: new Map(), sonAy: '' };
+// Üstteki ay kartı: seçili ayın gelir/gider/net değerleri. Ay; yıl listesinden, ay listesinden ya da grafikten seçilir.
 const buAyHtml = a => { const net = a.gelir - a.gider;
   return `<div><small>Gelir</small><strong class="yesil">${TLK(a.gelir)}</strong></div><div><small>Gider</small><strong class="kehribar">${TLK(a.gider)}</strong></div><div><small>Net</small><strong class="${net >= 0 ? 'yesil' : 'kirmizi'}">${TLK(net)}</strong></div>`; };
-function buAyYaz(i) {
-  const a = anaDurum.aylik[i], sel = $('#bu-ay-sec'); if (!a || !sel) return;
-  sel.value = String(i);
-  $('#bu-ay-etiket').textContent = i === anaDurum.aylik.length - 1 ? 'Bu ay' : '';
+const ayOpsiyonlari = (yil, sec) => anaDurum.aylik.filter(a => a.ay.startsWith(yil)).map(a => `<option value="${a.ay}"${a.ay === sec ? ' selected' : ''}>${AYLAR[+a.ay.slice(5) - 1]}</option>`).reverse().join('');
+function ayGit(anahtar) {
+  const a = anaDurum.harita.get(anahtar); if (!a) return;
+  const yilDegisti = anahtar.slice(0, 4) !== (anaDurum.ay || '').slice(0, 4);
+  anaDurum.ay = anahtar;
+  if (yilDegisti) { anaDurum.cizildi = false; anaCiz(); return; }   // grafik yılın 12 ayını gösterir; yıl değişince yeniden çizilir
+  document.querySelectorAll('.b-grup').forEach(x => { const s = x.dataset.ay === anahtar; x.classList.toggle('secili', s); x.setAttribute('aria-pressed', String(s)); });
+  const sel = $('#bu-ay-sec'); if (sel) sel.value = anahtar;
+  $('#bu-ay-etiket').textContent = anahtar === anaDurum.sonAy ? 'Bu ay' : '';
   $('#bu-ay-satir').innerHTML = buAyHtml(a);
 }
-function grafikSec(g) {
-  const a = anaDurum.aylik[+g.dataset.i]; if (!a) return;
-  anaDurum.sec = +g.dataset.i;
-  document.querySelectorAll('.b-grup').forEach(x => { const s = x === g; x.classList.toggle('secili', s); x.setAttribute('aria-pressed', String(s)); });
-  buAyYaz(anaDurum.sec);
-}
 document.addEventListener('change', e => {
-  if (e.target.id !== 'bu-ay-sec') return;
-  const g = document.querySelector(`.b-grup[data-i="${+e.target.value}"]`); if (g) grafikSec(g);
+  if (e.target.id === 'bu-ay-sec') ayGit(e.target.value);
+  else if (e.target.id === 'bu-yil-sec') {   // aynı ayı yeni yılda aç; o yılda yoksa o yılın en yeni ayına git
+    const yil = e.target.value, ayni = `${yil}-${(anaDurum.ay || '').slice(5)}`;
+    const yilinAylari = anaDurum.aylik.filter(a => a.ay.startsWith(yil));
+    ayGit(anaDurum.harita.has(ayni) ? ayni : yilinAylari[yilinAylari.length - 1].ay);
+  }
 });
 document.addEventListener('click', e => {
   if (e.target.closest('#dik-daha')) { anaDurum.hepsi = !anaDurum.hepsi; anaCiz(); return; }
-  const g = e.target.closest('.b-grup'); if (g) grafikSec(g);
+  const g = e.target.closest('.b-grup'); if (g && !g.disabled) ayGit(g.dataset.ay);
 });
 // Parmağı grafik üzerinde kaydırınca ay ay seçilir: 12 dar sütuna tek tek isabet etmek gerekmez
 document.addEventListener('pointermove', e => {
@@ -675,26 +678,30 @@ document.addEventListener('pointermove', e => {
   const gr = e.target.closest && e.target.closest('.grafik'); if (!gr) return;
   const r = gr.getBoundingClientRect();
   const g = document.elementFromPoint(Math.min(Math.max(e.clientX, r.left + 1), r.right - 1), r.top + r.height / 2)?.closest('.b-grup');
-  if (g && !g.classList.contains('secili')) grafikSec(g);
+  if (g && !g.disabled && !g.classList.contains('secili')) ayGit(g.dataset.ay);
 });
 function anaCiz() {
   const s = $('#v-dashboard'); if (!s) return;
   const v = modVeri('dashboard');
   if (!v) { s.innerHTML = '<div class="iskelet-kart" aria-hidden="true"></div>'; return; }
-  const maks = Math.max(1, ...v.aylik.map(a => Math.max(a.gelir, a.gider, 0)));
-  anaDurum.aylik = v.aylik;
-  const sec = Math.min(anaDurum.sec ?? v.aylik.length - 1, v.aylik.length - 1);
+  anaDurum.aylik = v.aylik; anaDurum.harita = new Map(v.aylik.map(a => [a.ay, a])); anaDurum.sonAy = v.aylik[v.aylik.length - 1].ay;
+  if (!anaDurum.harita.has(anaDurum.ay)) anaDurum.ay = anaDurum.sonAy;
+  const sec = anaDurum.ay, yil = sec.slice(0, 4);
+  const yillar = [...new Set(v.aylik.filter(a => a.gelir || a.gider || a.ay === anaDurum.sonAy).map(a => a.ay.slice(0, 4)))].reverse();   // verisi olmayan yıl listede çıkmaz
+  const yilAylari = Array.from({ length: 12 }, (_, i) => { const k = `${yil}-${String(i + 1).padStart(2, '0')}`; return anaDurum.harita.get(k) || { ay: k, gelir: 0, gider: 0, yok: true }; });
+  const maks = Math.max(1, ...yilAylari.map(a => Math.max(a.gelir, a.gider, 0)));
   const belgeler = v.belgeler.map(b => ({ ...b, g: gunFarki(b.son) })).filter(b => b.g !== null && b.g <= 30).sort((a, b) => a.g - b.g);
   const ilkCizim = !anaDurum.cizildi; anaDurum.cizildi = true;   // çubuklar yalnızca ilk çizimde büyür; veri tazelenince yeniden oynamaz
   const bar = (a, i) => { const h1 = Math.max(0, a.gelir) / maks * 100, h2 = Math.max(0, a.gider) / maks * 100;
-    return `<button type="button" class="b-grup${i === sec ? ' secili' : ''}" data-i="${i}" aria-pressed="${i === sec}" aria-label="${esc(ayAdi(a.ay))}: gelir ${TL(a.gelir)}, gider ${TL(a.gider)}"><div class="b-cift"><i class="gelir" style="height:${h1}%;animation-delay:${i * 15}ms"></i><i class="gider" style="height:${h2}%;animation-delay:${i * 15 + 10}ms"></i></div><small>${AYLAR[+a.ay.slice(5) - 1].slice(0, 3)}</small></button>`; };
+    return `<button type="button" class="b-grup${a.ay === sec ? ' secili' : ''}" data-ay="${a.ay}" aria-pressed="${a.ay === sec}"${a.yok ? ' disabled' : ''} aria-label="${esc(ayAdi(a.ay))}: gelir ${TL(a.gelir)}, gider ${TL(a.gider)}"><div class="b-cift"><i class="gelir" style="height:${h1}%;animation-delay:${i * 15}ms"></i><i class="gider" style="height:${h2}%;animation-delay:${i * 15 + 10}ms"></i></div><small>${AYLAR[+a.ay.slice(5) - 1].slice(0, 3)}</small></button>`; };
   s.innerHTML = `<section class="bu-ay" aria-label="Aylık özet">
-      <div class="bu-ay-ust"><label class="gizli" for="bu-ay-sec">Ay seç</label>
-        <select id="bu-ay-sec" class="bu-ay-sec">${v.aylik.map((a, i) => `<option value="${i}">${esc(ayAdi(a.ay))}</option>`).reverse().join('')}</select>
-        <small id="bu-ay-etiket">${sec === v.aylik.length - 1 ? 'Bu ay' : ''}</small></div>
-      <div class="bu-ay-satir" id="bu-ay-satir">${buAyHtml(v.aylik[sec])}</div>
+      <div class="bu-ay-ust"><label class="gizli" for="bu-yil-sec">Yıl seç</label><label class="gizli" for="bu-ay-sec">Ay seç</label>
+        <select id="bu-yil-sec" class="bu-ay-sec yil">${yillar.map(y => `<option value="${y}"${y === yil ? ' selected' : ''}>${y}</option>`).join('')}</select>
+        <select id="bu-ay-sec" class="bu-ay-sec">${ayOpsiyonlari(yil, sec)}</select>
+        <small id="bu-ay-etiket">${sec === anaDurum.sonAy ? 'Bu ay' : ''}</small></div>
+      <div class="bu-ay-satir" id="bu-ay-satir">${buAyHtml(anaDurum.harita.get(sec))}</div>
       <p class="bu-ay-not">Net = gelir − gider. Gelir: giden faturalar. Gider: gelen faturalar, akaryakıt, esnaf işlemleri.</p></section>
-    <h3 class="d-sec">Son 12 ay <small class="d-ipucu">Aya dokun, üstteki özet değişir</small></h3><div class="grafik sec${ilkCizim ? ' ilk-cizim' : ''}">${v.aylik.map(bar).join('')}</div>
+    <h3 class="d-sec">${yil} yılı <small class="d-ipucu">Aya dokun, üstteki özet değişir</small></h3><div class="grafik sec${ilkCizim ? ' ilk-cizim' : ''}">${yilAylari.map(bar).join('')}</div>
     <div class="lejant"><span><i class="gelir"></i>Gelir</span><span><i class="gider"></i>Gider</span></div>
     <h3 class="d-sec">Dikkat edilmesi gerekenler <b class="sayi-rozet">${belgeler.length}</b></h3>
     ${belgeler.length ? `<ul class="belge-liste">${(anaDurum.hepsi ? belgeler : belgeler.slice(0, 4)).map(b => `<li><div><b>${esc(b.plaka)} · ${esc(b.ad)}</b><small>${esc(b.firma)} · ${esc(b.son)}</small></div>${rozet(gunYazi(b.g), b.g < 0 ? 'bekliyor' : 'kismi')}</li>`).join('')}</ul>

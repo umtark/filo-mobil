@@ -524,8 +524,10 @@ html[data-tema=acik] .avatar { color: hsl(var(--h, 205) 70% 28%); background: li
 .belge-liste .ev-ad { overflow-wrap: anywhere; }
 .kucuk.yukleniyor-k { opacity: .55; pointer-events: none; }
 .alt-nav button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: normal; text-align: center; line-height: 1.15; overflow-wrap: anywhere; }
-.bu-ay-ust { align-items: center; }
-.bu-ay-sec { flex: 1; min-width: 0; max-width: 60%; height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--kenar); background: var(--yuz2); color: var(--yazi); font-size: 16px; font-weight: 700; }
+.bu-ay-ust { align-items: center; gap: 8px; }
+.bu-ay-sec { flex: 1; min-width: 0; height: 44px; padding: 0 10px; border-radius: 12px; border: 1px solid var(--kenar); background: var(--yuz2); color: var(--yazi); font-size: 16px; font-weight: 700; }
+.bu-ay-sec.yil { flex: 0 0 92px; }
+.b-grup:disabled { opacity: .35; cursor: default; }
 .bu-ay-sec:focus-visible { outline: 2px solid var(--ana); outline-offset: 2px; }
 
 /* ---------- v22: bu ay özeti, firma kartları, belge kutuları ---------- */
