@@ -341,7 +341,7 @@ $('#cikis').addEventListener('click', async () => {
 /* ---------- yetkiye göre sekmeler ---------- */
 const NAV_ANA = 4;   // beşten fazla bölüm varsa ilk dördü altta durur, kalanlar "Diğer" sayfasında toplanır
 const NAV_SIRA = ['dashboard', 'tahsilat', 'arac', 'evrak', 'fatura', 'petrol', 'esnaf', 'ic_hizmet', 'ayarlar'];
-const NAV_AD = { tahsilat: 'Okul', ic_hizmet: 'İç Hizmet', dashboard: 'Ana Sayfa' };   // alttaki sekme adları kısa tutulur; sayfa başlığı tam adı gösterir
+const NAV_AD = { ic_hizmet: 'İç Hizmet', dashboard: 'Ana Sayfa' };   // alttaki sekme adları kısa tutulur; sayfa başlığı tam adı gösterir
 const IKON_DIGER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>';
 function izinleriUygula(izinler, zorla) {
   durum.izinler = izinler; try { localStorage.setItem('izinler', JSON.stringify(izinler)); } catch { /* yoksay */ }

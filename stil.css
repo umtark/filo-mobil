@@ -523,7 +523,10 @@ html[data-tema=acik] .avatar { color: hsl(var(--h, 205) 70% 28%); background: li
 .mc.bekliyor { color: var(--kirmizi); background: color-mix(in srgb, var(--kirmizi) 15%, transparent); }
 .belge-liste .ev-ad { overflow-wrap: anywhere; }
 .kucuk.yukleniyor-k { opacity: .55; pointer-events: none; }
-.alt-nav button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.alt-nav button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: normal; text-align: center; line-height: 1.15; overflow-wrap: anywhere; }
+.bu-ay-ust { align-items: center; }
+.bu-ay-sec { flex: 1; min-width: 0; max-width: 60%; height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--kenar); background: var(--yuz2); color: var(--yazi); font-size: 16px; font-weight: 700; }
+.bu-ay-sec:focus-visible { outline: 2px solid var(--ana); outline-offset: 2px; }
 
 /* ---------- v22: bu ay özeti, firma kartları, belge kutuları ---------- */
 .d-eylem[hidden] { display: none; }
@@ -536,9 +539,11 @@ html[data-tema=acik] .avatar { color: hsl(var(--h, 205) 70% 28%); background: li
 .bu-ay-ust { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
 .bu-ay-ust h3 { margin: 0; font-size: 16px; font-weight: 700; }
 .bu-ay-ust small { color: var(--soluk); font-size: 12px; }
-.bu-ay-satir { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.1fr) minmax(0, 1.1fr); gap: 8px; }
-.bu-ay-satir small { display: block; color: var(--soluk); font-size: 12px; font-weight: 600; margin-bottom: 2px; }
-.bu-ay-satir strong { display: block; font-size: clamp(14px, 4.4vw, 18px); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--yazi); }
+.bu-ay-satir { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.bu-ay-satir > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.bu-ay-satir small { display: block; color: var(--soluk); font-size: 13px; font-weight: 600; margin-bottom: 0; }
+.bu-ay-satir strong { display: block; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--yazi); }
+.d-ipucu { margin-left: 8px; font-size: 12px; font-weight: 500; color: var(--soluk); }
 .bu-ay-satir strong.yesil { color: var(--yesil); } .bu-ay-satir strong.kehribar { color: var(--kehribar); } .bu-ay-satir strong.kirmizi { color: var(--kirmizi); }
 .bu-ay-not { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--cizgi); color: var(--soluk); font-size: 12px; line-height: 1.45; }
 

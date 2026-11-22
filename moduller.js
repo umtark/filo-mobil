@@ -646,13 +646,25 @@ const IC = {
 
 /* ---------- Ana Sayfa ---------- */
 const anaDurum = { hepsi: false, sec: null, aylik: [] };
-const grOku = a => `<b>${esc(ayAdi(a.ay))}</b><span class="g">Gelir ${TL(a.gelir)}</span><span class="d">Gider ${TL(a.gider)}</span>`;
+// Üstteki ay kartı: seçili ayın gelir/gider/net değerleri (ay listesinden ya da grafikten seçilir)
+const buAyHtml = a => { const net = a.gelir - a.gider;
+  return `<div><small>Gelir</small><strong class="yesil">${TLK(a.gelir)}</strong></div><div><small>Gider</small><strong class="kehribar">${TLK(a.gider)}</strong></div><div><small>Net</small><strong class="${net >= 0 ? 'yesil' : 'kirmizi'}">${TLK(net)}</strong></div>`; };
+function buAyYaz(i) {
+  const a = anaDurum.aylik[i], sel = $('#bu-ay-sec'); if (!a || !sel) return;
+  sel.value = String(i);
+  $('#bu-ay-etiket').textContent = i === anaDurum.aylik.length - 1 ? 'Bu ay' : '';
+  $('#bu-ay-satir').innerHTML = buAyHtml(a);
+}
 function grafikSec(g) {
   const a = anaDurum.aylik[+g.dataset.i]; if (!a) return;
   anaDurum.sec = +g.dataset.i;
   document.querySelectorAll('.b-grup').forEach(x => { const s = x === g; x.classList.toggle('secili', s); x.setAttribute('aria-pressed', String(s)); });
-  $('#gr-oku').innerHTML = grOku(a);
+  buAyYaz(anaDurum.sec);
 }
+document.addEventListener('change', e => {
+  if (e.target.id !== 'bu-ay-sec') return;
+  const g = document.querySelector(`.b-grup[data-i="${+e.target.value}"]`); if (g) grafikSec(g);
+});
 document.addEventListener('click', e => {
   if (e.target.closest('#dik-daha')) { anaDurum.hepsi = !anaDurum.hepsi; anaCiz(); return; }
   const g = e.target.closest('.b-grup'); if (g) grafikSec(g);
@@ -665,38 +677,28 @@ document.addEventListener('pointermove', e => {
   const g = document.elementFromPoint(Math.min(Math.max(e.clientX, r.left + 1), r.right - 1), r.top + r.height / 2)?.closest('.b-grup');
   if (g && !g.classList.contains('secili')) grafikSec(g);
 });
-// Ana Sayfadaki "Bölümler" kutuları: erişilebilen her modüle tek dokunuşla geçiş; sayılar kutunun içinde, ayrı kart yok
-function hizliKutular(v, uyari) {
-  const l = MODULLER.filter(m => m.id !== 'dashboard' && durum.izinler.includes(m.izin));
-  if (!l.length) return '';
-  const alt = { arac: `${SAYI(+v.arac_sayisi || 0)} araç`, esnaf: v.esnaf_borc > 0 ? `${TLK(v.esnaf_borc)} borç` : '' };
-  return `<h3 class="d-sec">Bölümler</h3><div class="bolum-izgara">${l.map(m => `<button type="button" class="bolum" data-git="${m.id}">
-    <img src="ikon/${m.id}.png" alt="" width="36" height="36" draggable="false"><span>${esc(m.ad)}</span>${alt[m.id] ? `<small>${esc(alt[m.id])}</small>` : ''}${m.id === 'arac' && uyari ? `<b class="bolum-rozet" aria-label="${uyari} belge dikkat gerektiriyor">${uyari}</b>` : ''}</button>`).join('')}</div>`;
-}
 function anaCiz() {
   const s = $('#v-dashboard'); if (!s) return;
   const v = modVeri('dashboard');
   if (!v) { s.innerHTML = '<div class="iskelet-kart" aria-hidden="true"></div>'; return; }
-  const bu = v.bu_ay, maks = Math.max(1, ...v.aylik.map(a => Math.max(a.gelir, a.gider, 0)));
+  const maks = Math.max(1, ...v.aylik.map(a => Math.max(a.gelir, a.gider, 0)));
   anaDurum.aylik = v.aylik;
   const sec = Math.min(anaDurum.sec ?? v.aylik.length - 1, v.aylik.length - 1);
   const belgeler = v.belgeler.map(b => ({ ...b, g: gunFarki(b.son) })).filter(b => b.g !== null && b.g <= 30).sort((a, b) => a.g - b.g);
   const ilkCizim = !anaDurum.cizildi; anaDurum.cizildi = true;   // çubuklar yalnızca ilk çizimde büyür; veri tazelenince yeniden oynamaz
   const bar = (a, i) => { const h1 = Math.max(0, a.gelir) / maks * 100, h2 = Math.max(0, a.gider) / maks * 100;
     return `<button type="button" class="b-grup${i === sec ? ' secili' : ''}" data-i="${i}" aria-pressed="${i === sec}" aria-label="${esc(ayAdi(a.ay))}: gelir ${TL(a.gelir)}, gider ${TL(a.gider)}"><div class="b-cift"><i class="gelir" style="height:${h1}%;animation-delay:${i * 15}ms"></i><i class="gider" style="height:${h2}%;animation-delay:${i * 15 + 10}ms"></i></div><small>${AYLAR[+a.ay.slice(5) - 1].slice(0, 3)}</small></button>`; };
-  const net = bu.gelir - bu.gider;
-  s.innerHTML = `<section class="bu-ay" aria-label="${esc(ayAdi(bu.ay))} özeti">
-      <div class="bu-ay-ust"><h3>${esc(ayAdi(bu.ay))}</h3><small>Bu ay</small></div>
-      <div class="bu-ay-satir"><div><small>Gelir</small><strong class="yesil">${TLK(bu.gelir)}</strong></div>
-        <div><small>Gider</small><strong class="kehribar">${TLK(bu.gider)}</strong></div>
-        <div><small>Net</small><strong class="${net >= 0 ? 'yesil' : 'kirmizi'}">${TLK(net)}</strong></div></div>
+  s.innerHTML = `<section class="bu-ay" aria-label="Aylık özet">
+      <div class="bu-ay-ust"><label class="gizli" for="bu-ay-sec">Ay seç</label>
+        <select id="bu-ay-sec" class="bu-ay-sec">${v.aylik.map((a, i) => `<option value="${i}">${esc(ayAdi(a.ay))}</option>`).reverse().join('')}</select>
+        <small id="bu-ay-etiket">${sec === v.aylik.length - 1 ? 'Bu ay' : ''}</small></div>
+      <div class="bu-ay-satir" id="bu-ay-satir">${buAyHtml(v.aylik[sec])}</div>
       <p class="bu-ay-not">Net = gelir − gider. Gelir: giden faturalar. Gider: gelen faturalar, akaryakıt, esnaf işlemleri.</p></section>
-    ${hizliKutular(v, belgeler.length)}
+    <h3 class="d-sec">Son 12 ay <small class="d-ipucu">Aya dokun, üstteki özet değişir</small></h3><div class="grafik sec${ilkCizim ? ' ilk-cizim' : ''}">${v.aylik.map(bar).join('')}</div>
+    <div class="lejant"><span><i class="gelir"></i>Gelir</span><span><i class="gider"></i>Gider</span></div>
     <h3 class="d-sec">Dikkat edilmesi gerekenler <b class="sayi-rozet">${belgeler.length}</b></h3>
     ${belgeler.length ? `<ul class="belge-liste">${(anaDurum.hepsi ? belgeler : belgeler.slice(0, 4)).map(b => `<li><div><b>${esc(b.plaka)} · ${esc(b.ad)}</b><small>${esc(b.firma)} · ${esc(b.son)}</small></div>${rozet(gunYazi(b.g), b.g < 0 ? 'bekliyor' : 'kismi')}</li>`).join('')}</ul>
       ${belgeler.length > 4 ? `<button class="daha" id="dik-daha" type="button">${anaDurum.hepsi ? 'Daha az göster' : `Tümünü göster (${belgeler.length - 4} daha)`}</button>` : ''}` : '<p class="z-alt">Süresi dolan ya da 30 gün içinde dolacak belge yok.</p>'}
-    <h3 class="d-sec">Son 12 ay</h3><p class="gr-oku" id="gr-oku" aria-live="polite">${v.aylik.length ? grOku(v.aylik[sec]) : ''}</p><div class="grafik sec${ilkCizim ? ' ilk-cizim' : ''}">${v.aylik.map(bar).join('')}</div>
-    <div class="lejant"><span><i class="gelir"></i>Gelir</span><span><i class="gider"></i>Gider</span></div>
     ${v.istasyonlar.length ? `<h3 class="d-sec">İstasyon bakiyeleri</h3><div class="ist-sirasi">${v.istasyonlar.map(i => `<div class="ist"><small>${esc(i.ad)}</small><strong>${TL(i.bakiye)}</strong></div>`).join('')}</div>` : ''}
     ${(v.firmalar || []).length ? `<h3 class="d-sec">Filo (firmaya göre) <b class="sayi-rozet">${SAYI(+v.arac_sayisi || 0)}</b></h3><ul class="belge-liste">${v.firmalar.map(f => `<li><div><b>${esc(f.ad)}</b></div><b>${SAYI(f.adet)} araç</b></li>`).join('')}</ul>` : ''}
     ${(v.hareketler || []).length ? `<h3 class="d-sec">Son hareketler</h3><ul class="hareket-liste">${v.hareketler.map(h => `<li><div><b>${esc(h.ad)}</b><small>${esc(trGoster(h.t))}${h.ac ? ' · ' + esc(h.ac) : ''}</small></div><span class="h-tutar ${h.yon}">${!h.tutar ? '—' : (h.yon === 'gelir' ? '+' : h.yon === 'odeme' ? '' : '−') + TL(h.tutar)}</span></li>`).join('')}</ul>` : ''}`;
