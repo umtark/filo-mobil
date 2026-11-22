@@ -1,10 +1,9 @@
 'use strict';
-/* Hareket katmanı: dokunma dalgası, titreşim, kayan sekme göstergesi, sırayla giriş, çekerek yenile.
+/* Hareket katmanı: dokunma dalgası, kayan sekme göstergesi, sırayla giriş, çekerek yenile.
    uygulama.js'ten sonra yüklenir; ona yalnızca küresel `cek()` ile bağlanır. Dokunulan hiçbir davranışı değiştirmez. */
 (() => {
   const q = (s, r = document) => r.querySelector(s);
   const AZ = matchMedia('(prefers-reduced-motion: reduce)');
-  const titret = d => { try { if (navigator.vibrate) navigator.vibrate(d); } catch { /* destek yok */ } };
 
   /* ---------- dokunma dalgası ---------- */
   const DALGA = '.btn-ana, .eylem, .kart, .chip, .ikon-btn, .daha, .hizli button, .segment button, .alt-nav button, .kucuk, .geri';
@@ -12,7 +11,6 @@
     if (e.button > 0 || !(e.target instanceof Element)) return;
     const h = e.target.closest(DALGA);
     if (!h || h.disabled || h.matches('[aria-disabled=true], .devre, .sabit, .ev-yok, .yukleniyor-k')) return;
-    if (e.pointerType === 'touch') titret(6);
     if (AZ.matches) return;
     const r = h.getBoundingClientRect(), boy = Math.max(r.width, r.height) * 2;
     const d = document.createElement('span');
@@ -53,7 +51,6 @@
     const dizi = [...nav.querySelectorAll('button:not([data-diger])')];
     const eski = dizi.findIndex(x => x.classList.contains('secili')), yeni = dizi.indexOf(b);
     document.documentElement.style.setProperty('--yon', yeni > eski ? 1 : yeni < eski ? -1 : 0);
-    titret(8);
   }, true);
 
   /* ---------- sırayla giriş: ekran görünür olunca bir kez ---------- */
@@ -72,13 +69,6 @@
     goruldu.set(t, gor);
   })).observe(ana, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
   document.querySelectorAll('.gorunum').forEach(s => goruldu.set(s, !s.hidden));
-
-  /* ---------- bildirimde hafif titreşim ---------- */
-  const toastEl = q('#toast');
-  new MutationObserver(() => {
-    if (!toastEl.classList.contains('goster')) return;
-    titret(toastEl.classList.contains('hata') ? [18, 50, 18] : toastEl.classList.contains('uyari') ? 20 : 10);
-  }).observe(toastEl, { attributes: true, attributeFilter: ['class'] });
 
   /* ---------- alt sayfa: sürüklerken perde de açılır ---------- */
   const tut = q('#tutamac'), sayfa = q('#sayfa'), perde = q('#perde');
@@ -113,7 +103,7 @@
     }
     p = Math.min(96, dy * 0.5);
     gostGoster(p, Math.min(1, p / ESIK));
-    if (p >= ESIK && !esikGecildi) { esikGecildi = true; titret(12); }
+    if (p >= ESIK && !esikGecildi) esikGecildi = true;
     if (p < ESIK) esikGecildi = false;
   }, { passive: true });
   const birak = async () => {

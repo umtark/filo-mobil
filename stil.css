@@ -90,14 +90,17 @@ html[data-tema=koyu] .tema-btn .ay, html[data-tema=acik] .tema-btn .gunes { opac
 /* ---------- ana ---------- */
 .ana { max-width: 720px; margin: 0 auto; padding: calc(12px + var(--ust-bosluk)) 16px calc(32px + var(--alt-bosluk)); animation: belir .5s var(--egri) both; }
 .ust { display: flex; align-items: center; justify-content: space-between; padding: 8px 0 16px; }
-.ust-sol { display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; min-width: 0; }
-.ust h1 { margin: 0; font-size: 24px; font-weight: 600; }
+.ust { gap: 10px; }
+.ust-sol { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; flex: 1 1 0; min-width: 0; }
+.ust-sol .ust-logo { height: 30px; max-width: 72px; }
+.ust h1 { margin: 0; font-size: clamp(19px, 5.8vw, 24px); font-weight: 600; line-height: 1.2; min-width: 0; overflow-wrap: anywhere; }
 .rozet { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--ana);
   background: var(--ana-acik); border: 1px solid color-mix(in srgb, var(--ana) 30%, transparent); }
-.ust-sag { display: flex; align-items: center; gap: 8px; }
-.canli { display: inline-flex; align-items: center; gap: 6px; min-width: 92px; font-size: 12px; font-weight: 600; color: var(--soluk); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ust-sag { display: flex; align-items: center; gap: 8px; flex: none; }
+.canli { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--soluk); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .canli i { width: 8px; height: 8px; border-radius: 50%; background: var(--yesil); }
 .canli.kopuk i { background: var(--kirmizi); }
+.canli:not(.eski) b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }   /* canlıyken yalnızca nokta; yazı bayatlayınca görünür */
 .ikon-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; border: 1px solid var(--cizgi);
   background: var(--yuz); color: var(--soluk); transition: transform .15s, color .2s; }
 .ikon-btn:active { transform: scale(.92); color: var(--yazi); }
@@ -506,3 +509,19 @@ html[data-tema=acik] .avatar { color: hsl(var(--h, 205) 70% 28%); background: li
 .cek-gost.surukle { transition: none; }
 .cek-gost.yukle svg { animation: don .8s linear infinite; }
 
+
+/* ---------- v21: bölüm kutuları, araç çipleri, evrak satırları ---------- */
+.bolum-izgara { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 8px; }
+.bolum { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 88px; padding: 12px 6px; border-radius: 16px;
+  border: 1px solid var(--cizgi); background: var(--yuz); color: var(--yazi); font-size: 13px; font-weight: 600; text-align: center; line-height: 1.2; overflow: hidden; transition: transform .15s var(--egri), border-color .2s; }
+.bolum:active { transform: scale(.96); border-color: var(--ana); }
+.bolum img { width: 40px; height: 40px; object-fit: contain; }
+.bolum-rozet { position: absolute; top: 6px; right: 8px; min-width: 20px; padding: 1px 6px; border-radius: 999px; background: var(--kirmizi); color: #fff; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mc-sira { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mc { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--soluk); background: var(--yuz2); white-space: nowrap; }
+.mc.odendi { color: var(--yesil); background: color-mix(in srgb, var(--yesil) 15%, transparent); }
+.mc.kismi { color: var(--kehribar); background: color-mix(in srgb, var(--kehribar) 15%, transparent); }
+.mc.bekliyor { color: var(--kirmizi); background: color-mix(in srgb, var(--kirmizi) 15%, transparent); }
+.belge-liste .ev-ad { overflow-wrap: anywhere; }
+.kucuk.yukleniyor-k { opacity: .55; pointer-events: none; }
+.alt-nav button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }

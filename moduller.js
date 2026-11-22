@@ -371,6 +371,50 @@ function aracYeniForm() {
     ozet: v => `Yeni araç ${v.plaka}`,
   });
 }
+const plakaAnahtar = s => String(s || '').replace(/\s/g, '').toUpperCase();
+// Liste satırının altındaki belge durumu çipleri: sorunlu belgeler tek tek, sorun yoksa tek yeşil çip
+function aracChipleri(a) {
+  const sorunlu = a.belgeler.map(b => ({ b, d: belgeDurum(b) })).filter(x => x.d && x.d.ton !== 'odendi').sort((p, q) => p.d.g - q.d.g);
+  const cipler = sorunlu.slice(0, 3).map(x => `<span class="mc ${x.d.ton}">${esc(x.b.ad)} · ${esc(gunYazi(x.d.g))}</span>`);
+  if (sorunlu.length > 3) cipler.push(`<span class="mc">+${sorunlu.length - 3}</span>`);
+  if (!sorunlu.length) cipler.push(`<span class="mc odendi">${a.belgeler.length ? 'Belgeler güncel' : 'Belge girilmemiş'}</span>`);
+  if ((a.evraklar || []).length) cipler.push(`<span class="mc">${a.evraklar.length} evrak</span>`);
+  return `<div class="mc-sira">${cipler.join('')}</div>`;
+}
+const aracBelgeListesi = a => {
+  const yazma = durum.izinler.includes('arac') && !durum.ro;
+  return `<ul class="belge-liste">${ARAC_BELGE_SEC.map(([k, ad]) => {
+    const b = a.belgeler.find(x => x.k === k), d = b && belgeDurum(b);
+    const adGoster = ad.replace(/ \(.*\)$/, '');
+    return `<li><div><b>${esc(adGoster)}</b><small>${b ? (b.bakim ? 'Son: ' + esc(b.t) + ' · Sonraki: ' : 'Bitiş: ') + esc(b.son) : 'Girilmemiş'}</small></div><span class="b-sag">${d ? rozet(gunYazi(d.g), d.ton) : ''}${yazma ? `<button class="kucuk" type="button" data-belge="${esc(k)}" aria-label="${esc(adGoster)} tarihini ${b ? 'güncelle' : 'gir'}">${b ? 'Güncelle' : 'Ekle'}</button>` : ''}</span></li>`;
+  }).join('')}</ul>`;
+};
+function aracEvrakHtml(a) {
+  const l = a.evraklar || [];
+  const grup = (tur, baslik, bos) => {
+    const x = l.filter(e => e.tur === tur);
+    return `<h3 class="d-sec">${baslik} <b class="sayi-rozet">${x.length}</b></h3>` + (x.length
+      ? `<ul class="belge-liste">${x.map(e => `<li><div><b class="ev-ad">${esc(e.ad)}</b>${e.boyut ? `<small>${esc(boyutYazi(e.boyut))}</small>` : ''}</div><span class="b-sag"><button class="kucuk" type="button" data-evrak="${esc(e.id)}" aria-label="${esc(e.ad)} indir">İndir</button></span></li>`).join('')}</ul>`
+      : `<p class="z-alt">${bos}</p>`);
+  };
+  return grup('arac', 'Araç evrakları', 'Masaüstünde bu aracın klasörüne yüklenen ruhsat, sigorta gibi evraklar burada görünür.')
+    + (a.sofor && a.sofor !== '-' ? grup('sofor', 'Şoför evrakları', 'Şoförün klasöründeki ehliyet, SRC gibi evraklar burada görünür.') : '');
+}
+const boyutYazi = b => b >= 1048576 ? SAYI(Math.round(b / 104857.6) / 10) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
+function aracOzetHtml(a) {
+  const bakim = topla(a.bakimlar.filter(b => b.tur === 'bakim'), b => b.tutar + b.isc), harcama = topla(a.bakimlar.filter(b => b.tur === 'harcama'), b => b.tutar);
+  return `<div class="d-ucluk"><div><small>Bakım</small><strong>${TLK(bakim)}</strong></div><div class="k"><small>Harcama</small><strong>${TLK(harcama)}</strong></div><div class="y"><small>Toplam</small><strong>${TLK(bakim + harcama)}</strong></div></div>`;
+}
+function aracYakitHtml(a) {
+  const p = modVeri('petrol'); if (!p || !durum.izinler.includes('petrol')) return '';
+  const k = plakaAnahtar(a.plaka), l = (p.kayitlar || []).filter(r => !r.od && plakaAnahtar(r.plaka) === k);
+  if (!l.length) return '';
+  return `<h3 class="d-sec">Akaryakıt <b class="sayi-rozet">${l.length}</b></h3>
+    ${alanSatir('Toplam yakıt', `${LT(topla(l, r => r.litre))} · ${TL(topla(l, r => r.tutar))}`)}
+    <ul class="zaman">${l.slice(0, 3).map(r => `<li><div class="z-ust"><span>${esc(r.ist)}${r.litre ? ' · ' + LT(r.litre) : ''}</span><span>${TL(r.tutar)}</span></div><div class="z-alt">${esc(trGoster(r.t))}${r.fis ? ' · Fiş ' + esc(r.fis) : ''}</div></li>`).join('')}</ul>`;
+}
+const yagAyrinti = y => [['Hava kompresörü', y.hk], ['Yağ filtresi', y.yf], ['Mazot filtresi', y.mf], ['Hava filtresi', y.hf], ['İşi yaptıran', y.yt]]
+  .filter(x => x[1]).map(x => `${x[0]}: ${esc(x[1])}`).join(' · ');
 const ARAC = {
   id: 'arac', modul: 'arac', araYazi: 'Plaka, marka, firma veya şoför ara', veri: () => (modVeri('arac') || {}).araclar, ara: a => `${a.plaka} ${a.marka} ${a.model} ${a.firma} ${a.sofor}`,
   filtreler: [['hepsi', 'Tümü', () => true], ['dolmus', 'Süresi geçmiş', a => a.belgeler.some(b => (belgeDurum(b) || {}).ton === 'bekliyor')],
@@ -379,25 +423,29 @@ const ARAC = {
     { ad: 'Firma', deger: new Set(l.map(a => a.firma)).size, bicim: v => String(Math.round(v)), ton: 'mavi' },
     { ad: 'Süresi geçmiş belge', deger: topla(l, a => a.belgeler.filter(b => (belgeDurum(b) || {}).ton === 'bekliyor').length), bicim: v => String(Math.round(v)), ton: 'kehribar' },
     { ad: '30 gün içinde', deger: topla(l, a => a.belgeler.filter(b => (belgeDurum(b) || {}).ton === 'kismi').length), bicim: v => String(Math.round(v)), ton: 'yesil' }],
-  satir: a => { const e = aracEnYakin(a); return satirHtml(esc(a.plaka), `${esc([a.marka, a.model, a.yil].filter(Boolean).join(' '))}${a.firma ? ' · ' + esc(a.firma) : ''}`,
-    e ? esc(gunYazi(e.d.g)) : '—', e ? rozet(e.b.ad, e.d.ton) : ''); },
+  satir: a => { const e = aracEnYakin(a); return satirHtml(esc(a.plaka), `${esc([a.marka, a.model, a.yil].filter(Boolean).join(' '))}${a.firma ? ' · ' + esc(a.firma) : ''}${a.sofor && a.sofor !== '-' ? ' · ' + esc(a.sofor) : ''}`,
+    e ? esc(gunYazi(e.d.g)) : '—', e ? rozet(e.b.ad, e.d.ton) : '') + aracChipleri(a); },
   ekle: aracYeniForm,
   detay: a => `<div class="d-baslik"><div><h2>${esc(a.plaka)}</h2><p>${esc([a.marka, a.model, a.yil].filter(Boolean).join(' '))} · ${esc(a.firma)}</p></div></div>
     <button class="btn-ana" id="ar-ekle" type="button" ${durum.izinler.includes('arac') ? '' : 'hidden'}>+ Bakım / harcama ekle</button>
     <div class="d-eylem" ${durum.izinler.includes('arac') ? '' : 'hidden'}><button class="eylem" id="ar-yag" type="button">+ Yağ bakımı</button><button class="eylem" id="ar-belge" type="button">Belge tarihi</button></div>
     ${alanSatir('Şoför', esc(a.sofor && a.sofor !== '-' ? a.sofor : ''))}${a.sofor_tel ? alanSatir('Şoför telefonu', `<a href="tel:${esc(a.sofor_tel.replace(/[^\d+]/g, ''))}">${esc(a.sofor_tel)}</a>`) : ''}
     ${alanSatir('Yakıt', esc(a.yakit))}${alanSatir('Kilometre', esc(a.km))}
+    ${aracOzetHtml(a)}
     <h3 class="d-sec">Belgeler ve bakım</h3>
-    ${a.belgeler.length ? `<ul class="belge-liste">${a.belgeler.map(b => { const d = belgeDurum(b); return `<li><div><b>${esc(b.ad)}</b><small>${b.bakim ? 'Son: ' + esc(b.t) + ' · Sonraki: ' : 'Bitiş: '}${esc(b.son)}</small></div><span class="b-sag">${d ? rozet(gunYazi(d.g), d.ton) : ''}${durum.izinler.includes('arac') ? `<button class="kucuk" type="button" data-belge="${esc(b.k)}" aria-label="${esc(b.ad)} tarihini güncelle">Güncelle</button>` : ''}</span></li>`; }).join('')}</ul>` : '<p class="z-alt">Kayıtlı belge yok.</p>'}
+    ${aracBelgeListesi(a)}
+    ${aracEvrakHtml(a)}
+    ${aracYakitHtml(a)}
     <h3 class="d-sec">Tamir-bakım ve harcamalar</h3>
     ${a.bakimlar.length ? `<ul class="zaman">${a.bakimlar.map(b => `<li><div class="z-ust"><span>${esc(b.ac)}</span><span>${TL(b.tutar + b.isc)}</span></div>
       <div class="z-alt">${esc(trGoster(b.t))} · ${b.tur === 'bakim' ? 'Bakım' : 'Harcama'}${b.isc ? ` · İşçilik ${TL(b.isc)}` : ''}</div>${sahibi(b) ? `<div class="satir-eylem"><button class="kucuk" type="button" data-b-duzenle="${esc(b.id)}">Düzenle</button><button class="kucuk" type="button" data-b-sil="${esc(b.id)}">Sil</button></div>` : ''}</li>`).join('')}</ul>` : '<p class="z-alt">Kayıt yok.</p>'}
-    ${a.yaglar.length ? `<h3 class="d-sec">Yağ bakımları</h3><ul class="zaman">${a.yaglar.map(y => `<li><div class="z-ust"><span>${esc(y.yag)}${y.lt ? ' · ' + esc(y.lt) + (/lt/i.test(y.lt) ? '' : ' lt') : ''}</span><span>${esc(y.t)}</span></div><div class="z-alt">${esc(y.usta)}${y.not ? ' · ' + esc(y.not) : ''}</div>${sahibi(y) ? `<div class="satir-eylem"><button class="kucuk" type="button" data-y-sil="${esc(y.id)}">Sil</button></div>` : ''}</li>`).join('')}</ul>` : ''}`,
+    ${a.yaglar.length ? `<h3 class="d-sec">Yağ bakımları</h3><ul class="zaman">${a.yaglar.map(y => `<li><div class="z-ust"><span>${esc(y.yag)}${y.lt ? ' · ' + esc(y.lt) + (/lt/i.test(y.lt) ? '' : ' lt') : ''}</span><span>${esc(y.t)}</span></div><div class="z-alt">${esc(y.usta)}${y.not ? ' · ' + esc(y.not) : ''}</div>${yagAyrinti(y) ? `<div class="z-alt">${yagAyrinti(y)}</div>` : ''}${sahibi(y) ? `<div class="satir-eylem"><button class="kucuk" type="button" data-y-sil="${esc(y.id)}">Sil</button></div>` : ''}</li>`).join('')}</ul>` : ''}`,
   detayBagla: (a, kok) => {
     $('#ar-ekle', kok)?.addEventListener('click', () => aracForm(a));
     $('#ar-yag', kok)?.addEventListener('click', () => aracYagForm(a));
     $('#ar-belge', kok)?.addEventListener('click', () => aracBelgeForm(a));
     kok.querySelectorAll('[data-belge]').forEach(b => b.addEventListener('click', () => aracBelgeForm(a, b.dataset.belge)));
+    kok.querySelectorAll('[data-evrak]').forEach(b => b.addEventListener('click', () => evrakIndir(b, { kaynak: 'arac', arac_id: a.id, id: b.dataset.evrak })));
     kok.querySelectorAll('[data-b-duzenle]').forEach(b => b.addEventListener('click', () => aracForm(a, a.bakimlar.find(x => x.id === b.dataset.bDuzenle))));
     kok.querySelectorAll('[data-b-sil]').forEach(b => b.addEventListener('click', () => {
       const k = a.bakimlar.find(x => x.id === b.dataset.bSil); if (k) kayitSil('arac', { arac_id: a.id, tur: k.tur, kayit_id: k.id }, `${a.plaka} · ${k.ac}`);
@@ -589,6 +637,13 @@ document.addEventListener('pointermove', e => {
   const g = document.elementFromPoint(Math.min(Math.max(e.clientX, r.left + 1), r.right - 1), r.top + r.height / 2)?.closest('.b-grup');
   if (g && !g.classList.contains('secili')) grafikSec(g);
 });
+// Ana Sayfadaki "Bölümler" kutuları: erişilebilen her modüle tek dokunuşla geçiş (araçlar vb. "Diğer" altında kaybolmasın)
+function hizliKutular(belgeSayisi) {
+  const l = MODULLER.filter(m => m.id !== 'dashboard' && durum.izinler.includes(m.izin));
+  if (!l.length) return '';
+  return `<h3 class="d-sec">Bölümler</h3><div class="bolum-izgara">${l.map(m => `<button type="button" class="bolum" data-git="${m.id}">
+    <img src="ikon/${m.id}.png" alt="" width="40" height="40" draggable="false"><span>${esc(m.ad)}</span>${m.id === 'arac' && belgeSayisi ? `<b class="bolum-rozet" aria-label="${belgeSayisi} belge dikkat gerektiriyor">${belgeSayisi}</b>` : ''}</button>`).join('')}</div>`;
+}
 function anaCiz() {
   const s = $('#v-dashboard'); if (!s) return;
   const v = modVeri('dashboard');
@@ -606,6 +661,7 @@ function anaCiz() {
     <div class="ozet-kart" data-tone="mavi"><small>Esnaf borcu</small><strong>${TLK(v.esnaf_borc)}</strong></div>
     <div class="ozet-kart" data-tone="mor"><small>Araç sayısı</small><strong>${SAYI(+v.arac_sayisi || 0)}</strong></div>
     <div class="ozet-kart" data-tone="${belgeler.length ? 'kehribar' : 'yesil'}"><small>Dikkat gerektiren belge</small><strong>${belgeler.length}</strong></div></section>
+    ${hizliKutular(belgeler.length)}
     <h3 class="d-sec">Son 12 ay</h3><p class="gr-oku" id="gr-oku" aria-live="polite">${v.aylik.length ? grOku(v.aylik[sec]) : ''}</p><div class="grafik sec${ilkCizim ? ' ilk-cizim' : ''}">${v.aylik.map(bar).join('')}</div>
     <div class="lejant"><span><i class="gelir"></i>Gelir</span><span><i class="gider"></i>Gider</span></div>
     <h3 class="d-sec">Dikkat edilmesi gerekenler <b class="sayi-rozet">${belgeler.length}</b></h3>
@@ -720,6 +776,7 @@ function modulleriKur() {
   const a = document.createElement('section');
   a.id = 'v-dashboard'; a.className = 'gorunum'; a.hidden = true; a.dataset.modul = 'dashboard';
   $('#ana').append(a);
+  a.addEventListener('click', e => { const b = e.target.closest('[data-git]'); if (b) gorunumGoster(b.dataset.git, true); });
   Object.values(CFG).forEach(listeKur);
   ayarlarKur();
 }

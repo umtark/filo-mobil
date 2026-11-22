@@ -340,15 +340,19 @@ $('#cikis').addEventListener('click', async () => {
 
 /* ---------- yetkiye göre sekmeler ---------- */
 const NAV_ANA = 4;   // beşten fazla bölüm varsa ilk dördü altta durur, kalanlar "Diğer" sayfasında toplanır
+const NAV_SIRA = ['dashboard', 'tahsilat', 'arac', 'evrak', 'fatura', 'petrol', 'esnaf', 'ic_hizmet', 'ayarlar'];
+const NAV_AD = { tahsilat: 'Okul', ic_hizmet: 'İç Hizmet', dashboard: 'Ana Sayfa' };   // alttaki sekme adları kısa tutulur; sayfa başlığı tam adı gösterir
 const IKON_DIGER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>';
 function izinleriUygula(izinler, zorla) {
   durum.izinler = izinler; try { localStorage.setItem('izinler', JSON.stringify(izinler)); } catch { /* yoksay */ }
   const acik = MODULLER.filter(m => izinler.includes(m.izin)), nav = $('#alt-nav'), imza = acik.map(m => m.id).join();
   if (zorla || durum.navImza !== imza) {   // yoklama her turda geldiği için yalnızca yetki değişince yeniden kurulur
     durum.navImza = imza;
-    const tasma = acik.length > NAV_ANA + 1, ana = tasma ? acik.slice(0, NAV_ANA) : acik;
-    durum.navDiger = tasma ? acik.slice(NAV_ANA) : [];
-    nav.innerHTML = ana.map(m => `<button type="button" data-g="${m.id}"><img src="ikon/${m.id}.png" alt="" width="34" height="34" draggable="false"><span>${m.ad}</span></button>`).join('')
+    const tasma = acik.length > NAV_ANA + 1;
+    const sirali = [...acik].sort((a, b) => NAV_SIRA.indexOf(a.id) - NAV_SIRA.indexOf(b.id));   // sık kullanılanlar altta, kalanlar "Diğer"de
+    const ana = tasma ? sirali.slice(0, NAV_ANA) : acik;
+    durum.navDiger = tasma ? sirali.slice(NAV_ANA) : [];
+    nav.innerHTML = ana.map(m => `<button type="button" data-g="${m.id}"><img src="ikon/${m.id}.png" alt="" width="34" height="34" draggable="false"><span>${NAV_AD[m.id] || m.ad}</span></button>`).join('')
       + (tasma ? `<button type="button" data-diger="1" aria-haspopup="dialog">${IKON_DIGER}<span>Diğer</span></button>` : '');
   }
   nav.hidden = acik.length < 2;
@@ -594,11 +598,12 @@ function evrakCiz() {
   $('#ev-bos').hidden = liste.length > 0;
 }
 
-$('#ev-liste').addEventListener('click', async e => {
-  const b = e.target.closest('.kart.ev'); if (!b || b.classList.contains('yukleniyor-k')) return;
+// Evrakı Drive'dan indirir (şirket evrakı ya da araç/şoför evrakı); düğme yükleniyor görünümünde tutulur
+async function evrakIndir(b, parametre) {
+  if (b.classList.contains('yukleniyor-k')) return;
   b.classList.add('yukleniyor-k');
   try {
-    const r = await rpc('evrak', { id: b.dataset.id });
+    const r = await rpc('evrak', parametre);
     if (!r.ok) throw new Error(r.hata);
     if (r.link) {   // çok büyük dosya: Drive'da açılır (yalnızca Google adresleri)
       if (!/^https:\/\/(drive|docs)\.google\.com\//.test(r.link)) throw new Error('evrak');
@@ -615,6 +620,9 @@ $('#ev-liste').addEventListener('click', async e => {
     toast(err.message === 'buyuk' ? 'Dosya telefona indirilemeyecek kadar büyük.' : err.message === 'ag' ? 'Bağlantı kurulamadı. Tekrar dene.' : 'Evrak indirilemedi. Tekrar dene.', 'hata');
   }
   b.classList.remove('yukleniyor-k');
+}
+$('#ev-liste').addEventListener('click', e => {
+  const b = e.target.closest('.kart.ev'); if (b) evrakIndir(b, { id: b.dataset.id });
 });
 let evAraZ = 0;
 $('#ev-ara').addEventListener('input', e => { clearTimeout(evAraZ); evAraZ = setTimeout(() => { durum.evAra = e.target.value; evrakCiz(); }, 120); });
@@ -635,8 +643,12 @@ function canliGuncelle() {
   if (document.hidden) return;   // arka plandaki sekmede saniyelik yazım yapılmaz
   const sn = Math.max(0, Math.round((Date.now() - durum.sonGuncelleme) / 1000));
   const bagli = durum.bagli && sn < YOKLAMA_MS / 1000 * 2.5;
-  $('#canli').classList.toggle('kopuk', !bagli);
-  $('#canli b').textContent = !bagli ? 'Bağlantı yok' : (sn < 45 ? 'Canlı' : `${sn} sn önce`);
+  const taze = bagli && sn < 45;
+  const c = $('#canli');
+  c.classList.toggle('kopuk', !bagli);
+  c.classList.toggle('eski', !taze);
+  c.title = taze ? 'Canlı: veriler masaüstü programla güncel' : (bagli ? `Son güncelleme ${sn} sn önce` : 'Bağlantı yok');
+  $('#canli b').textContent = !bagli ? 'Bağlantı yok' : (taze ? 'Canlı' : `${sn} sn önce`);
 }
 setInterval(canliGuncelle, 1000);
 
