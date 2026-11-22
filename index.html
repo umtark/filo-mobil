@@ -82,24 +82,7 @@
   <section id="v-tahsilat" class="gorunum">
     <div id="ok-bek" class="bek-yer"></div>
     <nav id="ok-sekme" class="filtreler" aria-label="Okul bölümleri"></nav>
-    <div id="ok-ogr">
-    <section class="ozet vurgulu" aria-label="Özet">
-      <div class="ozet-kart" data-tone="kehribar"><small>Kalan</small><strong id="o-kalan">0 ₺</strong></div>
-      <div class="ozet-kart" data-tone="mor"><small>Dönem Ücreti</small><strong id="o-ucret">0 ₺</strong></div>
-      <div class="ozet-kart" data-tone="yesil"><small>Tahsil Edilen</small><strong id="o-odenen">0 ₺</strong></div>
-      <div class="ozet-kart" data-tone="mavi"><small>Tahsilat Oranı</small><strong id="o-oran">%0</strong>
-        <span class="bar"><i id="o-bar"></i></span></div>
-    </section>
-    <div class="arama">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="ara" type="search" aria-label="Ad, veli, sınıf, plaka veya telefon ara" placeholder="Ad, veli, sınıf, plaka, telefon ara" autocomplete="off" enterkeyhint="search">
-    </div>
-    <nav id="filtreler" class="filtreler" aria-label="Filtre"></nav>
-    <p id="sonuc" class="gizli" role="status"></p>
-    <ul id="liste" class="liste"></ul>
-    <p id="bos" class="bos" hidden>Eşleşen öğrenci yok. Aramayı ya da filtreyi değiştir.</p>
-    </div>
-    <div id="ok-diger" hidden></div>
+    <div id="ok-govde"></div>
   </section>
 
   <section id="v-evrak" class="gorunum" hidden>
@@ -123,6 +106,7 @@
 
 <script src="ayar.js"></script>
 <script src="moduller.js"></script>
+<script src="okul.js"></script>
 <script src="uygulama.js"></script>
 <script src="hareket.js"></script>
 </body>

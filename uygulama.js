@@ -9,7 +9,6 @@ const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ESC[c]);
 const sade = s => String(s ?? '').toLocaleLowerCase('tr').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ı/g, 'i');
 const YONTEM = { nakit: 'Nakit', iban: 'IBAN / Havale', kart: 'Kredi Kartı' };
-const FILTRELER = [['hepsi', 'Ödeyenler + Ödemeyenler'], ['odendi', 'Tam Ödeyenler'], ['kismi', 'Kısmi Ödeyenler'], ['bekliyor', 'Hiç Ödemeyenler'], ['pesin', 'Peşin Ödeyenler']];
 const API = (window.AYAR && window.AYAR.API) || '/api';
 const YOKLAMA_MS = ((window.AYAR && window.AYAR.YOKLAMA_SN) || 30) * 1000;
 
@@ -21,8 +20,8 @@ try {
 const durum = {
   token: localStorage.getItem('token') || '', kullanici: localStorage.getItem('kullanici') || '', ro: localStorage.getItem('ro') === '1',
   izinler: (() => { try { const a = JSON.parse(localStorage.getItem('izinler') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
-  veri: null, mod: {}, bilinen: {}, filtre: 'hepsi', ara: '', evAra: '', gorunum: localStorage.getItem('gorunum') || 'dashboard', kuruldu: false,
-  sonGuncelleme: 0, bagli: true, acik: null, zamanlayici: 0, bekleyen: [], okSekme: 'ogr',
+  veri: null, mod: {}, bilinen: {}, evAra: '', gorunum: localStorage.getItem('gorunum') || 'dashboard', kuruldu: false,
+  sonGuncelleme: 0, bagli: true, acik: null, zamanlayici: 0, bekleyen: [],
 };
 const kartlar = new Map();
 const sayilar = {};
@@ -288,18 +287,18 @@ $('#g-hatirla').addEventListener('click', () => {
   }, 25);
 });
 
-function iskeletKaldir() { document.querySelectorAll('#liste .iskelet').forEach(x => x.remove()); }
+function iskeletKaldir() { document.querySelectorAll('#ok-govde .iskelet').forEach(x => x.remove()); }
 function iskeletGoster() {
-  const ul = $('#liste');
-  if (ul.childElementCount || !durum.izinler.includes('okul')) return;
-  ul.innerHTML = '<li class="iskelet" aria-hidden="true"><div class="iskelet-kart"></div></li>'.repeat(4);
+  const g = $('#ok-govde');
+  if (g.childElementCount || !durum.izinler.includes('okul')) return;
+  g.innerHTML = '<div class="iskelet" aria-hidden="true"><div class="iskelet-kart"></div></div>'.repeat(4);
   setTimeout(iskeletKaldir, 10000);   // bağlantı yoksa sonsuza dek dönmesin
 }
 
 async function anaGoster() {
   $('#giris').hidden = true; $('#ana').hidden = false;
   if (!durum.kuruldu) { modulleriKur(); durum.kuruldu = true; }
-  filtreleriKur(); izinleriUygula(durum.izinler, true); iskeletGoster();
+  izinleriUygula(durum.izinler, true); iskeletGoster();
   await cacheYukle();   // önceki veri anında görünür, ağ yanıtı gelince güncellenir
   cek(); yoklamaBaslat();
 }
@@ -313,6 +312,8 @@ function cikis(sessiz) {
   // Oturum süresi dolunca gönderilmemiş ödemeler kaybolmasın: kuyruk yalnızca bilinçli çıkışta silinir (farklı kullanıcı girerse girişte temizlenir)
   if (!sessiz) { localStorage.removeItem('bekleyen'); durum.bekleyen = []; }
   kartlar.forEach(k => k.li.remove()); kartlar.clear(); $('#ev-liste').innerHTML = '';
+  $('#ok-govde').innerHTML = ''; delete $('#ok-govde').dataset.imza; Object.assign(OK, { sekme: 'ogr', tah: 'rapor', sinif: '', servis: '', tServis: '', goster: 'hepsi', iGoster: 'hepsi', yontem: 'hepsi' });
+  Object.keys(OK.q).forEach(k => { OK.q[k] = ''; });
   document.querySelectorAll('.gorunum[data-modul]').forEach(s => s.remove()); durum.kuruldu = false;
   kapat(); $('#sayfa-icerik').innerHTML = ''; girisGoster();
   if (sessiz) $('#g-hata').textContent = 'Oturum süresi doldu, tekrar giriş yap.';
@@ -423,37 +424,6 @@ $('#alt-nav').addEventListener('click', e => {
   kapat(); gorunumGoster(b.dataset.g, true);
 });
 
-/* ---------- tahsilat listesi ---------- */
-const filtreUygun = (o, f) => f === 'hepsi' ? true : f === 'pesin' ? o.pesin : o.durum === f;
-// Masaüstü aramasıyla aynı kural: kelimeler sıra bağımsız ve hepsi geçmeli; ad, veli adı, sınıf, plaka (boşluklu/boşluksuz) ve telefonlarda aranır
-const aramaUygun = (o, q) => {
-  if (!q) return true;
-  const hay = sade(`${o.ad} ${o.veli || ''} ${o.sinif} ${o.plaka} ${String(o.plaka || '').replace(/\s/g, '')} ${o.tel || ''} ${o.tels || ''}`).replace(/[^0-9a-z\s]/g, ' ');
-  if (q.replace(/[^0-9a-z\s]/g, ' ').split(/\s+/).filter(Boolean).every(p => hay.includes(p))) return true;
-  const r = q.replace(/\D/g, ''), tel = `${o.tel || ''} ${o.tels || ''}`.replace(/\D/g, '');
-  return r.length >= 3 && (tel.includes(r) || (r[0] === '0' && tel.includes(r.slice(1))));   // "0532 111" ile "532111" aynı numarayı bulur
-};
-
-function filtreleriKur() {
-  const nav = $('#filtreler');
-  if (nav.childElementCount) return;
-  FILTRELER.forEach(([k, ad]) => {
-    const b = document.createElement('button');
-    b.className = 'chip'; b.dataset.k = k; b.innerHTML = `${ad}<b>0</b>`;
-    b.addEventListener('click', () => { durum.filtre = k; listeyiCiz(false); filtreSayilari(); });
-    nav.append(b);
-  });
-}
-
-function filtreSayilari() {
-  const liste = durum.veri ? durum.veri.ogrenciler : [];
-  document.querySelectorAll('#filtreler .chip').forEach(c => {
-    c.classList.toggle('secili', c.dataset.k === durum.filtre);
-    c.setAttribute('aria-pressed', String(c.dataset.k === durum.filtre));
-    c.querySelector('b').textContent = liste.filter(o => filtreUygun(o, c.dataset.k)).length;
-  });
-}
-
 const sayacRaf = {};
 function sayac(el, hedef, bicim) {
   cancelAnimationFrame(sayacRaf[el.id]);   // süren animasyon varsa durdurulur; yenisi ekrandaki değerden devam eder
@@ -469,157 +439,9 @@ function sayac(el, hedef, bicim) {
   sayacRaf[el.id] = requestAnimationFrame(adim);
 }
 
-function ozetCiz() {
-  const l = durum.veri.ogrenciler;
-  const ucret = l.reduce((a, o) => a + o.ucret, 0), odenen = l.reduce((a, o) => a + o.odenen, 0);
-  const kalan = l.reduce((a, o) => a + o.kalan, 0), oran = ucret ? odenen / ucret * 100 : 0;
-  sayac($('#o-ucret'), ucret, TL); sayac($('#o-odenen'), odenen, TL); sayac($('#o-kalan'), kalan, TL);
-  sayac($('#o-oran'), oran, v => '%' + v.toFixed(1).replace('.', ','));
-  requestAnimationFrame(() => { $('#o-bar').style.width = Math.min(100, oran) + '%'; });
-}
-
 const bas = ad => ad.trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('').toLocaleUpperCase('tr');
 // Her kişiye adından türeyen sabit bir ton (mavi-mor aralığı; yeşil/kehribar/kırmızı yalnızca durum rengi olarak kalır)
 const avatarTon = ad => { let h = 0; for (const c of String(ad)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return 195 + h % 75; };
-const yuzde = o => o.ucret > 0 ? Math.min(100, o.odenen / o.ucret * 100) : (o.odenen > 0 ? 100 : 0);
-const DURUM_AD = { odendi: 'Tam Ödeyen', kismi: 'Kısmi Ödeyen', bekliyor: 'Hiç Ödemeyen' };
-
-function kartHtml(o, anim) {
-  const bek = durum.bekleyen.filter(p => p.ogrenci === o.id && p.durum !== 'islendi').length;
-  const w = yuzde(o).toFixed(1);
-  return `<div class="k-ust">
-    <div class="avatar" style="--h:${avatarTon(o.ad)}">${esc(bas(o.ad))}</div>
-    <div class="k-orta"><div class="k-ad">${esc(o.ad)}</div><div class="k-alt">${esc(o.sinif)} · ${esc(o.plaka)}</div></div>
-    <div class="k-sag"><div class="k-kalan ${o.kalan <= 0.01 ? 'sifir' : ''}">${o.kalan <= 0.01 ? 'Borç yok' : TL(o.kalan)}</div>
-      <span class="rozet-d ${o.durum}">${DURUM_AD[o.durum]}</span>${o.pesin ? '<span class="rozet-d pesin">Peşin</span>' : ''}${bek ? '<span class="rozet-d bek">' + bek + ' bekliyor</span>' : ''}</div>
-  </div>
-  <div class="k-bar"><i class="${o.durum}" ${anim ? `data-w="${w}"` : `style="width:${w}%"`}></i></div>`;
-}
-
-function listeyiCiz(ilk, degisenler = new Set()) {
-  iskeletKaldir();
-  const q = sade(durum.ara.trim());
-  const secili = durum.veri.ogrenciler.filter(o => filtreUygun(o, durum.filtre) && aramaUygun(o, q));
-  const ul = $('#liste'), gor = new Set(secili.map(o => o.id));
-  kartlar.forEach((k, id) => { if (!gor.has(id)) { k.li.remove(); kartlar.delete(id); } });
-  const parca = document.createDocumentFragment();
-  secili.forEach((o, i) => {
-    const bek = durum.bekleyen.filter(p => p.ogrenci === o.id && p.durum !== 'islendi').length;
-    const imza = JSON.stringify([o.durum, o.odenen, o.ucret, o.pesin, o.ad, o.plaka, o.sinif, bek]);
-    let k = kartlar.get(o.id);
-    if (!k) {
-      const li = document.createElement('li'), b = document.createElement('button');
-      b.type = 'button'; b.className = 'kart' + (ilk ? ' yeni' : '');
-      if (ilk) b.style.animationDelay = Math.min(i, 8) * 30 + 'ms';   // yalnızca ilk açılışta; filtre/arama değişince kartlar sakin kalır
-      b.addEventListener('click', () => ac(o.id));
-      li.append(b); k = { li, el: b, imza: '' }; kartlar.set(o.id, k);
-      b.addEventListener('animationend', ev => { if (ev.animationName === 'yuksel') b.classList.remove('yeni'); });
-    }
-    if (k.imza !== imza) {
-      const anim = ilk && i < 12;   // çubuk yalnızca ilk açılışta ilk kartlarda dolar; filtre/arama/güncellemede doğrudan yazılır
-      k.el.innerHTML = kartHtml(o, anim);
-      if (k.imza && degisenler.has(o.id)) { k.el.classList.remove('degisti'); void k.el.offsetWidth; k.el.classList.add('degisti'); }
-      k.imza = imza;
-      if (anim) requestAnimationFrame(() => requestAnimationFrame(() => {
-        const bar = k.el.querySelector('.k-bar i'); if (bar) bar.style.width = bar.dataset.w + '%';
-      }));
-    }
-    parca.append(k.li);
-  });
-  ul.append(parca);
-  $('#bos').hidden = secili.length > 0;
-  $('#sonuc').textContent = secili.length + ' sonuç';
-}
-
-/* ---------- okul: servisler, servis kullanmayanlar, atanmamışlar, indirim / kayıp ---------- */
-const OK_SEKMELER = [['ogr', 'Tahsilat Raporu'], ['srv', 'Servisler'], ['yok', 'Servis Kullanmayanlar'], ['atan', 'Araça Atanmamış'], ['ind', 'İndirim / Kayıp Analizi']];
-function okSayi(k) {
-  const v = durum.veri; if (!v) return 0;
-  return k === 'ogr' ? v.ogrenciler.length : k === 'srv' ? v.servisler.length : k === 'yok' ? v.servis_yok.length : k === 'atan' ? v.atanmamis.length : v.ogrenciler.filter(o => o.normal > o.ucret + 0.01).length;
-}
-function okulSekmeCiz() {
-  const nav = $('#ok-sekme');
-  if (!nav.childElementCount) OK_SEKMELER.forEach(([k, ad]) => {
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.dataset.k = k; b.innerHTML = `${esc(ad)}<b>0</b>`;
-    b.addEventListener('click', () => { durum.okSekme = k; okulSekmeCiz(); okulDigerCiz(); });
-    nav.append(b);
-  });
-  nav.querySelectorAll('.chip').forEach(c => {
-    const s = c.dataset.k === durum.okSekme; c.classList.toggle('secili', s); c.setAttribute('aria-pressed', String(s)); c.querySelector('b').textContent = okSayi(c.dataset.k);
-  });
-  $('#ok-ogr').hidden = durum.okSekme !== 'ogr'; $('#ok-diger').hidden = durum.okSekme === 'ogr';
-}
-
-const kisiKart = k => `<li><button type="button" class="kart" data-ogr="${esc(k.id)}"><div class="k-ust"><div class="avatar">${esc(bas(k.ad))}</div>
-  <div class="k-orta"><div class="k-ad">${esc(k.ad)}</div><div class="k-alt">${esc(k.sinif || '—')}${k.tel ? ' · ' + esc(k.tel) : ''}</div></div></div></button></li>`;
-
-function servisKart(s) {
-  const belge = s.belgeler.map(b => { const g = gunFarki(b.son); return g === null ? '' : rozet(`${b.ad}: ${gunYazi(g)}`, g < 0 ? 'bekliyor' : g <= 30 ? 'kismi' : 'odendi'); }).join('');
-  const tel = (s.tel || '').replace(/[^\d+]/g, '');
-  return `<li><div class="kart sabit"><div class="k-ust"><div class="k-orta"><div class="k-ad">${esc(s.plaka)}${s.no ? ' · ' + esc(s.no) : ''}</div>
-    <div class="k-alt">${esc([s.tip, s.guz].filter(Boolean).join(' · ') || '—')}</div></div>
-    <div class="k-sag"><div class="k-kalan ${s.kalan <= 0.01 ? 'sifir' : ''}">${s.kalan <= 0.01 ? 'Borç yok' : TL(s.kalan)}</div><div class="k-alt">${SAYI(s.ogr)} öğrenci</div></div></div>
-    <div class="srv-satir"><span>${s.sofor ? esc(s.sofor) : 'Şoför yok'}${tel ? ` · <a href="tel:${esc(tel)}">${esc(s.tel)}</a>` : ''}</span><span>Ücret ${TL(s.ucret)} · Tahsil ${TL(s.odenen)}</span></div>
-    ${s.sahip ? `<div class="srv-satir"><span>Sahibi: ${esc(s.sahip)}</span></div>` : ''}${belge ? `<div class="srv-rozet">${belge}</div>` : ''}</div></li>`;
-}
-
-function indirimHtml(v) {
-  // Masaüstündeki İndirim / Kayıp Analizi ile aynı hesap: normal fiyat girilmemişse dönemlik ücret alınır; indirim = normal − dönemlik
-  const sat = v.ogrenciler.map(o => { const normal = o.normal > 0 ? o.normal : o.ucret; return { o, normal, indirim: Math.max(0, normal - o.ucret) }; })
-    .sort((a, b) => b.indirim - a.indirim || a.o.ad.localeCompare(b.o.ad, 'tr'));
-  const ind = sat.filter(s => s.indirim > 0.01);
-  return `<section class="ozet vurgulu" aria-label="Özet"><div class="ozet-kart" data-tone="kirmizi"><small>Toplam İndirim</small><strong>${TL(topla(sat, s => s.indirim))}</strong></div>
-    <div class="ozet-kart" data-tone="kehribar"><small>İndirim yapılan</small><strong>${ind.length} / ${sat.length} öğrenci</strong></div>
-    <div class="ozet-kart" data-tone="mavi"><small>Liste Fiyatı Toplamı</small><strong>${TLK(topla(sat, s => s.normal))}</strong></div>
-    <div class="ozet-kart" data-tone="mor"><small>Dönemlik Ücret Toplamı</small><strong>${TLK(topla(sat, s => s.o.ucret))}</strong></div>
-    <div class="ozet-kart" data-tone="yesil"><small>Tahsilat Toplamı</small><strong>${TLK(topla(sat, s => s.o.odenen))}</strong></div></section>
-    <p class="z-alt ok-not">Normal (liste) fiyatı dönemlik ücretten yüksek olan öğrencilerde aradaki fark indirim olarak hesaplanır.</p>
-    ${sat.length ? `<ul class="liste">${sat.map(({ o, normal, indirim }) => `<li><div class="kart sabit"><div class="k-ust"><div class="avatar">${esc(bas(o.ad))}</div>
-      <div class="k-orta"><div class="k-ad">${esc(o.ad)}</div><div class="k-alt">${esc(o.sinif)} · ${esc(o.plaka)}</div>
-      <div class="k-alt">Tahsil Edilen ${TL(o.odenen)}</div><div class="k-alt">Dönemlik Ücret ${TL(o.ucret)}</div><div class="k-alt">Normal Fiyat ${TL(normal)}</div></div>
-      <div class="k-sag"><div class="k-kalan ${indirim > 0.01 ? 'kirmizi-y' : 'sifir'}">${TL(indirim)}</div><div class="k-alt">İndirim Tutarı</div></div></div></div></li>`).join('')}</ul>`
-      : '<p class="bos">Kayıt yok.</p>'}`;
-}
-
-function okulDigerCiz() {
-  const y = $('#ok-diger'), v = durum.veri, k = durum.okSekme;
-  if (!v || k === 'ogr') return;
-  if (k === 'srv') y.innerHTML = v.servisler.length ? `<ul class="liste">${v.servisler.map(servisKart).join('')}</ul>` : '<p class="bos">Kayıtlı servis aracı yok.</p>';
-  else if (k === 'ind') y.innerHTML = indirimHtml(v);
-  else {
-    const l = k === 'yok' ? v.servis_yok : v.atanmamis;
-    y.innerHTML = `<p class="z-alt ok-not">${k === 'yok' ? 'Servis kullanmadığı işaretlenen öğrenciler Tahsilat Raporu\'nda yer almaz.' : 'Henüz bir servis aracına atanmamış öğrenciler Tahsilat Raporu\'nda yer almaz.'} ${durum.ro ? '' : 'Dokununca bilgilerini düzenleyebilir ya da servise atayabilirsin.'}</p>`
-      + (l.length ? `<ul class="liste">${l.map(kisiKart).join('')}</ul>` : '<p class="bos">Kayıt yok.</p>');
-  }
-}
-$('#ok-diger').addEventListener('click', e => {
-  const b = e.target.closest('[data-ogr]'); if (durum.ro || !b || !durum.izinler.includes('okul')) return;
-  const k = [...durum.veri.servis_yok, ...durum.veri.atanmamis].find(x => x.id === b.dataset.ogr); if (!k) return;
-  ogrenciForm(k, false); sayfaAc();
-});
-
-// Ad, sınıf, telefon ve servis ataması; masaüstüne iletilir ve orada uygulanır
-function ogrenciForm(k, detaydan) {
-  const mevcut = k.plaka || '';
-  formAc({
-    modul: 'okul', islem: 'ogrenci', baslik: 'Bilgileri Düzenle', alt: k.ad,
-    geri: detaydan ? () => { durum.acik = { tur: 'ogrenci', id: k.id, form: false }; detayDoldur(durum.veri.ogrenciler.find(x => x.id === k.id) || k, false); } : null,
-    alanlar: [{ k: 'ad', etiket: 'Ad soyad', tur: 'metin', zorunlu: true, maks: 120, varsayilan: k.ad }, { k: 'sinif', etiket: 'Sınıf', tur: 'metin', maks: 40, varsayilan: k.sinif || '' },
-      { k: 'tel', etiket: 'Veli telefonu', tur: 'metin', maks: 30, varsayilan: k.tel || '' },
-      { k: 'servis', etiket: 'Servis', tur: 'sec', secenekler: [['', mevcut ? `Değiştirme (${mevcut})` : 'Değiştirme'], ['YOK', 'Servis kullanmıyor'],
-        ...durum.veri.servisler.map(s => [s.plaka, s.plaka + (s.sofor ? ' · ' + s.sofor : '')])], varsayilan: '' }],
-    hazirla: d => {
-      const v = { ogrenci: k.id }, ad = gerekli(d('ad'), 'Ad soyad'), sinif = d('sinif').trim(), tel = d('tel').trim(), servis = d('servis');
-      if (ad !== k.ad) v.ad = ad;
-      if (sinif && sinif !== (k.sinif || '')) v.sinif = sinif;
-      if (tel && tel !== (k.tel || '')) v.tel = tel;
-      if (servis) v.servis = servis;
-      if (Object.keys(v).length === 1) throw new Error('Değiştirilmiş bir bilgi yok.');
-      return v;
-    },
-    ozet: () => `Öğrenci bilgisi: ${k.ad}`,
-  });
-}
 
 /* ---------- evraklar ---------- */
 function evrakCiz() {
@@ -670,14 +492,11 @@ $('#ev-ara').addEventListener('input', e => { clearTimeout(evAraZ); evAraZ = set
 
 /* ---------- ortak çizim ---------- */
 function ciz(ilk, degisen = []) {
-  const onceki = durum._onceki || new Map(), degisenler = new Set();
-  durum.veri.ogrenciler.forEach(o => { const p = onceki.get(o.id); if (p && p.odenen !== o.odenen) degisenler.add(o.id); });
-  durum._onceki = new Map(durum.veri.ogrenciler.map(o => [o.id, { odenen: o.odenen }]));
   $('#donem').textContent = durum.veri.donem_ad;
-  if (durum.izinler.includes('okul') && degisen.includes('okul')) { ozetCiz(); filtreSayilari(); listeyiCiz(ilk, degisenler); okulSekmeCiz(); okulDigerCiz(); }
+  if (durum.izinler.includes('okul') && degisen.includes('okul')) okCiz();
   if (durum.izinler.includes('sirket_evrak') && degisen.includes('sirket_evrak')) evrakCiz();
   modullerCiz(degisen);
-  if (durum.acik?.tur === 'ogrenci') { const o = durum.veri.ogrenciler.find(x => x.id === durum.acik.id); if (o && !durum.acik.form) detayDoldur(o, false); }
+  if (durum.acik?.tur === 'ogrenci') { const o = okOgr(durum.acik.id); if (o && !durum.acik.form) detayDoldur(o, false); }
 }
 
 function canliGuncelle() {
@@ -692,12 +511,6 @@ function canliGuncelle() {
   $('#canli b').textContent = !bagli ? 'Bağlantı yok' : (taze ? 'Canlı' : `${sn} sn önce`);
 }
 setInterval(canliGuncelle, 1000);
-
-let aramaZ = 0;
-$('#ara').addEventListener('input', e => {
-  clearTimeout(aramaZ);
-  aramaZ = setTimeout(() => { durum.ara = e.target.value; if (durum.veri) listeyiCiz(false); }, 120);
-});
 
 let toastZ = 0;
 function toast(m, tip = 'ok') {
@@ -739,25 +552,23 @@ function detayDoldur(o, anim) {
   const bek = durum.bekleyen.filter(p => p.ogrenci === o.id && p.durum !== 'islendi');
   const html = `
     <div class="d-baslik"><div class="avatar" style="--h:${avatarTon(o.ad)}">${esc(bas(o.ad))}</div>
-      <div><h2>${esc(o.ad)}</h2><p>${esc(o.sinif)} · ${esc(o.plaka)}${o.pesin ? ' · Peşin ödeyen' : ''}</p></div></div>
-    <div class="d-ucluk"><div><small>Dönem Ücreti</small><strong>${TL(o.ucret)}</strong></div>
-      <div class="y"><small>Ödenen</small><strong>${TL(o.odenen)}</strong></div>
-      <div class="k"><small>Kalan</small><strong>${TL(o.kalan)}</strong></div></div>
+      <div><h2>${esc(o.ad)}</h2><p>${esc([o.sinif, o.plaka].filter(Boolean).join(' · '))}${o.pesin ? ' · Peşin ödeyen' : ''}</p></div></div>
+    <div class="d-ucluk"><div><small>DÖNEM TUTARI</small><strong>${TL(o.ucret)}</strong></div>
+      <div class="y"><small>ÖDENEN</small><strong>${TL(o.odenen)}</strong></div>
+      <div class="k"><small>KALAN</small><strong>${TL(o.kalan)}</strong></div></div>
     <button class="btn-ana" id="d-odeme-ekle" type="button">+ Ödeme ekle</button>
     <div class="d-eylem">
       ${tel ? `<a class="eylem" href="tel:${esc(tel)}">Ara</a>` : '<span class="eylem devre" role="link" aria-disabled="true">Ara</span>'}
       ${tel ? `<a class="eylem" href="https://wa.me/${waNumara(tel)}" target="_blank" rel="noopener">WhatsApp</a>` : '<span class="eylem devre" role="link" aria-disabled="true">WhatsApp</span>'}
     </div>
     <div class="d-eylem tek"><button class="eylem" id="d-duzenle" type="button">Bilgileri Düzenle</button></div>
+    <div class="ok-bilgi">${okBilgiHtml(o)}</div>
     ${bek.length ? `<h3 class="d-sec">Gönderilen ödemeler</h3><ul class="zaman bekleyen">${bek.map(p => `
       <li class="${p.durum}"><div class="z-ust"><span>${TL(p.tutar)}</span><span>${esc(p.tarih)}</span></div>
       <div class="z-alt">${p.durum === 'red' ? 'Reddedildi: ' + esc(p.neden || '') : p.gitti ? BEK_AD.bekliyor : 'Bağlantı bekleniyor; gelince gönderilecek'}
       ${p.durum === 'red' ? `<button class="kucuk" data-sil="${esc(p.id)}">Kapat</button>` : ''}</div></li>`).join('')}</ul>` : ''}
-    <h3 class="d-sec">Ödemeler</h3>
-    ${o.odemeler.length ? `<ul class="zaman">${o.odemeler.map((g, i) => `
-      <li style="--sira:${Math.min(i, 6)}"><div class="z-ust"><span>${TL(g.tutar)}</span><span>${esc(g.tarih)}</span></div>
-      <div class="z-alt">${esc(YONTEM[g.yontem] || g.yontem)}${g.not ? ' · ' + esc(g.not) : ''}${g.dekont ? ' · Dekont var' : ''}</div></li>`).join('')}</ul>`
-      : '<p class="z-alt">Henüz ödeme yok.</p>'}`;
+    <h3 class="d-sec">Ödeme Geçmişi</h3>
+    ${okGecmisHtml(o)}`;
   const kok = $('#sayfa-icerik');
   if (!anim && kok.dataset.imza === html && kok.querySelector('#d-odeme-ekle')) return;   // yoklamada içerik değişmediyse sayfa yeniden yazılmaz (titreme ve odak kaybı olmaz)
   const odakId = !anim && kok.contains(document.activeElement) ? document.activeElement.id : '';
@@ -769,12 +580,12 @@ function detayDoldur(o, anim) {
   const duz = $('#d-duzenle'); duz.hidden = !durum.izinler.includes('okul');
   duz.addEventListener('click', () => ogrenciForm(o, true));
   $('#sayfa-icerik').querySelectorAll('[data-sil]').forEach(b => b.addEventListener('click', () => {
-    durum.bekleyen = durum.bekleyen.filter(p => p.id !== b.dataset.sil); bekleyenKaydet(); detayDoldur(o, false); listeyiCiz(false);
+    durum.bekleyen = durum.bekleyen.filter(p => p.id !== b.dataset.sil); bekleyenKaydet(); detayDoldur(o, false);
   }));
 }
 
 function ac(id) {
-  const o = durum.veri.ogrenciler.find(x => x.id === id); if (!o) return;
+  const o = okOgr(id); if (!o) return;
   durum.acik = { tur: 'ogrenci', id, form: false }; detayDoldur(o, true); sayfaAc();
 }
 
@@ -889,7 +700,7 @@ function odemeFormu(o) {
     $('#f-gonder').classList.add('bekle');
     await bekleyenleriIsle();
     $('#f-gonder').classList.remove('bekle');
-    durum.acik.form = false; detayDoldur(o, false); listeyiCiz(false);
+    durum.acik.form = false; detayDoldur(o, false);
     toast(p.gitti ? 'Ödeme gönderildi, masaüstü işleyecek.' : 'Bağlantı yok; bağlanınca otomatik gönderilecek.', p.gitti ? 'ok' : 'uyari');
   });
 }
@@ -946,9 +757,9 @@ async function bekleyenleriIsle() {
   bekleyenKaydet(); kuyrukMesgul = false;
   // İşlenen ödeme listeye hemen yansısın (özet masaüstünde birkaç saniye içinde güncellenir)
   if (yenileGerek) { setTimeout(cek, 600); setTimeout(cek, 8000); setTimeout(ayarlarYenile, 800); setTimeout(ayarlarYenile, 8000); }
-  if (durum.veri && durum.izinler.includes('okul')) listeyiCiz(false);
+  if (durum.veri && durum.izinler.includes('okul')) okCiz();
   bekleyenleriGoster();
-  if (durum.acik?.tur === 'ogrenci' && !durum.acik.form) { const o = durum.veri?.ogrenciler.find(x => x.id === durum.acik.id); if (o) detayDoldur(o, false); }
+  if (durum.acik?.tur === 'ogrenci' && !durum.acik.form) { const o = durum.veri && okOgr(durum.acik.id); if (o) detayDoldur(o, false); }
 }
 const HATA_AD = { yetki: 'Bu işlem için yetkin yok', tutar: 'Tutar geçersiz', tarih: 'Tarih geçersiz', yontem: 'Yöntem geçersiz', buyuk: 'Dosya çok büyük', tur: 'Dosya türü desteklenmiyor', cok_istek: 'Çok fazla istek, biraz bekle', veri_yok: 'Sunucuda veri klasörü bulunamadı', istek: 'Geçersiz istek' };
 setInterval(() => { if (durum.token && durum.bekleyen.some(p => p.durum === 'bekliyor')) bekleyenleriIsle(); }, 8000);

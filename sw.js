@@ -1,6 +1,6 @@
 ﻿// Yalnızca sayfa kabuğunu önbelleğe alır; öğrenci verisi (/api) asla önbelleğe alınmaz.
-const SURUM = 'filo-v30';
-const KABUK = ['./', 'index.html', 'stil.css', 'ayar.js', 'moduller.js', 'uygulama.js', 'hareket.js', 'manifest.webmanifest',
+const SURUM = 'filo-v31';
+const KABUK = ['./', 'index.html', 'stil.css', 'ayar.js', 'moduller.js', 'okul.js', 'uygulama.js', 'hareket.js', 'manifest.webmanifest',
   'ikon-192.png', 'ikon-512.png', 'ikon-maskable-512.png', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png',
   ...['dashboard', 'tahsilat', 'evrak', 'fatura', 'arac', 'esnaf', 'petrol', 'ic_hizmet', 'ayarlar'].map(i => 'ikon/' + i + '.png'),
   'anim/open_eye.png', 'anim/close_eye.png', ...Array.from({ length: 14 }, (_, i) => 'anim/checkbox_' + i + '.png')];

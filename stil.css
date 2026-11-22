@@ -392,6 +392,32 @@ html.salt-okunur #es-islem, html.salt-okunur #es-odeme, html.salt-okunur #ar-yag
 .srv-satir { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px; font-size: 12.5px; color: var(--soluk); }
 .srv-satir a { color: inherit; }
 .srv-rozet { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ok-kontrol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.ok-kontrol .alan { margin-bottom: 12px; min-width: 0; }
+.ok-kontrol .alan:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.ok-ozet { margin: 0 0 8px; font-size: 13.5px; color: var(--soluk); font-variant-numeric: tabular-nums; }
+.ok-ozet .kalin { font-weight: 700; color: var(--yazi); } .ok-ozet .yesil { color: var(--yesil); } .ok-ozet .kehribar { color: var(--kehribar); }
+.ok-ozet .kirmizi { color: var(--kirmizi); } .ok-ozet .mor { color: var(--mor, var(--ana)); }
+.ok-arac { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 4px 0 16px; }
+.ok-alanlar { margin-top: 8px; }
+.ok-alanlar .d-satir:last-child { border-bottom: 0; }
+.kart .d-eylem { margin-top: 12px; }
+.ok-kpi { text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.ok-kpi strong { display: block; }
+.ok-kpi span { display: block; margin-top: 2px; font-size: 12.5px; color: var(--soluk); }
+.ok-kpi.secili { border-color: var(--ana); background: var(--ana-acik); }
+.ok-not-btn { display: block; width: 100%; margin: 0 0 12px; padding: 0; border: 0; background: none; text-align: left; font: inherit; font-size: 12.5px; color: var(--soluk); cursor: pointer; }
+.ok-ogrler { margin-top: 10px; border-top: 1px solid var(--cizgi); }
+.ok-ogrler summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; font-size: 14px; }
+.ok-ogrler ul { list-style: none; margin: 0 0 4px; padding: 0; font-size: 13px; }
+.ok-ogrler li { padding: 7px 0; border-top: 1px solid var(--cizgi); white-space: pre-wrap; overflow-wrap: anywhere; }
+.tarih-koyu { color: var(--kirmizi); font-weight: 800; } .tarih-kirmizi { color: var(--kirmizi); } .tarih-kehribar { color: var(--kehribar); }
+.ok-bilgi { margin: 16px 0 20px; }
+.ok-tablo { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ok-tablo th { text-align: left; color: var(--soluk); font-weight: 600; padding: 6px 4px; border-bottom: 1px solid var(--cizgi); }
+.ok-tablo td { padding: 8px 4px; border-bottom: 1px solid var(--cizgi); vertical-align: top; overflow-wrap: anywhere; }
+.ok-tablo th:nth-child(3), .ok-tablo th:nth-child(4), .ok-tablo td:nth-child(3), .ok-tablo td:nth-child(4) { text-align: right; white-space: nowrap; }
+.ok-tablo td:nth-child(2) { white-space: nowrap; }
 .kirmizi-y { color: var(--kirmizi); }
 .ekstra-kutu { margin: 0 0 12px; border: 1px solid var(--cizgi); border-radius: 16px; background: var(--yuz); padding: 0 14px; }
 .ekstra-kutu summary { cursor: pointer; padding: 14px 0; min-height: 44px; font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
