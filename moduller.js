@@ -206,7 +206,6 @@ function formAc(cfg) {
         <div id="fm-onizleme" class="onizleme" hidden></div></div>` : ''}
       <p id="fm-hata" class="hata" role="alert"></p>
       <button class="btn-ana" id="fm-gonder" type="submit"><span>Gönder</span><i class="yukleniyor"></i></button>
-      <p class="not-kucuk">Kayıt masaüstü uygulamasına iletilir ve orada işlenir; işlenince listede görünür.</p>
     </form>`;
   const deger = k => {
     const el = $('#fm-' + k);
@@ -796,7 +795,7 @@ function ayarlarKur() {
   s.id = 'v-ayarlar'; s.className = 'gorunum'; s.hidden = true; s.dataset.modul = 'ayarlar';
   s.innerHTML = `<div class="bek-yer"></div>
     <h3 class="d-sec">Kullanıcılar</h3>
-    <p class="z-alt ay-not">Kimin hangi sayfaları görebileceğini buradan belirlersin. Değişiklikler masaüstü uygulamasına iletilir ve orada işlenir; yönetici hesabı telefondan değiştirilemez.</p>
+    <p class="z-alt ay-not">Kimin hangi sayfaları görebileceğini buradan belirlersin. Yönetici hesabı telefondan değiştirilemez.</p>
     <p class="z-alt ay-durum" role="status"></p>
     <ul class="liste"></ul><p class="bos" hidden>Henüz kullanıcı eklenmemiş.</p>
     <button class="fab" aria-label="Kullanıcı ekle" type="button"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>`;

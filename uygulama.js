@@ -9,7 +9,7 @@ const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ESC[c]);
 const sade = s => String(s ?? '').toLocaleLowerCase('tr').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ı/g, 'i');
 const YONTEM = { nakit: 'Nakit', iban: 'IBAN / Havale', kart: 'Kredi Kartı' };
-const FILTRELER = [['hepsi', 'Tümü'], ['bekliyor', 'Ödemeyen'], ['kismi', 'Kısmi'], ['odendi', 'Ödenmiş'], ['pesin', 'Peşin']];
+const FILTRELER = [['hepsi', 'Ödeyenler + Ödemeyenler'], ['odendi', 'Tam Ödeyenler'], ['kismi', 'Kısmi Ödeyenler'], ['bekliyor', 'Hiç Ödemeyenler'], ['pesin', 'Peşin Ödeyenler']];
 const API = (window.AYAR && window.AYAR.API) || '/api';
 const YOKLAMA_MS = ((window.AYAR && window.AYAR.YOKLAMA_SN) || 30) * 1000;
 
@@ -446,7 +446,7 @@ const bas = ad => ad.trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('
 // Her kişiye adından türeyen sabit bir ton (mavi-mor aralığı; yeşil/kehribar/kırmızı yalnızca durum rengi olarak kalır)
 const avatarTon = ad => { let h = 0; for (const c of String(ad)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return 195 + h % 75; };
 const yuzde = o => o.ucret > 0 ? Math.min(100, o.odenen / o.ucret * 100) : (o.odenen > 0 ? 100 : 0);
-const DURUM_AD = { odendi: 'Ödendi', kismi: 'Kısmi', bekliyor: 'Ödenmedi' };
+const DURUM_AD = { odendi: 'Tam Ödeyen', kismi: 'Kısmi Ödeyen', bekliyor: 'Hiç Ödemeyen' };
 
 function kartHtml(o, anim) {
   const bek = durum.bekleyen.filter(p => p.ogrenci === o.id && p.durum !== 'islendi').length;
@@ -496,10 +496,10 @@ function listeyiCiz(ilk, degisenler = new Set()) {
 }
 
 /* ---------- okul: servisler, servis kullanmayanlar, atanmamışlar, indirim / kayıp ---------- */
-const OK_SEKMELER = [['ogr', 'Öğrenciler'], ['srv', 'Servisler'], ['yok', 'Servis kullanmayan'], ['atan', 'Atanmamış'], ['ind', 'İndirim / Kayıp']];
+const OK_SEKMELER = [['ogr', 'Tahsilat Raporu'], ['srv', 'Servisler'], ['yok', 'Servis Kullanmayanlar'], ['atan', 'Araça Atanmamış'], ['ind', 'İndirim / Kayıp Analizi']];
 function okSayi(k) {
   const v = durum.veri; if (!v) return 0;
-  return k === 'ogr' ? v.ogrenciler.length : k === 'srv' ? v.servisler.length : k === 'yok' ? v.servis_yok.length : k === 'atan' ? v.atanmamis.length : v.ogrenciler.filter(o => o.indirim > 0).length;
+  return k === 'ogr' ? v.ogrenciler.length : k === 'srv' ? v.servisler.length : k === 'yok' ? v.servis_yok.length : k === 'atan' ? v.atanmamis.length : v.ogrenciler.filter(o => o.normal > o.ucret + 0.01).length;
 }
 function okulSekmeCiz() {
   const nav = $('#ok-sekme');
@@ -528,16 +528,21 @@ function servisKart(s) {
 }
 
 function indirimHtml(v) {
-  const l = v.ogrenciler.filter(o => o.normal > 0), ind = l.filter(o => o.indirim > 0).sort((a, b) => b.indirim - a.indirim);
-  const aylik = topla(ind, o => o.indirim), normal = topla(l, o => o.normal), ucret = topla(l, o => o.ucret);
-  return `<section class="ozet vurgulu" aria-label="Özet"><div class="ozet-kart" data-tone="kirmizi"><small>Aylık toplam indirim</small><strong>${TL(aylik)}</strong></div>
-    <div class="ozet-kart" data-tone="mor"><small>Normal liste fiyatı</small><strong>${TLK(normal)}</strong></div><div class="ozet-kart" data-tone="yesil"><small>Uygulanan ücret</small><strong>${TLK(ucret)}</strong></div>
-    <div class="ozet-kart" data-tone="kehribar"><small>İndirimli öğrenci</small><strong>${ind.length} / ${l.length}</strong></div></section>
-    <p class="z-alt ok-not">Normal liste fiyatı girilmiş öğrenciler karşılaştırılır; fark, o öğrencideki aylık indirimdir.</p>
-    ${ind.length ? `<ul class="liste">${ind.map(o => `<li><div class="kart sabit"><div class="k-ust"><div class="avatar">${esc(bas(o.ad))}</div>
-      <div class="k-orta"><div class="k-ad">${esc(o.ad)}</div><div class="k-alt">${esc(o.sinif)} · ${esc(o.plaka)}</div><div class="k-alt">${TL(o.normal)} → ${TL(o.ucret)} · %${SAYI(Math.round(o.indirim / o.normal * 1000) / 10)}</div></div>
-      <div class="k-sag"><div class="k-kalan kirmizi-y">−${TL(o.indirim)}</div></div></div></div></li>`).join('')}</ul>`
-      : '<p class="bos">İndirimli öğrenci yok.</p>'}`;
+  // Masaüstündeki İndirim / Kayıp Analizi ile aynı hesap: normal fiyat girilmemişse dönemlik ücret alınır; indirim = normal − dönemlik
+  const sat = v.ogrenciler.map(o => { const normal = o.normal > 0 ? o.normal : o.ucret; return { o, normal, indirim: Math.max(0, normal - o.ucret) }; })
+    .sort((a, b) => b.indirim - a.indirim || a.o.ad.localeCompare(b.o.ad, 'tr'));
+  const ind = sat.filter(s => s.indirim > 0.01);
+  return `<section class="ozet vurgulu" aria-label="Özet"><div class="ozet-kart" data-tone="kirmizi"><small>Toplam İndirim</small><strong>${TL(topla(sat, s => s.indirim))}</strong></div>
+    <div class="ozet-kart" data-tone="kehribar"><small>İndirim yapılan</small><strong>${ind.length} / ${sat.length} öğrenci</strong></div>
+    <div class="ozet-kart" data-tone="mavi"><small>Liste Fiyatı Toplamı</small><strong>${TLK(topla(sat, s => s.normal))}</strong></div>
+    <div class="ozet-kart" data-tone="mor"><small>Dönemlik Ücret Toplamı</small><strong>${TLK(topla(sat, s => s.o.ucret))}</strong></div>
+    <div class="ozet-kart" data-tone="yesil"><small>Tahsilat Toplamı</small><strong>${TLK(topla(sat, s => s.o.odenen))}</strong></div></section>
+    <p class="z-alt ok-not">Normal (liste) fiyatı dönemlik ücretten yüksek olan öğrencilerde aradaki fark indirim olarak hesaplanır.</p>
+    ${sat.length ? `<ul class="liste">${sat.map(({ o, normal, indirim }) => `<li><div class="kart sabit"><div class="k-ust"><div class="avatar">${esc(bas(o.ad))}</div>
+      <div class="k-orta"><div class="k-ad">${esc(o.ad)}</div><div class="k-alt">${esc(o.sinif)} · ${esc(o.plaka)}</div>
+      <div class="k-alt">Tahsil Edilen ${TL(o.odenen)}</div><div class="k-alt">Dönemlik Ücret ${TL(o.ucret)}</div><div class="k-alt">Normal Fiyat ${TL(normal)}</div></div>
+      <div class="k-sag"><div class="k-kalan ${indirim > 0.01 ? 'kirmizi-y' : 'sifir'}">${TL(indirim)}</div><div class="k-alt">İndirim Tutarı</div></div></div></div></li>`).join('')}</ul>`
+      : '<p class="bos">Kayıt yok.</p>'}`;
 }
 
 function okulDigerCiz() {
@@ -547,7 +552,7 @@ function okulDigerCiz() {
   else if (k === 'ind') y.innerHTML = indirimHtml(v);
   else {
     const l = k === 'yok' ? v.servis_yok : v.atanmamis;
-    y.innerHTML = `<p class="z-alt ok-not">${k === 'yok' ? 'Servis kullanmadığı işaretlenen öğrenciler tahsilat listesinde yer almaz.' : 'Henüz bir servis aracına atanmamış öğrenciler tahsilat listesinde yer almaz.'} ${durum.ro ? '' : 'Dokununca bilgilerini düzenleyebilir ya da servise atayabilirsin.'}</p>`
+    y.innerHTML = `<p class="z-alt ok-not">${k === 'yok' ? 'Servis kullanmadığı işaretlenen öğrenciler Tahsilat Raporu\'nda yer almaz.' : 'Henüz bir servis aracına atanmamış öğrenciler Tahsilat Raporu\'nda yer almaz.'} ${durum.ro ? '' : 'Dokununca bilgilerini düzenleyebilir ya da servise atayabilirsin.'}</p>`
       + (l.length ? `<ul class="liste">${l.map(kisiKart).join('')}</ul>` : '<p class="bos">Kayıt yok.</p>');
   }
 }
@@ -561,7 +566,7 @@ $('#ok-diger').addEventListener('click', e => {
 function ogrenciForm(k, detaydan) {
   const mevcut = k.plaka || '';
   formAc({
-    modul: 'okul', islem: 'ogrenci', baslik: 'Öğrenci bilgileri', alt: k.ad,
+    modul: 'okul', islem: 'ogrenci', baslik: 'Bilgileri Düzenle', alt: k.ad,
     geri: detaydan ? () => { durum.acik = { tur: 'ogrenci', id: k.id, form: false }; detayDoldur(durum.veri.ogrenciler.find(x => x.id === k.id) || k, false); } : null,
     alanlar: [{ k: 'ad', etiket: 'Ad soyad', tur: 'metin', zorunlu: true, maks: 120, varsayilan: k.ad }, { k: 'sinif', etiket: 'Sınıf', tur: 'metin', maks: 40, varsayilan: k.sinif || '' },
       { k: 'tel', etiket: 'Veli telefonu', tur: 'metin', maks: 30, varsayilan: k.tel || '' },
@@ -699,7 +704,7 @@ function detayDoldur(o, anim) {
   const html = `
     <div class="d-baslik"><div class="avatar" style="--h:${avatarTon(o.ad)}">${esc(bas(o.ad))}</div>
       <div><h2>${esc(o.ad)}</h2><p>${esc(o.sinif)} · ${esc(o.plaka)}${o.pesin ? ' · Peşin ödeyen' : ''}</p></div></div>
-    <div class="d-ucluk"><div><small>Ücret</small><strong>${TL(o.ucret)}</strong></div>
+    <div class="d-ucluk"><div><small>Dönem Ücreti</small><strong>${TL(o.ucret)}</strong></div>
       <div class="y"><small>Ödenen</small><strong>${TL(o.odenen)}</strong></div>
       <div class="k"><small>Kalan</small><strong>${TL(o.kalan)}</strong></div></div>
     <button class="btn-ana" id="d-odeme-ekle" type="button">+ Ödeme ekle</button>
@@ -707,7 +712,7 @@ function detayDoldur(o, anim) {
       ${tel ? `<a class="eylem" href="tel:${esc(tel)}">Ara</a>` : '<span class="eylem devre" role="link" aria-disabled="true">Ara</span>'}
       ${tel ? `<a class="eylem" href="https://wa.me/${waNumara(tel)}" target="_blank" rel="noopener">WhatsApp</a>` : '<span class="eylem devre" role="link" aria-disabled="true">WhatsApp</span>'}
     </div>
-    <div class="d-eylem tek"><button class="eylem" id="d-duzenle" type="button">Bilgileri düzenle / servis değiştir</button></div>
+    <div class="d-eylem tek"><button class="eylem" id="d-duzenle" type="button">Bilgileri Düzenle</button></div>
     ${bek.length ? `<h3 class="d-sec">Gönderilen ödemeler</h3><ul class="zaman bekleyen">${bek.map(p => `
       <li class="${p.durum}"><div class="z-ust"><span>${TL(p.tutar)}</span><span>${esc(p.tarih)}</span></div>
       <div class="z-alt">${p.durum === 'red' ? 'Reddedildi: ' + esc(p.neden || '') : p.gitti ? BEK_AD.bekliyor : 'Bağlantı bekleniyor; gelince gönderilecek'}
@@ -815,7 +820,6 @@ function odemeFormu(o) {
         <div id="f-onizleme" class="onizleme" hidden></div></div>
       <p id="f-hata" class="hata" role="alert"></p>
       <button class="btn-ana" id="f-gonder" type="submit"><span>Gönder</span><i class="yukleniyor"></i></button>
-      <p class="not-kucuk">Ödeme masaüstü uygulamasına iletilir ve orada işlenir; işlenince listede görünür.</p>
     </form>`;
   let yontem = 'nakit', dosya = null;
   $('#odeme-form').addEventListener('input', e => { e.target.removeAttribute('aria-invalid'); $('#f-hata').textContent = ''; });
