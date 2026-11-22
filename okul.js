@@ -148,14 +148,13 @@ function okTahTablo() {
 }
 
 function okIndTablo() {
-  const gd = OK_GOSTER_DURUM[OK.iGoster];
   // Masaüstündeki İndirim / Kayıp Analizi ile aynı hesap: normal fiyat girilmemişse dönemlik ücret alınır; indirim = normal − dönemlik
-  const sat = durum.veri.ogrenciler.filter(o => (!gd || o.durum === gd) && okAra(OK.q.ind, `${o.ad} ${o.adres}`, okTelleri(o)))
+  const sat = durum.veri.ogrenciler.filter(o => okAra(OK.q.ind, `${o.ad} ${o.adres}`, okTelleri(o)))
     .map(o => { const normal = o.normal > 0 ? o.normal : o.ucret; return { o, normal, indirim: Math.max(0, normal - o.ucret) }; })
     .sort((a, b) => b.indirim - a.indirim || okSirala(a.o, b.o));
   const ind = sat.filter(s => s.indirim > 0.01);
   const kart = (ton, ad, d) => `<div class="ozet-kart" data-tone="${ton}"><small>${esc(ad)}</small><strong>${d}</strong></div>`;
-  const ek = `<section class="ozet vurgulu" aria-label="Özet">${kart('kirmizi', 'Toplam İndirim', TL(topla(sat, s => s.indirim)))}${kart('kehribar', 'İndirim yapılan', `${ind.length} / ${sat.length} öğrenci`)}
+  const ek = `<section class="ozet vurgulu" aria-label="Özet">${kart('kirmizi', 'Toplam İndirim', TL(topla(sat, s => s.indirim)))}${kart('kehribar', 'İndirim Yapılan Öğrenci', `${ind.length} / ${sat.length}`)}
     ${kart('mavi', 'Liste Fiyatı Toplamı', TLK(topla(sat, s => s.normal)))}${kart('mor', 'Dönemlik Ücret Toplamı', TLK(topla(sat, s => s.o.ucret)))}${kart('yesil', 'Tahsilat Toplamı', TLK(topla(sat, s => s.o.odenen)))}</section>`;
   return {
     baslik: 'İndirim / Kayıp Analizi', dosya: 'indirim_kayip_analizi', ad: 0, ac: true, ek, ozetGizli: true,
@@ -354,7 +353,6 @@ function okKontrolHtml() {
   if (OK.sekme === 'ogr') sec = okSec('ok-sinif', 'Sınıf', [['', 'Tüm Sınıflar'], ...siniflar.map(s => [s, s])], OK.sinif) + okSec('ok-servis', 'Servis', servisSec, OK.servis)
     + okSec('ok-ay', 'Ay', [[OK_TUM_YIL, 'Tüm Yıl'], ...okAyListesi().map(a => [a, ayAdi(a)])], okSecAy());
   else if (OK.sekme === 'tah' && OK.tah === 'rapor') sec = okSec('ok-tservis', 'Öğrenci Servisi', servisSec, OK.tServis) + okSec('ok-goster', 'Göster', OK_GOSTER, OK.goster) + okSec('ok-yontem', 'Ödeme Yöntemi', OK_YONTEM, OK.yontem);
-  else if (OK.sekme === 'tah') sec = okSec('ok-igoster', 'Göster', OK_GOSTER, OK.iGoster);
   return `${alt}${ara}${sec ? `<div class="ok-kontrol">${sec}</div>` : ''}<div id="ok-dyn"></div>`;
 }
 
@@ -395,11 +393,48 @@ function okExcel(t) {
   toast('Excel dosyası indirildi.');
 }
 
-function okPdf(t) {
+// Masaüstü 'PDF Çıktı Ayarları' ile aynı: firma logosu göster/gizle, konum (sol/sağ üst), boyut (küçük/orta/büyük). Seçim telefonda saklanır; ilk değer masaüstü ayarıdır.
+const OK_LOGO_BOYUT = { small: [34, 22], medium: [42, 27], large: [50, 32] };
+function okMarka() { try { return JSON.parse(localStorage.getItem('marka') || '{}') || {}; } catch { return {}; } }
+function okPdfAyar() {
+  const m = okMarka();
+  let s = {}; try { s = JSON.parse(localStorage.getItem('pdfAyar') || '{}') || {}; } catch { s = {}; }
+  return { logo: s.logo !== undefined ? !!s.logo : !!m.logo, konum: s.konum || m.konum || 'left', boyut: s.boyut || m.boyut || 'small' };
+}
+function okPdfAyarSor() {
+  const m = okMarka(), a = okPdfAyar();
+  const sec = (id, ad, l, v) => `<label class="alan"><span>${esc(ad)}</span><select id="${id}">${l.map(([x, y]) => `<option value="${x}"${x === v ? ' selected' : ''}>${esc(y)}</option>`).join('')}</select></label>`;
+  return new Promise(coz => {
+    const d = document.createElement('dialog');
+    d.className = 'soru-kutu'; d.setAttribute('aria-labelledby', 'pdf-b');
+    d.innerHTML = `<form method="dialog"><h2 id="pdf-b">PDF Çıktı Ayarları</h2>
+      ${m.ad ? `<p class="ok-pdf-firma">${esc(m.ad)}</p>` : ''}
+      ${m.logo ? sec('pdf-logo', 'Firma logosu', [['1', 'Göster'], ['0', 'Gösterme']], a.logo ? '1' : '0') : '<p>Masaüstünde firma logosu tanımlı değil.</p>'}
+      ${m.logo ? sec('pdf-konum', 'Logo konumu', [['left', 'Sol Üst'], ['right', 'Sağ Üst']], a.konum) + sec('pdf-boyut', 'Logo boyutu', [['small', 'Küçük'], ['medium', 'Orta'], ['large', 'Büyük']], a.boyut) : ''}
+      <div class="soru-dugme"><button type="submit" value="iptal" class="eylem">Vazgeç</button><button type="submit" value="tamam" class="btn-ana">PDF Oluştur</button></div></form>`;
+    d.addEventListener('close', () => {
+      const s = { logo: !!m.logo && d.querySelector('#pdf-logo')?.value === '1', konum: d.querySelector('#pdf-konum')?.value || a.konum, boyut: d.querySelector('#pdf-boyut')?.value || a.boyut };
+      const tamam = d.returnValue === 'tamam';
+      if (tamam) try { localStorage.setItem('pdfAyar', JSON.stringify(s)); } catch { /* yoksay */ }
+      coz(tamam ? s : null); d.remove();
+    });
+    document.body.append(d); d.showModal();
+  });
+}
+
+async function okPdf(t) {
+  const ayar = await okPdfAyarSor(); if (!ayar) return;
+  const m = okMarka(), logo = ayar.logo && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(m.logo || '') ? m.logo : '';
+  const [lw, lh] = OK_LOGO_BOYUT[ayar.boyut] || OK_LOGO_BOYUT.small;
+  const baslik = `<div class="b">${m.ad ? `<div class="f">${esc(m.ad)}</div>` : ''}<h1>${esc(t.baslik)}  ${esc(durum.veri.donem_ad || '')}</h1></div>`;
+  const img = logo ? `<img src="${logo}" alt="" style="max-width:${lw / 10}cm;max-height:${lh / 10}cm">` : '';
+  const ust = logo ? `<div class="u">${ayar.konum === 'right' ? baslik + img : img + baslik}</div>` : `<div class="u">${baslik}</div>`;
+  const dar = t.kol.length > 20;
   const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>${esc(t.baslik)}</title><style>
-    @page{size:A4 landscape;margin:10mm}body{font:11px Arial,sans-serif;color:#111}h1{font-size:16px;margin:0 0 6px}p{margin:0 0 4px}
+    @page{size:A4 landscape;margin:10mm}body{font:${dar ? 8 : 11}px Arial,sans-serif;color:#111}h1{font-size:16px;margin:0 0 4px}p{margin:0 0 4px}
+    .u{display:flex;align-items:center;gap:12px}.u img{object-fit:contain}.b{flex:1;text-align:${logo ? (ayar.konum === 'right' ? 'left' : 'right') : 'center'}}.f{font-size:12px;color:#444;margin-bottom:2px}
     table{border-collapse:collapse;width:100%;margin-top:8px}th,td{border:1px solid #999;padding:3px 5px;text-align:left;vertical-align:top}th{background:#e8eef5}tr{break-inside:avoid}</style></head>
-    <body><h1>${esc(t.baslik)}  ${esc(durum.veri.donem_ad || '')}</h1>${okOzetMetin(t).map(s => `<p>${esc(s)}</p>`).join('')}
+    <body>${ust}${okOzetMetin(t).map(s => `<p>${esc(s)}</p>`).join('')}
     <table><thead><tr>${t.kol.map(k => `<th>${esc(k)}</th>`).join('')}</tr></thead><tbody>${t.sat.map(s => `<tr>${s.h.map(x => `<td>${esc(x)}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`;
   const w = window.open('', '_blank');
   if (w) { w.document.open(); w.document.write(html); w.document.close(); setTimeout(() => { w.focus(); w.print(); }, 300); return; }

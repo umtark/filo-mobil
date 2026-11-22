@@ -71,7 +71,7 @@ async function markaYenile() {
   try {
     const j = await rpc('marka');
     if (!j.ok) return;
-    const m = { ad: String(j.ad || ''), logo: String(j.logo || '') };
+    const m = { ad: String(j.ad || ''), logo: String(j.logo || ''), konum: j.konum === 'right' ? 'right' : 'left', boyut: ['small', 'medium', 'large'].includes(j.boyut) ? j.boyut : 'small' };
     try { localStorage.setItem('marka', JSON.stringify(m)); } catch { /* kota: yoksay */ }
     markaUygula(m);
   } catch { /* çevrimdışı: saklanan marka kalır */ }

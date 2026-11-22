@@ -225,6 +225,8 @@ body.altnavli .ana { padding-bottom: calc(96px + var(--alt-bosluk)); }
 .soru-kutu p { margin: 0 0 20px; color: var(--soluk); font-size: 15px; line-height: 1.5; }
 .soru-dugme { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .soru-dugme .btn-ana { height: 48px; font-size: 15px; }
+.soru-kutu .alan { margin-bottom: 14px; }
+.soru-kutu p.ok-pdf-firma { margin: 0 0 14px; font-weight: 600; color: var(--yazi); }
 .btn-ana.tehlike { background: var(--kirmizi); color: var(--on-renk); }
 .btn-ana.tehlike:hover { background: var(--kirmizi); }
 .alt-nav button:active { transform: scale(.94); }
