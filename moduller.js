@@ -513,13 +513,13 @@ function esnafYeniForm() {
 }
 const ESNAF = {
   id: 'esnaf', modul: 'esnaf', araYazi: 'Esnaf ara', ekle: esnafYeniForm, veri: () => (modVeri('esnaf') || {}).esnaflar, ara: e => e.isim,
-  filtreler: [['hepsi', 'Tümü', () => true], ['borclu', 'Borcu olan', e => e.bakiye > 0.01], ['kapali', 'Borcu yok', e => e.bakiye <= 0.01]],
-  kartlar: l => [{ ad: 'Toplam borç', deger: topla(l, e => Math.max(0, e.bakiye)), bicim: TL, ton: 'kehribar' }, { ad: 'Toplam ödenen', deger: topla(l, e => e.odenen), bicim: TL, ton: 'yesil' },
+  filtreler: [['hepsi', 'Tümü', () => true], ['borclu', 'Ödeme bekleyen', e => e.bakiye > 0.01], ['kapali', 'Hesabı kapalı', e => e.bakiye <= 0.01]],
+  kartlar: l => [{ ad: 'Ödenecek tutar', deger: topla(l, e => Math.max(0, e.bakiye)), bicim: TL, ton: 'kehribar' }, { ad: 'Toplam ödenen', deger: topla(l, e => e.odenen), bicim: TL, ton: 'yesil' },
     { ad: 'Toplam işlem', deger: topla(l, e => e.borc), bicim: TL, ton: 'mor' }, { ad: 'Esnaf', deger: l.length, bicim: v => String(Math.round(v)), ton: 'mavi' }],
-  satir: e => satirHtml(esc(e.isim), `${e.islemler.length} işlem`, e.bakiye > 0.01 ? TL(e.bakiye) : 'Borç yok', e.bakiye > 0.01 ? rozet('Borçlu', 'bekliyor') : rozet('Kapalı', 'odendi')),
+  satir: e => satirHtml(esc(e.isim), `${e.islemler.length} işlem`, e.bakiye > 0.01 ? TL(e.bakiye) : 'Ödenecek yok', e.bakiye > 0.01 ? rozet('Ödenecek', 'bekliyor') : rozet('Kapalı', 'odendi')),
   sinif: () => '',
   detay: e => `<div class="d-baslik"><div><h2>${esc(e.isim)}</h2><p>${e.islemler.length} işlem</p></div></div>
-    <div class="d-ucluk"><div><small>Toplam işlem</small><strong>${TL(e.borc)}</strong></div><div class="y"><small>Ödenen</small><strong>${TL(e.odenen)}</strong></div><div class="k"><small>Kalan borç</small><strong>${TL(e.bakiye)}</strong></div></div>
+    <div class="d-ucluk"><div><small>Toplam işlem</small><strong>${TL(e.borc)}</strong></div><div class="y"><small>Ödenen</small><strong>${TL(e.odenen)}</strong></div><div class="k"><small>Ödenecek tutar</small><strong>${TL(e.bakiye)}</strong></div></div>
     <div class="d-eylem" ${durum.izinler.includes('esnaf') ? '' : 'hidden'}><button class="eylem" id="es-islem" type="button">+ İşlem ekle</button><button class="eylem" id="es-odeme" type="button">+ Ödeme yap</button></div>
     <h3 class="d-sec">İşlemler</h3>
     ${e.islemler.length ? `<ul class="zaman">${e.islemler.map(i => `<li class="${i.od ? 'od' : ''}"><div class="z-ust"><span>${esc(i.ac || (i.od ? 'Ödeme' : 'İşlem'))}</span><span class="${i.od ? 'yesil-y' : ''}">${i.od ? '−' : ''}${TL(i.top)}</span></div>
