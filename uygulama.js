@@ -13,6 +13,11 @@ const FILTRELER = [['hepsi', 'Ödeyenler + Ödemeyenler'], ['odendi', 'Tam Ödey
 const API = (window.AYAR && window.AYAR.API) || '/api';
 const YOKLAMA_MS = ((window.AYAR && window.AYAR.YOKLAMA_SN) || 30) * 1000;
 
+// "Beni hatırla" işaretsiz girildiyse oturum yalnızca açık kaldığı sürece geçerlidir; uygulama/sekme kapanıp yeniden açılınca tekrar giriş istenir
+try {
+  if (localStorage.getItem('hatirla') === '0' && !sessionStorage.getItem('oturum')) ['token', 'izinler', 'ro'].forEach(k => localStorage.removeItem(k));
+} catch { /* depolama yoksa yoksay */ }
+
 const durum = {
   token: localStorage.getItem('token') || '', kullanici: localStorage.getItem('kullanici') || '', ro: localStorage.getItem('ro') === '1',
   izinler: (() => { try { const a = JSON.parse(localStorage.getItem('izinler') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
@@ -60,7 +65,7 @@ function markaUygula(m) {
   $('#g-marka').classList.toggle('logolu', !!logo);
   $('#g-logo').src = logo || 'ikon-192.png';
   $('#g-baslik').textContent = ad || 'Filo Muhasebe';
-  $('#g-alt').textContent = ad ? 'Filo Muhasebe · Mobil' : 'Tahsilat, evrak ve araç kayıtların telefonunda.';
+  $('#g-alt').textContent = ad ? 'Filo Muhasebe · Mobil' : '';
   const u = $('#ust-logo'); u.hidden = !logo; if (logo) u.src = logo;
 }
 async function markaYenile() {
@@ -338,6 +343,7 @@ $('#giris-form').addEventListener('submit', async e => {
       durum.token = g.token; durum.kullanici = g.kullanici; durum.izinler = g.izinler; roUygula(!!g.ro);
       localStorage.setItem('token', g.token); localStorage.setItem('kullanici', g.kullanici);
       localStorage.setItem('hatirla', $('#g-hatirla').getAttribute('aria-checked') === 'true' ? '1' : '0');
+      sessionStorage.setItem('oturum', '1');
       localStorage.setItem('izinler', JSON.stringify(g.izinler));
       $('#g-pin').value = ''; anaGoster();
     } else {
