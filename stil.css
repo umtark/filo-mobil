@@ -343,6 +343,11 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .chip.secili:hover { color: var(--on-ana); } .alt-nav button:hover:not(.secili) { color: var(--yazi); } .ikon-btn:hover { color: var(--yazi); border-color: var(--kenar); }
 }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .35s; animation-timing-function: ease; mix-blend-mode: normal; }
+
+/* Salt okunur hesap: tüm yazma denetimleri gizlenir (asıl denetim Apps Script ve masaüstündedir) */
+html.salt-okunur .fab, html.salt-okunur #d-odeme-ekle, html.salt-okunur #d-duzenle, html.salt-okunur .d-eylem,
+html.salt-okunur .satir-eylem, html.salt-okunur #ar-ekle, html.salt-okunur [data-belge],
+html.salt-okunur #es-islem, html.salt-okunur #es-odeme, html.salt-okunur #ar-yag, html.salt-okunur #ar-belge { display: none !important; }
 .sayfa:focus { outline: none; }
 
 /* ---------- animasyonlar ---------- */

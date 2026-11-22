@@ -14,7 +14,7 @@ const API = (window.AYAR && window.AYAR.API) || '/api';
 const YOKLAMA_MS = ((window.AYAR && window.AYAR.YOKLAMA_SN) || 30) * 1000;
 
 const durum = {
-  token: localStorage.getItem('token') || '', kullanici: localStorage.getItem('kullanici') || '',
+  token: localStorage.getItem('token') || '', kullanici: localStorage.getItem('kullanici') || '', ro: localStorage.getItem('ro') === '1',
   izinler: (() => { try { const a = JSON.parse(localStorage.getItem('izinler') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
   veri: null, mod: {}, bilinen: {}, filtre: 'hepsi', ara: '', evAra: '', gorunum: localStorage.getItem('gorunum') || 'dashboard', kuruldu: false,
   sonGuncelleme: 0, bagli: true, acik: null, zamanlayici: 0, bekleyen: [], okSekme: 'ogr',
@@ -22,6 +22,14 @@ const durum = {
 const kartlar = new Map();
 const sayilar = {};
 const AZ_HAREKET = matchMedia('(prefers-reduced-motion: reduce)');
+
+/* ---------- salt okunur kullanıcı: yalnızca bakar (asıl denetim Apps Script ve masaüstünde; burası görünümdür) ---------- */
+function roUygula(ro) {
+  durum.ro = !!ro;
+  try { if (durum.ro) localStorage.setItem('ro', '1'); else localStorage.removeItem('ro'); } catch { /* yoksay */ }
+  document.documentElement.classList.toggle('salt-okunur', durum.ro);
+}
+document.documentElement.classList.toggle('salt-okunur', durum.ro);
 
 /* ---------- tema (koyu / açık) ---------- */
 const TEMA_RENK = { koyu: '#0a0e13', acik: '#eceff2' };
@@ -185,7 +193,7 @@ function veriKur() {
 }
 
 function modulleriUygula(j) {
-  if (j.kimlik) izinleriUygula(j.kimlik.izinler);
+  if (j.kimlik) { roUygula(!!j.kimlik.ro); izinleriUygula(j.kimlik.izinler); }
   if (j.surumler) {
     Object.keys(durum.mod).forEach(k => { if (!(k in j.surumler)) { delete durum.mod[k]; delete durum.bilinen[k]; cacheSil(k); } });   // yetkisi alınan modülün verisi silinir
   }
@@ -274,7 +282,7 @@ function cikis(sessiz) {
   durum.token = ''; durum.veri = null; durum.mod = {}; durum.bilinen = {}; durum._onceki = null; durum.navImza = '';
   ayarDurum.liste = null; ayarDurum.hata = '';
   if (!sessiz) cacheIs('readwrite', o => o.clear());   // oturum süresi dolduğunda veri kalır (aynı kullanıcı girerse hızlı açılır); çıkışta silinir
-  ['token', 'izinler'].forEach(k => localStorage.removeItem(k));
+  ['token', 'izinler', 'ro'].forEach(k => localStorage.removeItem(k)); roUygula(false);
   // Oturum süresi dolunca gönderilmemiş ödemeler kaybolmasın: kuyruk yalnızca bilinçli çıkışta silinir (farklı kullanıcı girerse girişte temizlenir)
   if (!sessiz) { localStorage.removeItem('bekleyen'); durum.bekleyen = []; }
   kartlar.forEach(k => k.li.remove()); kartlar.clear(); $('#ev-liste').innerHTML = '';
@@ -305,7 +313,7 @@ $('#giris-form').addEventListener('submit', async e => {
     if (g.ok) {
       localStorage.setItem(anahtar, JSON.stringify({ tuz: t.tuz, tur: t.tur }));
       if (g.kullanici !== durum.kullanici && durum.bekleyen.length) { durum.bekleyen = []; bekleyenKaydet(); }   // başkasının bekleyen ödemesi bu hesaba gitmesin
-      durum.token = g.token; durum.kullanici = g.kullanici; durum.izinler = g.izinler;
+      durum.token = g.token; durum.kullanici = g.kullanici; durum.izinler = g.izinler; roUygula(!!g.ro);
       localStorage.setItem('token', g.token); localStorage.setItem('kullanici', g.kullanici);
       localStorage.setItem('izinler', JSON.stringify(g.izinler));
       $('#g-pin').value = ''; anaGoster();
@@ -533,12 +541,12 @@ function okulDigerCiz() {
   else if (k === 'ind') y.innerHTML = indirimHtml(v);
   else {
     const l = k === 'yok' ? v.servis_yok : v.atanmamis;
-    y.innerHTML = `<p class="z-alt ok-not">${k === 'yok' ? 'Servis kullanmadığı işaretlenen öğrenciler tahsilat listesinde yer almaz.' : 'Henüz bir servis aracına atanmamış öğrenciler tahsilat listesinde yer almaz.'} Dokununca bilgilerini düzenleyebilir ya da servise atayabilirsin.</p>`
+    y.innerHTML = `<p class="z-alt ok-not">${k === 'yok' ? 'Servis kullanmadığı işaretlenen öğrenciler tahsilat listesinde yer almaz.' : 'Henüz bir servis aracına atanmamış öğrenciler tahsilat listesinde yer almaz.'} ${durum.ro ? '' : 'Dokununca bilgilerini düzenleyebilir ya da servise atayabilirsin.'}</p>`
       + (l.length ? `<ul class="liste">${l.map(kisiKart).join('')}</ul>` : '<p class="bos">Kayıt yok.</p>');
   }
 }
 $('#ok-diger').addEventListener('click', e => {
-  const b = e.target.closest('[data-ogr]'); if (!b || !durum.izinler.includes('okul')) return;
+  const b = e.target.closest('[data-ogr]'); if (durum.ro || !b || !durum.izinler.includes('okul')) return;
   const k = [...durum.veri.servis_yok, ...durum.veri.atanmamis].find(x => x.id === b.dataset.ogr); if (!k) return;
   ogrenciForm(k, false); sayfaAc();
 });
@@ -775,6 +783,7 @@ function tutarCoz(s) {
 }
 
 function odemeFormu(o) {
+  if (durum.ro) return;
   durum.acik.form = true;
   $('#sayfa-icerik').innerHTML = `
     <div class="d-baslik"><button class="geri" id="f-geri" type="button" aria-label="Geri">‹</button>

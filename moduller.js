@@ -169,6 +169,7 @@ function alanHtml(a) {
 }
 
 function formAc(cfg) {
+  if (durum.ro) { toast('Salt okunur hesap: kayıt eklenemez.', 'uyari'); return; }
   durum.acik = { tur: 'm:' + cfg.modul, form: true };
   $('#sayfa-icerik').innerHTML = `
     <div class="d-baslik">${cfg.geri ? '<button class="geri" id="fm-geri" type="button" aria-label="Geri">‹</button>' : ''}<div><h2>${esc(cfg.baslik)}</h2><p>${esc(cfg.alt || '')}</p></div></div>
@@ -241,11 +242,12 @@ const tarihAl = v => { if (!v || v > bugunISO()) throw new Error('Geçerli bir t
 const SIFIR_SEC = [['', 'Seçiniz…']];
 
 /* ---------- düzenle / sil: yalnızca yönetici ya da kaydı telefondan giren kullanıcı (masaüstü de aynısını denetler) ---------- */
-const sahibi = x => !!x && (durum.izinler.includes('ayarlar') || (!!x.m && x.m === durum.kullanici));
+const sahibi = x => !!x && !durum.ro && (durum.izinler.includes('ayarlar') || (!!x.m && x.m === durum.kullanici));
 const isoTarih = s => { const d = trParse(s); return d ? `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` : bugunISO(); };
 const virgul = v => String(v).replace('.', ',');
 function detayGeri(cfg, x) { durum.acik = { tur: 'm:' + cfg.id, id: x.id, form: false }; cfg.detayYaz(); }
 async function kayitGonder(modul, islem, veri, ozet) {
+  if (durum.ro) { toast('Salt okunur hesap: değişiklik yapılamaz.', 'uyari'); return; }
   const p = { id: yeniId(), tur: 'kayit', modul, islem, veri, ozet, foto: null, gitti: false, durum: 'bekliyor' };
   durum.bekleyen.push(p); bekleyenKaydet();
   await bekleyenleriIsle(); bekleyenleriGoster();
@@ -643,7 +645,7 @@ function ayarlarCiz() {
   $('.bek-yer', s).innerHTML = bekleyenHtml('ayarlar');
   ul._liste = l || [];
   ul.innerHTML = (l || []).map((u, i) => `<li><button type="button" class="kart" data-i="${i}">${satirHtml(esc(u.ad),
-    esc(u.izinler.map(kulIzinAd).join(' · ') || 'Hiçbir sayfaya erişemez'), `${u.izinler.length} sayfa`, '')}</button></li>`).join('');
+    esc((u.ro ? 'Salt okunur · ' : '') + (u.izinler.map(kulIzinAd).join(' · ') || 'Hiçbir sayfaya erişemez')), `${u.izinler.length} sayfa`, '')}</button></li>`).join('');
   $('.ay-durum', s).textContent = ayarDurum.hata || (l ? '' : 'Yükleniyor…');
   $('.bos', s).hidden = !l || l.length > 0;
 }
@@ -658,7 +660,7 @@ async function ayarGonder(veri, ozet) {
 function kullaniciDetay(u) {
   durum.acik = { tur: 'kul', id: u.ad, form: false };
   const var_ = k => u.izinler.includes(k);
-  $('#sayfa-icerik').innerHTML = `<div class="d-baslik"><div><h2>${esc(u.ad)}</h2><p>${u.izinler.length ? `${u.izinler.length} sayfaya erişebilir` : 'Hiçbir sayfaya erişemez'}</p></div></div>
+  $('#sayfa-icerik').innerHTML = `<div class="d-baslik"><div><h2>${esc(u.ad)}</h2><p>${u.izinler.length ? `${u.izinler.length} sayfaya erişebilir` : 'Hiçbir sayfaya erişemez'}${u.ro ? ' · salt okunur' : ''}</p></div></div>
     <h3 class="d-sec">Erişebildiği sayfalar</h3>
     <ul class="izin-liste">${KUL_IZINLERI.map(([k, ad]) => `<li class="${var_(k) ? 'var' : ''}"><i aria-hidden="true">${var_(k) ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>' : '–'}</i>${esc(ad)}<span class="gizli">${var_(k) ? ': erişebilir' : ': erişemez'}</span></li>`).join('')}</ul>
     <button class="btn-ana" id="ku-duzenle" type="button">Düzenle</button>
@@ -679,14 +681,16 @@ function kullaniciForm(u) {
     geri: yeni ? null : () => kullaniciDetay(u),
     alanlar: [{ k: 'ad', etiket: 'Kullanıcı adı', tur: 'metin', zorunlu: true, maks: 64, varsayilan: yeni ? '' : u.ad },
       { k: 'sifre', etiket: yeni ? 'Şifre' : 'Yeni şifre (isteğe bağlı)', tur: 'sifre', zorunlu: yeni, maks: 64, ipucu: 'En az 4 karakter' },
-      { k: 'izinler', etiket: 'Erişebileceği sayfalar', tur: 'onay', secenekler: KUL_IZINLERI, varsayilan: yeni ? [] : u.izinler }],
+      { k: 'izinler', etiket: 'Erişebileceği sayfalar', tur: 'onay', secenekler: KUL_IZINLERI, varsayilan: yeni ? [] : u.izinler },
+      { k: 'ro', etiket: 'Erişim türü', tur: 'segment', secenekler: [['0', 'Okuma ve yazma'], ['1', 'Salt okunur']], varsayilan: (u && u.ro) ? '1' : '0' }],
     hazirla: d => {
       const ad = gerekli(d('ad'), 'Kullanıcı adı'), sifre = yeni ? gerekli(d('sifre'), 'Şifre') : d('sifre').trim();
       if (sifre && (sifre.length < 4 || sifre.length > 64)) throw new Error('Şifre 4 ile 64 karakter arasında olmalı.');
       const kendi = u ? u.ad.toLowerCase() : '';
       if (ad.toLowerCase() !== kendi && (ayarDurum.liste || []).some(x => x.ad.toLowerCase() === ad.toLowerCase())) throw new Error('Bu kullanıcı adı zaten var.');
-      return yeni ? { eylem: 'ekle', ad, sifre, izinler: d('izinler') }
-        : { eylem: 'guncelle', ad: u.ad, yeni_ad: ad !== u.ad ? ad : '', sifre, izinler: d('izinler') };
+      const ro = d('ro') === '1';
+      return yeni ? { eylem: 'ekle', ad, sifre, izinler: d('izinler'), salt_okunur: ro }
+        : { eylem: 'guncelle', ad: u.ad, yeni_ad: ad !== u.ad ? ad : '', sifre, izinler: d('izinler'), salt_okunur: ro };
     },
     ozet: v => `${v.eylem === 'ekle' ? 'Yeni kullanıcı' : 'Kullanıcıyı güncelle'}: ${v.yeni_ad || v.ad}`,
   });
