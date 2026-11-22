@@ -256,10 +256,32 @@ function yoklamaBaslat() { clearInterval(durum.zamanlayici); durum.zamanlayici =
 /* ---------- giriş / çıkış ---------- */
 function girisGoster() {
   $('#ana').hidden = true; $('#alt-nav').hidden = true; $('#giris').hidden = false;
-  $('#g-kullanici').value = durum.kullanici;
+  onayAyarla(hatirlaAcik());
+  $('#g-kullanici').value = hatirlaAcik() ? durum.kullanici : '';
   setTimeout(() => ($('#g-kullanici').value ? $('#g-pin') : $('#g-kullanici')).focus(), 50);
   markaYenile();
 }
+
+/* "Beni hatırla": masaüstü AnimCheckBox ile aynı 14 karelik PNG animasyonu (anim/checkbox_0..13.png). İşaretliyse kullanıcı adı bir sonraki girişte hazır gelir */
+const hatirlaAcik = () => localStorage.getItem('hatirla') !== '0';
+const ONAY_KARE = Array.from({ length: 14 }, (_, i) => { const m = new Image(); m.src = `anim/checkbox_${i}.png`; return m.src; });
+let onayZ = 0;
+function onayAyarla(v) {
+  clearInterval(onayZ); onayZ = 0;
+  $('#g-hatirla').setAttribute('aria-checked', String(v)); $('#g-hatirla img').src = ONAY_KARE[v ? 13 : 0];
+}
+$('#g-hatirla').addEventListener('click', () => {
+  if (onayZ) return;
+  const b = $('#g-hatirla'), img = $('img', b), yeni = b.getAttribute('aria-checked') !== 'true';
+  b.setAttribute('aria-checked', String(yeni));
+  if (AZ_HAREKET.matches) { img.src = ONAY_KARE[yeni ? 13 : 0]; return; }
+  let k = yeni ? 1 : 13;
+  img.src = ONAY_KARE[k];
+  onayZ = setInterval(() => {
+    k += yeni ? 1 : -1; img.src = ONAY_KARE[k];
+    if (k >= 13 || k <= 0) { clearInterval(onayZ); onayZ = 0; }
+  }, 25);
+});
 
 function iskeletKaldir() { document.querySelectorAll('#liste .iskelet').forEach(x => x.remove()); }
 function iskeletGoster() {
@@ -315,6 +337,7 @@ $('#giris-form').addEventListener('submit', async e => {
       if (g.kullanici !== durum.kullanici && durum.bekleyen.length) { durum.bekleyen = []; bekleyenKaydet(); }   // başkasının bekleyen ödemesi bu hesaba gitmesin
       durum.token = g.token; durum.kullanici = g.kullanici; durum.izinler = g.izinler; roUygula(!!g.ro);
       localStorage.setItem('token', g.token); localStorage.setItem('kullanici', g.kullanici);
+      localStorage.setItem('hatirla', $('#g-hatirla').getAttribute('aria-checked') === 'true' ? '1' : '0');
       localStorage.setItem('izinler', JSON.stringify(g.izinler));
       $('#g-pin').value = ''; anaGoster();
     } else {
