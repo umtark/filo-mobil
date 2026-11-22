@@ -700,7 +700,7 @@ function anaCiz() {
         <small id="bu-ay-etiket">${sec === anaDurum.sonAy ? 'Bu ay' : ''}</small></div>
       <div class="bu-ay-satir" id="bu-ay-satir">${buAyHtml(anaDurum.harita.get(sec))}</div>
       <p class="bu-ay-not">Net = gelir − gider. Gelir: giden faturalar. Gider: gelen faturalar, akaryakıt, esnaf işlemleri.</p></section>
-    <h3 class="d-sec">${yil} yılı <small class="d-ipucu">Aya dokun, üstteki özet değişir</small></h3><div class="grafik sec${ilkCizim ? ' ilk-cizim' : ''}">${yilAylari.map(bar).join('')}</div>
+    <h3 class="d-sec">${yil} yılı</h3><div class="grafik sec${ilkCizim ? ' ilk-cizim' : ''}">${yilAylari.map(bar).join('')}</div>
     <div class="lejant"><span><i class="gelir"></i>Gelir</span><span><i class="gider"></i>Gider</span></div>
     <h3 class="d-sec">Dikkat edilmesi gerekenler <b class="sayi-rozet">${belgeler.length}</b></h3>
     ${belgeler.length ? `<ul class="belge-liste">${(anaDurum.hepsi ? belgeler : belgeler.slice(0, 4)).map(b => `<li><div><b>${esc(b.plaka)} · ${esc(b.ad)}</b><small>${esc(b.firma)} · ${esc(b.son)}</small></div>${rozet(gunYazi(b.g), b.g < 0 ? 'bekliyor' : 'kismi')}</li>`).join('')}</ul>
