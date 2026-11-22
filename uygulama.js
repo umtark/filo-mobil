@@ -439,6 +439,8 @@ function ozetCiz() {
 }
 
 const bas = ad => ad.trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('').toLocaleUpperCase('tr');
+// Her kişiye adından türeyen sabit bir ton (mavi-mor aralığı; yeşil/kehribar/kırmızı yalnızca durum rengi olarak kalır)
+const avatarTon = ad => { let h = 0; for (const c of String(ad)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return 195 + h % 75; };
 const yuzde = o => o.ucret > 0 ? Math.min(100, o.odenen / o.ucret * 100) : (o.odenen > 0 ? 100 : 0);
 const DURUM_AD = { odendi: 'Ödendi', kismi: 'Kısmi', bekliyor: 'Ödenmedi' };
 
@@ -446,7 +448,7 @@ function kartHtml(o, anim) {
   const bek = durum.bekleyen.filter(p => p.ogrenci === o.id && p.durum !== 'islendi').length;
   const w = yuzde(o).toFixed(1);
   return `<div class="k-ust">
-    <div class="avatar">${esc(bas(o.ad))}</div>
+    <div class="avatar" style="--h:${avatarTon(o.ad)}">${esc(bas(o.ad))}</div>
     <div class="k-orta"><div class="k-ad">${esc(o.ad)}</div><div class="k-alt">${esc(o.sinif)} · ${esc(o.plaka)}</div></div>
     <div class="k-sag"><div class="k-kalan ${o.kalan <= 0.01 ? 'sifir' : ''}">${o.kalan <= 0.01 ? 'Borç yok' : TL(o.kalan)}</div>
       <span class="rozet-d ${o.durum}">${DURUM_AD[o.durum]}</span>${o.pesin ? '<span class="rozet-d pesin">Peşin</span>' : ''}${bek ? '<span class="rozet-d bek">' + bek + ' bekliyor</span>' : ''}</div>
@@ -683,7 +685,7 @@ function detayDoldur(o, anim) {
   const tel = o.tel.replace(/[^\d+]/g, '');
   const bek = durum.bekleyen.filter(p => p.ogrenci === o.id && p.durum !== 'islendi');
   const html = `
-    <div class="d-baslik"><div class="avatar">${esc(bas(o.ad))}</div>
+    <div class="d-baslik"><div class="avatar" style="--h:${avatarTon(o.ad)}">${esc(bas(o.ad))}</div>
       <div><h2>${esc(o.ad)}</h2><p>${esc(o.sinif)} · ${esc(o.plaka)}${o.pesin ? ' · Peşin ödeyen' : ''}</p></div></div>
     <div class="d-ucluk"><div><small>Ücret</small><strong>${TL(o.ucret)}</strong></div>
       <div class="y"><small>Ödenen</small><strong>${TL(o.odenen)}</strong></div>

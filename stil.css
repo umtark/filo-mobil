@@ -399,3 +399,110 @@ html.salt-okunur #es-islem, html.salt-okunur #es-odeme, html.salt-okunur #ar-yag
 .hareket-liste small { display: block; color: var(--soluk); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .h-tutar { flex: none; font-weight: 700; font-variant-numeric: tabular-nums; font-size: 14px; }
 .h-tutar.gelir { color: var(--yesil); } .h-tutar.gider { color: var(--kehribar); } .h-tutar.odeme { color: var(--mavi); }
+
+/* =====================================================================================
+   HAREKET VE YÜZEY KATMANI (v20)
+   Yay eğrisi, canlı zemin, cam yüzeyler, kayan sekme göstergesi, dalga geri bildirimi,
+   sırayla giriş, çekerek yenileme. Tümü transform/opacity ile çalışır; hareket azaltma
+   tercihi yukarıdaki genel kuralla kapanır.
+   ===================================================================================== */
+:root { --yay: cubic-bezier(.34, 1.45, .64, 1); }
+@supports (transition-timing-function: linear(0, 1)) {
+  :root { --yay: linear(0, .22 2.5%, .64 6.4%, .92 11%, 1.05 16%, 1.08 19.5%, 1.06 24%, 1.02 31%, .995 40%, .99 50%, 1 70%, 1 100%); }
+}
+:root, html[data-tema=koyu] { --parlak: rgba(255, 255, 255, .04); --aur1: rgba(74, 168, 232, .17); --aur2: rgba(124, 108, 255, .11); --aur3: rgba(62, 207, 142, .06); }
+html[data-tema=acik] { --parlak: rgba(255, 255, 255, .75); --aur1: rgba(20, 89, 138, .10); --aur2: rgba(124, 108, 255, .07); --aur3: rgba(21, 112, 74, .05); }
+button { touch-action: manipulation; }
+
+/* canlı zemin: iki üç yumuşak ışık, çok yavaş kayar (yalnızca transform) */
+body::before { content: ""; position: fixed; inset: -15%; z-index: -1; pointer-events: none; will-change: transform;
+  background: radial-gradient(42% 32% at 18% 12%, var(--aur1), transparent 70%), radial-gradient(38% 30% at 88% 22%, var(--aur2), transparent 70%), radial-gradient(40% 30% at 50% 100%, var(--aur3), transparent 70%);
+  animation: aurora 26s ease-in-out infinite alternate; }
+@keyframes aurora { from { transform: translate3d(-2%, -1%, 0) scale(1); } to { transform: translate3d(2%, 2%, 0) scale(1.06); } }
+
+/* yüzeyler: üstten ince ışık, derinlik hissi */
+.kart, .ozet-kart, .ist, .ekstra-kutu, .grafik { background-image: linear-gradient(180deg, var(--parlak), transparent 55%); }
+.ozet.vurgulu > .ozet-kart:first-child { background-image: radial-gradient(120% 150% at 0% 0%, color-mix(in srgb, var(--ton, var(--ana)) 18%, transparent), transparent 62%), linear-gradient(180deg, var(--parlak), transparent 55%); }
+.avatar { color: hsl(var(--h, 205) 85% 74%); background: linear-gradient(135deg, hsl(var(--h, 205) 75% 62% / .26), hsl(calc(var(--h, 205) + 40) 75% 62% / .1)); box-shadow: inset 0 0 0 1px hsl(var(--h, 205) 75% 62% / .22); }
+html[data-tema=acik] .avatar { color: hsl(var(--h, 205) 70% 28%); background: linear-gradient(135deg, hsl(var(--h, 205) 70% 55% / .22), hsl(calc(var(--h, 205) + 40) 70% 55% / .08)); }
+
+/* cam yüzeyler */
+.alt-nav { background: color-mix(in srgb, var(--yuz) 84%, transparent); -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); }
+.arama { background: color-mix(in srgb, var(--yuz) 86%, transparent); -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); }
+.perde { -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+
+/* birincil düğme: ışık çizgisi ve renkli gölge */
+.btn-ana { background-image: linear-gradient(180deg, rgba(255, 255, 255, .2), transparent 70%);
+  box-shadow: 0 10px 22px -10px color-mix(in srgb, var(--ana) 75%, transparent), inset 0 1px 0 rgba(255, 255, 255, .22);
+  transition: transform .55s var(--yay), background-color .2s, box-shadow .25s; }
+.btn-ana:active { transform: scale(.965); box-shadow: 0 4px 10px -6px color-mix(in srgb, var(--ana) 75%, transparent), inset 0 1px 0 rgba(255, 255, 255, .22); }
+.btn-ana.tehlike { box-shadow: 0 10px 22px -10px color-mix(in srgb, var(--kirmizi) 75%, transparent), inset 0 1px 0 rgba(255, 255, 255, .2); }
+.fab { background-image: linear-gradient(160deg, rgba(255, 255, 255, .24), transparent 60%);
+  box-shadow: 0 14px 28px -10px color-mix(in srgb, var(--ana) 80%, transparent), inset 0 1px 0 rgba(255, 255, 255, .25);
+  transition: transform .55s var(--yay); }
+.fab:active { transform: scale(.92) rotate(90deg); }
+.chip.secili { box-shadow: 0 8px 18px -10px var(--ana); }
+
+/* basma geri bildirimi: yay ile bırakılır */
+.eylem, .ikon-btn { transition: transform .55s var(--yay), color .2s, border-color .2s, background-color .2s; }
+.chip { transition: transform .5s var(--yay), background-color .2s var(--egri), border-color .2s var(--egri), color .2s var(--egri), box-shadow .25s; }
+.kart { transition: transform .5s var(--yay), border-color .2s, background-color .3s; }
+.alt-nav button { transition: color .2s, transform .5s var(--yay); }
+
+/* dalga: dokunulan noktadan yayılır */
+.eylem, .chip, .ikon-btn, .daha, .hizli button, .segment button, .alt-nav button, .kucuk, .geri { position: relative; overflow: hidden; }
+.dalga { position: absolute; border-radius: 50%; background: currentColor; opacity: 0; transform: scale(0); pointer-events: none; animation: dalga .65s var(--egri) forwards; }
+@keyframes dalga { 0% { opacity: .2; transform: scale(0); } 100% { opacity: 0; transform: scale(1); } }
+
+/* alt gezinme: seçili hap, sekmeler arasında yay ile kayar */
+.alt-nav button { position: relative; z-index: 1; }
+.alt-nav button.secili { background: transparent; }
+.nav-iz { position: absolute; z-index: 0; left: 0; top: 0; width: var(--w, 0px); height: var(--h, 0px); border-radius: 14px; pointer-events: none;
+  transform: translate3d(var(--x, 0px), var(--y, 0px), 0);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ana) 22%, transparent), var(--ana-acik));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ana) 30%, transparent), 0 8px 18px -10px var(--ana);
+  transition: transform .55s var(--yay), width .4s var(--egri), height .3s var(--egri); }
+
+/* segment: seçim kutusu yay ile kayar (en fazla üç seçenekte) */
+.segment { position: relative; }
+.segment button { position: relative; z-index: 1; }
+.segment button.secili { background: transparent; color: var(--on-ana); }
+.segment:has(> button.secili):not(:has(> button:nth-child(4)))::before { content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 24px) / 3); border-radius: 10px; pointer-events: none;
+  background: var(--ana); box-shadow: 0 8px 16px -10px var(--ana); transition: transform .5s var(--yay); }
+.segment:has(> button:nth-child(2).secili):not(:has(> button:nth-child(4)))::before { transform: translateX(calc(100% + 8px)); }
+.segment:has(> button:nth-child(3).secili):not(:has(> button:nth-child(4)))::before { transform: translateX(calc(200% + 16px)); }
+.segment:has(> button:nth-child(4)) button.secili { background: var(--ana); }
+
+/* canlı nokta ve ilerleme çubuğu */
+.canli i { box-shadow: 0 0 0 0 color-mix(in srgb, var(--yesil) 55%, transparent); animation: halka 2.6s ease-out infinite; }
+.canli.kopuk i { animation: none; }
+@keyframes halka { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--yesil) 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
+.bar i, .k-bar i { position: relative; overflow: hidden; }
+.bar i::after, .k-bar i::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .38) 50%, transparent 70%); transform: translateX(-100%); animation: parlat 1.1s .7s var(--egri) 1 both; }
+@keyframes parlat { to { transform: translateX(100%); } }
+
+/* bildirim: yay ile yükselir */
+.toast { transition: transform .6s var(--yay), opacity .25s; }
+
+/* sekme geçişi: yön bilgisiyle yandan gelir */
+@keyframes gecisGel { from { opacity: 0; transform: translate3d(calc(var(--yon, 0) * 26px), 10px, 0); } to { opacity: 1; transform: none; } }
+
+/* sırayla giriş: sekme gösterilince bir kez (JS yaklaşık 1,1 sn .giris-an sınıfı verir; veri tazelenince yeniden oynamaz) */
+.giris-an :is(.ozet-kart, .ist, .ekstra-kutu, .grafik, .diger-liste > li, .bek-liste li, .hareket-liste li),
+.giris-an:not(#v-tahsilat) .liste > li { animation: yuksel .6s var(--egri) both; animation-delay: calc(var(--s, 0) * 55ms + 40ms); }
+.giris-an :nth-child(1) { --s: 0; } .giris-an :nth-child(2) { --s: 1; } .giris-an :nth-child(3) { --s: 2; } .giris-an :nth-child(4) { --s: 3; }
+.giris-an :nth-child(5) { --s: 4; } .giris-an :nth-child(6) { --s: 5; } .giris-an :nth-child(7) { --s: 6; } .giris-an :nth-child(8) { --s: 7; }
+.giris-an :nth-child(n + 9) { --s: 8; }
+/* alt sayfa içeriği ilk açılışta sırayla gelir */
+#sayfa-icerik.anim > * { animation: yuksel .5s var(--egri) both; animation-delay: calc(var(--s, 0) * 45ms + 60ms); }
+#sayfa-icerik.anim > :nth-child(1) { --s: 0; } #sayfa-icerik.anim > :nth-child(2) { --s: 1; } #sayfa-icerik.anim > :nth-child(3) { --s: 2; }
+#sayfa-icerik.anim > :nth-child(4) { --s: 3; } #sayfa-icerik.anim > :nth-child(5) { --s: 4; } #sayfa-icerik.anim > :nth-child(6) { --s: 5; }
+#sayfa-icerik.anim > :nth-child(n + 7) { --s: 6; }
+
+/* çekerek yenile */
+.cek-gost { position: fixed; z-index: 40; top: calc(10px + var(--ust-bosluk)); left: 50%; width: 40px; height: 40px; margin-left: -20px; display: grid; place-items: center;
+  border-radius: 50%; border: 1px solid var(--cizgi); background: var(--yuz); color: var(--ana); box-shadow: var(--golge); pointer-events: none;
+  opacity: 0; transform: translateY(calc(var(--p, 0) * 1px - 60px)) rotate(calc(var(--p, 0) * 4deg)); transition: transform .45s var(--yay), opacity .2s; }
+.cek-gost.surukle { transition: none; }
+.cek-gost.yukle svg { animation: don .8s linear infinite; }
+
