@@ -193,6 +193,7 @@ const gorunumModulu = g => VERI_MODULU[g] || g;
 function veriKur() {
   const o = durum.mod.okul || {};
   durum.veri = { donem_ad: o.donem_ad || '', ogrenciler: o.ogrenciler || [], servisler: o.servisler || [], servis_yok: o.servis_yok || [], atanmamis: o.atanmamis || [],
+    kademeler: o.kademeler || [], odeme_aylari: o.odeme_aylari || [], puantaj_bas: o.puantaj_bas || '', tahsilat_aylik: o.tahsilat_aylik || {},
     evraklar: (durum.mod.sirket_evrak || {}).evraklar || [] };
 }
 
@@ -568,7 +569,8 @@ function detayDoldur(o, anim) {
       <div class="z-alt">${p.durum === 'red' ? 'Reddedildi: ' + esc(p.neden || '') : p.gitti ? BEK_AD.bekliyor : 'Bağlantı bekleniyor; gelince gönderilecek'}
       ${p.durum === 'red' ? `<button class="kucuk" data-sil="${esc(p.id)}">Kapat</button>` : ''}</div></li>`).join('')}</ul>` : ''}
     <h3 class="d-sec">Ödeme Geçmişi</h3>
-    ${okGecmisHtml(o)}`;
+    ${okGecmisHtml(o)}
+    ${okArsivHtml(o)}`;
   const kok = $('#sayfa-icerik');
   if (!anim && kok.dataset.imza === html && kok.querySelector('#d-odeme-ekle')) return;   // yoklamada içerik değişmediyse sayfa yeniden yazılmaz (titreme ve odak kaybı olmaz)
   const odakId = !anim && kok.contains(document.activeElement) ? document.activeElement.id : '';
@@ -582,6 +584,7 @@ function detayDoldur(o, anim) {
   $('#sayfa-icerik').querySelectorAll('[data-sil]').forEach(b => b.addEventListener('click', () => {
     durum.bekleyen = durum.bekleyen.filter(p => p.id !== b.dataset.sil); bekleyenKaydet(); detayDoldur(o, false);
   }));
+  $('#sayfa-icerik').querySelectorAll('[data-dk]').forEach(b => b.addEventListener('click', () => evrakIndir(b, { kaynak: 'okul', ogrenci_id: o.id, id: b.dataset.dk })));
 }
 
 function ac(id) {

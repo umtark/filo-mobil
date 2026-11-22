@@ -412,6 +412,24 @@ html.salt-okunur #es-islem, html.salt-okunur #es-odeme, html.salt-okunur #ar-yag
 .ok-ogrler ul { list-style: none; margin: 0 0 4px; padding: 0; font-size: 13px; }
 .ok-ogrler li { padding: 7px 0; border-top: 1px solid var(--cizgi); white-space: pre-wrap; overflow-wrap: anywhere; }
 .tarih-koyu { color: var(--kirmizi); font-weight: 800; } .tarih-kirmizi { color: var(--kirmizi); } .tarih-kehribar { color: var(--kehribar); }
+.ok-yesil { color: var(--yesil); }
+.ozet-kart[data-tone=mavi] { --ton: var(--mavi); }
+.ok-alt-not { display: block; margin-top: 4px; font-size: 12px; color: var(--soluk); }
+.ok-arac.tek { grid-template-columns: 1fr; }
+.ok-gunler { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 12px; }
+.ok-gun { display: flex; align-items: center; justify-content: center; min-height: 36px; padding: 0; border: 1px solid var(--cizgi); border-radius: 8px; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; background: var(--yuz2); color: var(--soluk); }
+.ok-gun.var { color: var(--yesil); border-color: var(--yesil); background: transparent; }
+.ok-gun.yok { color: var(--kirmizi); border-color: var(--kirmizi); background: transparent; }
+.ok-gun.pasif { opacity: .45; }
+button.ok-gun { min-height: 44px; cursor: pointer; }
+.ok-od-ode { color: var(--yesil); } .ok-od-bek { color: var(--kirmizi); } .ok-od-yok { color: var(--soluk); } .ok-od-sirket { color: var(--kehribar); }
+.ok-oklar { display: flex; gap: 8px; margin-left: auto; }
+.ok-oklar button { width: 44px; height: 44px; border: 1px solid var(--cizgi); border-radius: 12px; background: var(--yuz2); color: var(--yazi); font: inherit; cursor: pointer; }
+.ok-oklar button:disabled { opacity: .35; cursor: default; }
+.ok-arsiv { margin: 0 0 8px; border: 1px solid var(--cizgi); border-radius: 12px; padding: 0 12px 8px; background: var(--yuz); }
+.ok-arsiv summary { cursor: pointer; min-height: 44px; padding: 10px 0; font-weight: 600; font-size: 14px; }
+.ok-arsiv summary small { display: block; margin-top: 2px; font-weight: 400; font-size: 12.5px; color: var(--soluk); }
+.ok-dekont { display: block; margin-top: 6px; }
 .ok-bilgi { margin: 16px 0 20px; }
 .ok-tablo { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
 .ok-tablo th { text-align: left; color: var(--soluk); font-weight: 600; padding: 6px 4px; border-bottom: 1px solid var(--cizgi); }
