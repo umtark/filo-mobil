@@ -425,7 +425,14 @@ $('#alt-nav').addEventListener('click', e => {
 
 /* ---------- tahsilat listesi ---------- */
 const filtreUygun = (o, f) => f === 'hepsi' ? true : f === 'pesin' ? o.pesin : o.durum === f;
-const aramaUygun = (o, q) => !q || sade(`${o.ad} ${o.sinif} ${o.plaka}`).includes(q);
+// Masaüstü aramasıyla aynı kural: kelimeler sıra bağımsız ve hepsi geçmeli; ad, veli adı, sınıf, plaka (boşluklu/boşluksuz) ve telefonlarda aranır
+const aramaUygun = (o, q) => {
+  if (!q) return true;
+  const hay = sade(`${o.ad} ${o.veli || ''} ${o.sinif} ${o.plaka} ${String(o.plaka || '').replace(/\s/g, '')} ${o.tel || ''} ${o.tels || ''}`).replace(/[^0-9a-z\s]/g, ' ');
+  if (q.replace(/[^0-9a-z\s]/g, ' ').split(/\s+/).filter(Boolean).every(p => hay.includes(p))) return true;
+  const r = q.replace(/\D/g, ''), tel = `${o.tel || ''} ${o.tels || ''}`.replace(/\D/g, '');
+  return r.length >= 3 && (tel.includes(r) || (r[0] === '0' && tel.includes(r.slice(1))));   // "0532 111" ile "532111" aynı numarayı bulur
+};
 
 function filtreleriKur() {
   const nav = $('#filtreler');
