@@ -76,8 +76,8 @@ function hataEkrani(mesaj, tekrar) {
 
 function girisEkrani(hata = "") {
   const sirket = sirketBaslangici();
-  const sirketGirdisi = h("input", { class: "girdi", type: "text", autocomplete: "organization", autocapitalize: "none", spellcheck: "false", required: true,
-    "aria-label": "Şirket kodu", placeholder: "Şirket kodu", value: sirket.kod, readonly: sirket.kilitli });
+  const sirketGirdisi = h("input", { class: "girdi", type: "text", inputmode: "numeric", pattern: "[0-9]*", maxlength: "6", autocomplete: "off", spellcheck: "false", required: true,
+    "aria-label": "Şirket kodu", placeholder: "Şirket kodu (6 haneli)", value: sirket.kod, readonly: sirket.kilitli });
   // "Beni hatırla" masaüstündeki gibi kullanıcı adını hatırlar; telefonda ayrıca oturumu cihazda açık tutar.
   const hatirlaAcik = depoOku(HATIRLA_ANAHTARI) !== "0";
   const kayitliAd = hatirlaAcik ? depoOku(KULLANICI_ANAHTARI) : "";
@@ -100,7 +100,7 @@ function girisEkrani(hata = "") {
     const kod = sirketKodunuNormalle(sirketGirdisi.value);
     const sifirla = () => { dugme.disabled = false; dugme.textContent = metin("giris_yap"); };
     const hataYaz = (m) => { sifirla(); mesaj.textContent = m; mesaj.hidden = false; };
-    if (!kod) return hataYaz("Şirket kodunu yazın (örn. abc-turizm). Kodu yöneticiniz verir.");
+    if (!kod) return hataYaz("Şirket kodunu yazın: 6 haneli rakam. Kodu yöneticiniz verir.");
     dugme.disabled = true; dugme.textContent = "Giriş yapılıyor"; mesaj.hidden = true;
     const bilgi = await sirketBilgisiYukle(kod);
     if (bilgi.durum === "yok") {

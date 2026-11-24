@@ -97,6 +97,7 @@ body.detay-acik { overflow: hidden; }
 .buyuk-sayi { font-size: 32px; line-height: 1.15; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .buyuk-sayi.baslik { font-size: 22px; }
 .soluk { color: var(--soluk); font-size: 14px; }
+.kod-buyuk { font-size: 32px; font-weight: 600; letter-spacing: 0.12em; font-variant-numeric: tabular-nums; text-align: center; margin: 4px 0; user-select: all; }
 .orta { text-align: center; }
 .karsilama { padding: 4px 0 4px; }
 .karsilama h2 { font-size: 24px; font-weight: 600; letter-spacing: -.02em; }

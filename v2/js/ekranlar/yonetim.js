@@ -1,7 +1,6 @@
 // Yönetim (yalnızca platform yöneticisi): şirket başvurularını onaylar/reddeder, doğrudan şirket açar, lisans uzatır, şirketi kapatır/açar.
 // Yetki sunucuda zorlanır (platform_* fonksiyonları); bu ekran yalnızca yöneticiye gösterilir.
 import * as api from "../api.js";
-import { sirketKoduOner, sirketKodunuNormalle } from "../kimlik.js";
 import { tarihCoz, tarihYaz } from "../bicim.js";
 import { h, kart, satir, bosDurum, panelAc, toast, animOnay } from "../ui.js";
 
@@ -61,22 +60,16 @@ function sonucPaneli(baslik, satirlar, notMetni) {
 
 function yeniSirketPaneli(yenile) {
   const ad = h("input", { class: "girdi", type: "text", autocapitalize: "words", required: true, maxlength: "80", "aria-label": "Şirket adı" });
-  const kod = h("input", { class: "girdi", type: "text", autocapitalize: "none", spellcheck: "false", required: true, maxlength: "40", "aria-label": "Şirket kodu" });
   const kullanici = h("input", { class: "girdi", type: "text", autocapitalize: "none", spellcheck: "false", required: true, maxlength: "30", value: "yonetici", "aria-label": "Yönetici kullanıcı adı" });
   const parola = h("input", { class: "girdi", type: "text", autocapitalize: "none", spellcheck: "false", required: true, minlength: "8", maxlength: "72", value: rastgeleParola(), "aria-label": "Şifre" });
   const lisans = lisansAlanlari(30);
   const mesaj = h("p", { class: "hata-metin", role: "alert", hidden: true });
   const gonder = h("button", { class: "dugme birincil genis", type: "submit" }, "Şirketi aç");
-  let kodElle = false;
-  kod.addEventListener("input", () => { kodElle = true; });
-  ad.addEventListener("input", () => { if (!kodElle) kod.value = sirketKoduOner(ad.value); });
   const form = h("form", { class: "form", onsubmit: (e) => {
     e.preventDefault();
-    const k = sirketKodunuNormalle(kod.value);
-    if (!k) { mesaj.textContent = "Şirket kodu geçersiz: 3-40 karakter; küçük harf, rakam ve tire."; mesaj.hidden = false; return; }
     yap(gonder, mesaj, async () => {
       gonder.textContent = "Açılıyor";
-      const r = await api.rpc("platform_sirket_ac", { p_ad: ad.value, p_kod: k, p_kullanici: kullanici.value, p_parola: parola.value, ...lisans.oku() });
+      const r = await api.rpc("platform_sirket_ac", { p_ad: ad.value, p_kullanici: kullanici.value, p_parola: parola.value, ...lisans.oku() });
       panel.kapat();
       sonucPaneli("Şirket açıldı", [["Şirket", ad.value.trim()], ["Şirket kodu", r.kod], ["Kullanıcı adı", r.kullanici], ["Şifre", parola.value], ["Bağlantı", baglanti(r.kod)]],
         "Şifre bir daha gösterilmez; müşteriye güvenli bir yolla iletin ve ilk girişte değiştirmesini söyleyin.");
@@ -84,7 +77,6 @@ function yeniSirketPaneli(yenile) {
     });
   } },
     h("label", { class: "alan" }, h("span", {}, "Şirket adı"), ad),
-    h("label", { class: "alan" }, h("span", {}, "Şirket kodu"), kod),
     h("label", { class: "alan" }, h("span", {}, "Yönetici kullanıcı adı"), kullanici),
     h("label", { class: "alan" }, h("span", {}, "Şifre"), parola,
       h("button", { class: "dugme ikincil", type: "button", onclick: () => { parola.value = rastgeleParola(); } }, "Yeni şifre üret")),
