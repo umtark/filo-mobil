@@ -1,6 +1,7 @@
 // Oturumun bağlamı (işletme, yetkiler, lisans) ve bellek içi veri önbelleği.
 import * as api from "./api.js";
 import { markaUygula } from "./marka.js";
+import { MENU } from "./menu.js";
 import { okulListesi, servisKullanmayanListesi, servisListesi, faturaKaydi, esnafKaydi, aracKaydi, akaryakitListesi, icHizmetListesi } from "./hesap.js";
 
 export const baglam = { isletme: null, uye: null, lisans: null, isletmeAdi: "", platform: false, bakim: null };
@@ -66,11 +67,20 @@ export function nabiz() {
   api.rpc("uye_nabiz", { p_isletme: baglam.isletme }).catch(() => {});
 }
 
-// Tam ekran durum sayfası: "bloke" (şirket platform yöneticisince bloke edildi) | "bakim" (tüm şirketler bakımda) | null. Platform yöneticisi etkilenmez.
+// Masaüstündeki "Hesabınızın erişimi kısıtlandı": sahip/yönetici dışındaki kullanıcıya hiçbir sekme izni tanımlanmamışsa.
+export function erisimYok() {
+  const u = baglam.uye;
+  if (!u || baglam.platform || ["sahip", "yonetici"].includes(u.rol)) return false;
+  const izinler = u.izinler || [];
+  return !MENU.some((m) => izinler.includes(m.izin));
+}
+
+// Tam ekran durum sayfası: "bloke" (şirket platform yöneticisince bloke edildi) | "bakim" (tüm şirketler bakımda) | "erisim" (hiçbir sekmeye izin yok) | null. Platform yöneticisi etkilenmez.
 export function durumTuru() {
   if (baglam.platform) return null;
   if (baglam.lisans && baglam.lisans.aktif === false) return "bloke";
   if (baglam.bakim && baglam.bakim.acik === true) return "bakim";
+  if (erisimYok()) return "erisim";
   return null;
 }
 

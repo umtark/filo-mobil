@@ -14,6 +14,13 @@ export function h(etiket, ozellikler, ...cocuklar) {
   return el;
 }
 
+// Uygulama genelindeki telif satırı (masaüstü ve PDF alt bilgisiyle aynı kural): yapım yılı, sonraki yıllarda "yapım yılı - bu yıl".
+const YAPIM_YILI = 2026;
+export function telif() {
+  const yil = new Date().getFullYear();
+  return h("footer", { class: "telif" }, `© ${yil <= YAPIM_YILI ? YAPIM_YILI : `${YAPIM_YILI} - ${yil}`} Ümit Arik`);
+}
+
 function ekle(el, cocuklar) {
   for (const c of cocuklar) {
     if (c === null || c === undefined || c === false) continue;

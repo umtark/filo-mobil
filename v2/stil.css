@@ -357,5 +357,6 @@ select.girdi { appearance: auto; }
 .cikti-dugmeleri { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 8px; }
 .cikti-dugmeleri .dugme.kucuk { margin: 0; }
 .cikti-grup { display: flex; flex-direction: column; gap: 4px; }
+.telif { text-align: center; color: var(--soluk); font-size: 12px; padding: 20px 12px calc(20px + env(safe-area-inset-bottom)); }
 .secenek { display: flex; align-items: center; gap: 10px; font-size: 14px; min-height: 40px; }
 .secenek input { width: 20px; height: 20px; }

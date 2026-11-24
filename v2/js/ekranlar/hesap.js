@@ -26,6 +26,5 @@ export async function ciz({ cikis, yenile }) {
       bilgiSatiri("Lisans", lisansMetni, lisansTon)),
     ["sahip", "yonetici"].includes(u.rol) && kart(satir({ baslik: "Kullanıcılar", onclick: () => detayAc("Kullanıcılar", () => kullanicilar.ciz()) })),
     kart(h("button", { class: "dugme ikincil genis", onclick: () => { yenile(); toast("Veriler yenilendi"); } }, "Verileri yenile"),
-      h("button", { class: "dugme tehlike genis", onclick: cikis }, metin("settings_session_logout"))),
-    h("p", { class: "soluk orta" }, "Filo Muhasebe · mobil v2"));
+      h("button", { class: "dugme tehlike genis", onclick: cikis }, metin("settings_session_logout"))));
 }

@@ -4,7 +4,7 @@ import * as veri from "./veri.js";
 import { marka, markaDinle, markaOnbellektenYukle, sirketBaslangici, sirketBilgisiYukle, sirketKaydet } from "./marka.js";
 import { sirketKodunuNormalle } from "./kimlik.js";
 import { VARSAYILAN_MARKA } from "./marka_normal.js";
-import { h, ikon, toast, yukleniyor, hataGoster, kokYenileyiciAyarla, tumDetaylariKapat, uyariKutusu, animOnay, parolaAlani, cipler } from "./ui.js";
+import { h, ikon, toast, yukleniyor, hataGoster, kokYenileyiciAyarla, tumDetaylariKapat, uyariKutusu, animOnay, parolaAlani, cipler, telif } from "./ui.js";
 import * as bugun from "./ekranlar/bugun.js";
 import * as okul from "./ekranlar/okul.js";
 import * as muhasebe from "./ekranlar/muhasebe.js";
@@ -157,7 +157,7 @@ function girisEkrani(hata = "") {
     markaCiz();
   });
   kok.replaceChildren(h("main", { class: "tam-ekran giris" }, markaKabi, form,
-    h("button", { class: "baglanti-dugme", type: "button", onclick: () => kok.replaceChildren(basvuruEkrani({ geri: () => girisEkrani(), ad: "" })) }, "Yeni şirket başvurusu")));
+    h("button", { class: "baglanti-dugme", type: "button", onclick: () => kok.replaceChildren(basvuruEkrani({ geri: () => girisEkrani(), ad: "" })) }, "Yeni şirket başvurusu"), telif()));
   (kayitliAd ? parola : eposta).focus();   // masaüstündeki gibi: kayıtlı kullanıcı varsa şifreye odaklanır
 }
 
@@ -284,7 +284,7 @@ async function sekmeCiz(id, kaydirmayiKoru = false) {
   try {
     const dugum = await sekme.ciz(alt);
     if (sira !== cizimSirasi) return;
-    icerik.replaceChildren(dugum);
+    icerik.replaceChildren(dugum, telif());
     icerik.scrollTop = eski;
   } catch (e) {
     if (sira !== cizimSirasi) return;
@@ -300,7 +300,11 @@ async function yetkiIzle() {
   if ((!kabukAcik && !durumAcik) || yetkiKontrolSuruyor || document.hidden) return;
   yetkiKontrolSuruyor = true;
   try {
-    if (durumAcik) {   // bloke kalkınca ya da bakım bitince ekran kendiliğinden açılır
+    if (durumAcik) {   // bloke kalkınca, bakım bitince ya da yönetici izin verince ekran kendiliğinden açılır
+      if ((await veri.yetkiKontrol()) === "kaldirildi") {
+        api.cikisYap(); veri.onbellekTemizle(); aktif = null; tumDetaylariKapat();
+        return girisEkrani("Hesabınızın bu işletmeye erişimi kaldırıldı.");
+      }
       if (!(await veri.durumTazele())) baslat();
       return;
     }
