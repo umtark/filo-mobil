@@ -1,7 +1,7 @@
 // Supabase ile konuşan tek katman: giriş (GoTrue) ve tablo/fonksiyon çağrıları (PostgREST). Kütüphane yok, derleme yok.
 import { SUPABASE_URL, ANON_KEY } from "./config.js";
 import { kullaniciAdindanEposta } from "./kimlik.js";
-import { metin } from "./metin.js";
+import { duz } from "./metin.js";
 
 const ANAHTAR = "filo2.oturum";
 // "Beni hatırla" işaretliyse oturum cihazda kalıcıdır (localStorage); değilse yalnızca açık sekme/uygulama süresince (sessionStorage).
@@ -32,7 +32,7 @@ function oturumKaydet(o) {
 
 function hataMetni(cevap, govde) {
   const m = (govde && (govde.error_description || govde.msg || govde.message)) || "";
-  if (m === "Invalid login credentials") return metin("login_hata_sifre");
+  if (m === "Invalid login credentials") return duz("login_hata_sifre");
   if (cevap.status === 401) return "Oturum süresi doldu, tekrar giriş yapın.";
   if (cevap.status === 403 || (govde && govde.code === "42501")) return "Bu işlem için yetkiniz yok.";
   return m || `İşlem yapılamadı (${cevap.status}).`;
@@ -50,7 +50,7 @@ async function cagir(yol, { yontem = "GET", govde, ust = {}, jetonlu = true } = 
   try {
     cevap = await fetch(SUPABASE_URL + yol, { method: yontem, headers: basliklar, body: govde === undefined ? undefined : JSON.stringify(govde) });
   } catch {
-    throw new ApiHatasi(metin("login_hata_sunucu"), 0);
+    throw new ApiHatasi(duz("login_hata_sunucu"), 0);
   }
   let veri = null;
   try { veri = await cevap.json(); } catch { veri = null; }

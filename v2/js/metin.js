@@ -22,6 +22,12 @@ const METIN = {
   "sevrak_arsiv_goster": "Eski sürümleri göster",
   "sevrak_tum_firmalar": "Tüm Firmalar",
   "sevrak_tum_yillar": "Tüm Yıllar",
+  "tah_kpi_nakit": "Nakit",
+  "tah_kpi_iban": "IBAN / Havale",
+  "tah_kpi_kart": "Kredi Kartı",
+  "tah_kpi_ogrenci": "{n} öğrenci",
+  "tah_kpi_tikla": "Bu yöntemle ödeme yapan öğrencileri filtrelemek için tıklayın (tekrar tıkla: kaldır)",
+  "tah_kpi_not_tekil": "💡 Karta tıkla → o yöntemle ödeyen öğrencileri gör.",
   "sevrak_firma": "Firma:",
   "sevrak_kategori": "Kategori:",
   "sevrak_baslik_lbl": "Başlık:",
@@ -36,3 +42,6 @@ const METIN = {
 export const metin = (anahtar) => METIN[anahtar];
 export const baslik = (anahtar) => String(METIN[anahtar]).replace(/\s*\n\s*/g, " ");
 export const etiket = (anahtar) => baslik(anahtar).replace(/:$/, "");
+// Masaüstünde metnin başında emoji ya da sonunda ünlem olabilir; ekranda süs olmadan, düz cümle olarak gösterilir.
+export const duz = (anahtar) => baslik(anahtar).replace(/^[^\p{L}\p{N}]+/u, "").replace(/!+$/, "");
+export const doldur = (anahtar, degerler) => baslik(anahtar).replace(/\{(\w+)\}/g, (_, k) => degerler[k]);

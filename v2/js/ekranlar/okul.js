@@ -1,13 +1,17 @@
 // Okul: servis kullanan öğrencilerin tahsilat takibi. Telefondan yapılabilen tek yazma işlemi ödeme eklemektir.
 import { h, ikon, kart, satir, bilgiSatiri, cipler, aramaKutusu, sayfalamali, bosDurum, panelAc, detayAc, detayYenile, toast, segment } from "../ui.js";
 import * as veri from "../veri.js";
-import { okulToplam } from "../hesap.js";
+import { okulToplam, yontemToplami } from "../hesap.js";
+import { animasyon } from "../lottie.js";
+import { duz, doldur } from "../metin.js";
 import { para, paraKesin, sayi, tarihYaz, eslesir, isoTarih, bugun, telefonTemizle } from "../bicim.js";
 
-export const durum = { arama: "", filtre: "hepsi" };
+export const durum = { arama: "", filtre: "hepsi", yontem: "" };
 
 const TON = { bekliyor: "kirmizi", kismi: "kehribar", odendi: "yesil" };
 const YONTEM = { nakit: "Nakit", iban: "IBAN", kart: "Kart" };
+// Masaüstündeki tahsilat kartları: aynı ad, aynı Lottie ikonu, dokununca o yöntemle ödeyenleri süzer (tekrar dokununca kalkar).
+const YONTEM_KARTLARI = [["nakit", "tah_kpi_nakit", "nakit_payment", 0.7], ["iban", "tah_kpi_iban", "iban_payment", 0.5], ["kart", "tah_kpi_kart", "Card_payment", 0.5]];
 
 const ilerleme = (oran) => h("div", { class: "ilerleme", role: "progressbar", "aria-valuenow": Math.round(oran * 100), "aria-valuemin": 0, "aria-valuemax": 100 },
   h("span", { style: `width:${Math.min(100, Math.max(0, oran * 100)).toFixed(1)}%` }));
@@ -21,7 +25,7 @@ export async function ciz() {
   function guncelle() {
     cipAlani.replaceChildren(cipler([["hepsi", "Hepsi", liste.length], ["bekliyor", "Ödemedi", t.bekliyor], ["kismi", "Eksik", t.kismi], ["odendi", "Ödendi", t.odendi]],
       durum.filtre, (k) => { durum.filtre = k; guncelle(); }));
-    const g = liste.filter((o) => (durum.filtre === "hepsi" || o.durum === durum.filtre) && (!durum.arama || eslesir(`${o.ad} ${o.sinif} ${o.plaka}`, durum.arama)));
+    const g = liste.filter((o) => (durum.filtre === "hepsi" || o.durum === durum.filtre) && (!durum.yontem || o.odemeler.some((x) => x.yontem === durum.yontem)) && (!durum.arama || eslesir(`${o.ad} ${o.sinif} ${o.plaka}`, durum.arama)));
     sonuc.replaceChildren(g.length ? sayfalamali(g, ogrenciSatiri) : bosDurum("Bu filtreyle eşleşen öğrenci yok."));
   }
 
@@ -31,8 +35,20 @@ export async function ciz() {
     ilerleme(t.ucret ? t.odenen / t.ucret : 0),
     h("p", { class: "soluk" }, `${para(t.odenen)} tahsil edildi, toplam ${para(t.ucret)} · ${t.ogrenci} öğrenci`));
 
+  const yt = yontemToplami(liste);
+  const yontemKartlari = h("div", { class: "yontem-izgara" }, YONTEM_KARTLARI.map(([k, ad, anim, durak]) => {
+    const dugme = h("button", { class: "yontem-kart", type: "button", "aria-pressed": String(durum.yontem === k), title: duz("tah_kpi_tikla"), onclick: () => {
+      durum.yontem = durum.yontem === k ? "" : k;
+      for (const d of yontemKartlari.children) d.setAttribute("aria-pressed", String(d.dataset.yontem === durum.yontem));
+      guncelle();
+    } },
+      animasyon(anim, 44, durak), h("span", { class: "yontem-ad" }, duz(ad)), h("strong", { class: "yontem-tutar" }, para(yt[k].tutar)), h("span", { class: "yontem-sayi" }, doldur("tah_kpi_ogrenci", { n: yt[k].ogrenci })));
+    dugme.dataset.yontem = k;
+    return dugme;
+  }));
+
   guncelle();
-  return h("div", { class: "sayfa" }, ozet, aramaKutusu(durum.arama, (v) => { durum.arama = v; guncelle(); }, "Öğrenci, sınıf ya da plaka ara"), cipAlani, sonuc);
+  return h("div", { class: "sayfa" }, ozet, yontemKartlari, h("p", { class: "ipucu" }, duz("tah_kpi_not_tekil")), aramaKutusu(durum.arama, (v) => { durum.arama = v; guncelle(); }, "Öğrenci, sınıf ya da plaka ara"), cipAlani, sonuc);
 }
 
 function ogrenciSatiri(o) {

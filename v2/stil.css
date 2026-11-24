@@ -1,4 +1,9 @@
 /* Filo Muhasebe mobil v2: tek sütun, büyük dokunma alanları, koyu/açık tema sistemden gelir. */
+/* Manrope (değişken ağırlık): Türkçe karakterler için latin-ext dahil; yerelde durur, dışarıdan yüklenmez. */
+@font-face { font-family: "Manrope"; font-style: normal; font-weight: 200 800; font-display: swap; src: url("yazi/manrope-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Manrope"; font-style: normal; font-weight: 200 800; font-display: swap; src: url("yazi/manrope-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 :root {
   --zemin: #0c1218; --yuzey: #141c25; --yuzey2: #1b2531; --cizgi: #243040;
   --yazi: #e8eef5; --soluk: #93a1b2;
@@ -24,12 +29,12 @@
 html, body { height: 100%; margin: 0; }
 body {
   background: var(--zemin); color: var(--yazi);
-  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 400 16px/1.45 "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-variant-numeric: tabular-nums;
   -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
 }
 h1, h2, h3, p { margin: 0; }
-h3 { font-size: 15px; font-weight: 650; margin-bottom: 8px; }
+h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--ana); outline-offset: 2px; }
@@ -51,7 +56,7 @@ body.detay-acik { overflow: hidden; }
 }
 #detay .ust { padding-left: 4px; }
 .ust-logo { height: 30px; width: auto; max-width: 96px; object-fit: contain; border-radius: 6px; flex: none; }
-.ust h1 { flex: 1; font-size: 20px; font-weight: 700; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ust h1 { flex: 1; font-size: 20px; font-weight: 600; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .icerik, .detay-icerik { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .sayfa { padding: var(--kenar); padding-bottom: 32px; display: flex; flex-direction: column; gap: 12px; }
 .tam-ekran { min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; padding: 24px; }
@@ -65,7 +70,7 @@ body.detay-acik { overflow: hidden; }
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   min-height: 60px; padding: 6px 2px; background: none; border: 0; color: var(--soluk); font-size: 12px;
 }
-.sekme.secili { color: var(--ana); font-weight: 650; }
+.sekme.secili { color: var(--ana); font-weight: 600; }
 
 /* ── Düğmeler ── */
 .ikon-dugme {
@@ -76,10 +81,10 @@ body.detay-acik { overflow: hidden; }
 .ikon-dugme.dolu { background: var(--yuzey2); color: var(--ana); }
 .dugme {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 20px;
-  border-radius: 12px; border: 1px solid transparent; font-weight: 650;
+  border-radius: 12px; border: 1px solid transparent; font-weight: 600;
 }
 .dugme.genis { width: 100%; }
-.dugme.birincil { background: var(--ana); color: var(--ana-ustu); }
+.dugme.birincil { background: var(--yazi); color: var(--zemin); }   /* ana düğme: koyu temada kırık beyaz, açık temada mürekkep; vurgu rengi yalnızca seçimde */
 .dugme.ikincil { background: var(--yuzey2); border-color: var(--cizgi); }
 .dugme.tehlike { background: none; border-color: var(--kirmizi); color: var(--kirmizi); }
 .dugme:disabled { opacity: .55; cursor: default; }
@@ -89,12 +94,12 @@ body.detay-acik { overflow: hidden; }
 .kart { background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
 .kart > .liste, .kart > .satir { margin: 0 -4px; }
 .kart-etiket { font-size: 13px; color: var(--soluk); }
-.buyuk-sayi { font-size: 32px; line-height: 1.15; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.buyuk-sayi { font-size: 32px; line-height: 1.15; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .buyuk-sayi.baslik { font-size: 22px; }
 .soluk { color: var(--soluk); font-size: 14px; }
 .orta { text-align: center; }
 .karsilama { padding: 4px 0 4px; }
-.karsilama h2 { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
+.karsilama h2 { font-size: 24px; font-weight: 600; letter-spacing: -.02em; }
 .yesil { color: var(--yesil); }
 .kehribar { color: var(--kehribar); }
 .kirmizi { color: var(--kirmizi); }
@@ -114,7 +119,7 @@ body.detay-acik { overflow: hidden; }
 .satir-baslik { font-weight: 600; overflow-wrap: anywhere; }
 .satir-alt { font-size: 13px; color: var(--soluk); overflow-wrap: anywhere; }
 .satir-sag { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; max-width: 45%; text-align: end; }
-.satir-tutar { font-weight: 650; font-variant-numeric: tabular-nums; }
+.satir-tutar { font-weight: 600; font-variant-numeric: tabular-nums; }
 .satir-sag.kirmizi .satir-tutar { color: var(--kirmizi); }
 .satir-sag.kehribar .satir-tutar { color: var(--kehribar); }
 .satir-sag.yesil .satir-tutar { color: var(--yesil); }
@@ -145,7 +150,7 @@ body.detay-acik { overflow: hidden; }
   flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px; border-radius: 22px;
   background: var(--yuzey); border: 1px solid var(--cizgi); font-size: 14px;
 }
-.cip.secili { background: var(--ana); border-color: var(--ana); color: var(--ana-ustu); font-weight: 650; }
+.cip.secili { background: var(--yuzey2); border-color: color-mix(in srgb, var(--yazi) 34%, transparent); color: var(--yazi); font-weight: 600; }
 .cip-adet { font-size: 12px; opacity: .75; font-variant-numeric: tabular-nums; }
 .segment { display: flex; padding: 4px; gap: 4px; border-radius: 14px; background: var(--yuzey2); }
 .segment-dugme { flex: 1; min-height: 44px; border: 0; border-radius: 10px; background: none; color: var(--soluk); font-weight: 600; }
@@ -169,7 +174,7 @@ body.detay-acik { overflow: hidden; }
   padding: 16px var(--kenar) calc(20px + env(safe-area-inset-bottom)); box-shadow: var(--golge); animation: yuksel .2s ease-out;
 }
 .panel-ust { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
-.panel-ust h2 { font-size: 18px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.panel-ust h2 { font-size: 18px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 @keyframes sol { from { opacity: 0; } to { opacity: 1; } }
 @keyframes yuksel { from { transform: translateY(40px); } to { transform: none; } }
 
@@ -266,3 +271,18 @@ select.girdi { appearance: auto; }
   .menu-icerik { gap: 10px; }
   .menu-kullanici { padding-top: 10px; gap: 8px; }
 }
+/* ── Tahsilat yöntemi kartları (masaüstündeki Nakit / IBAN-Havale / Kredi Kartı) ── */
+.yontem-izgara { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.yontem-kart {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px; min-height: 132px; text-align: start;
+  background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: 16px; color: var(--yazi);
+  transition: border-color .15s, background-color .15s, transform .12s ease-out;
+}
+.yontem-kart[aria-pressed="true"] { background: var(--yuzey2); border-color: color-mix(in srgb, var(--yazi) 34%, transparent); }
+.yontem-kart:active { transform: scale(.97); }
+.anim { display: block; flex: none; margin-bottom: 6px; }
+.anim svg { display: block; }
+.yontem-ad { font-size: 13px; color: var(--soluk); }
+.yontem-tutar { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.yontem-sayi { font-size: 12px; color: var(--soluk); }
+@media (prefers-reduced-motion: reduce) { .yontem-kart { transition: none; transform: none !important; } }

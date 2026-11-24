@@ -46,6 +46,22 @@ export function okulToplam(liste, ay = ayAnahtari(bugun())) {
   return t;
 }
 
+// Masaüstündeki Nakit / IBAN-Havale / Kredi Kartı kartları: yöntem başına ödeme yapan öğrenci sayısı ve toplam tutar.
+// Bir öğrenci birden fazla yöntemle ödediyse her kartta ayrı sayılır.
+export const ODEME_YONTEMLERI = ["nakit", "iban", "kart"];
+export function yontemToplami(liste) {
+  const t = Object.fromEntries(ODEME_YONTEMLERI.map((y) => [y, { ogrenci: 0, tutar: 0 }]));
+  for (const o of liste) {
+    const gorulen = new Set();
+    for (const g of o.odemeler) {
+      if (!t[g.yontem]) continue;
+      t[g.yontem].tutar += g.tutar;
+      if (!gorulen.has(g.yontem)) { gorulen.add(g.yontem); t[g.yontem].ogrenci += 1; }
+    }
+  }
+  return t;
+}
+
 // ── Faturalar ───────────────────────────────────────────────────────────────
 export function faturaKaydi(r) {
   return {

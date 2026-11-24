@@ -14,7 +14,7 @@ import * as evrak from "./ekranlar/evrak.js";
 import * as yonetim from "./ekranlar/yonetim.js";
 import { basvuruEkrani } from "./ekranlar/basvuru.js";
 import { MENU, ALT_CUBUK_SIRASI } from "./menu.js";
-import { metin } from "./metin.js";
+import { metin, duz } from "./metin.js";
 
 const kok = document.getElementById("uygulama");
 const HATIRLA_ANAHTARI = "filo2.hatirla";
@@ -109,7 +109,7 @@ function girisEkrani(hata = "") {
       if (basvuru === "reddedildi") return hataYaz("Bu şirket başvurusu kabul edilmedi. Ayrıntı için bizimle iletişime geçin.");
       return hataYaz("Şirket kodu bulunamadı. Kodu kontrol edin.");
     }
-    if (bilgi.durum === "hata") return hataYaz(metin("login_hata_sunucu"));
+    if (bilgi.durum === "hata") return hataYaz(duz("login_hata_sunucu"));
     try {
       await api.girisYap(eposta.value.trim(), parola.value, bilgi.alan, hatirla.deger());
       sirketKaydet(kod);
