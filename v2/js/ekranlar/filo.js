@@ -1,22 +1,16 @@
-// Filo: araçlar (belge bitişleri, bakım) ve iç hizmet seferleri. Bu ilk sürümde yalnızca görüntüleme.
+// Araç Yönetimi (belge bitişleri, bakım) ve İç Hizmetler ekranları. Bu ilk sürümde yalnızca görüntüleme.
 import { h, kart, satir, bilgiSatiri, cipler, segment, aramaKutusu, ayCubugu, sayfalamali, bosDurum, detayAc, ikon } from "../ui.js";
 import * as veri from "../veri.js";
 import { aylaraGore } from "../hesap.js";
 import { para, sayiYaz, tarihYaz, tarihKisa, ayAdi, ayAnahtari, bugun, eslesir, sirala, telefonTemizle } from "../bicim.js";
 
-const BOLUMLER = [["arac", "Araçlar"], ["ic_hizmet", "İç hizmet"]];
-const durum = { bolum: null, arac: { arama: "", filtre: "hepsi" }, ic: { arama: "", ay: null } };
-
-export const mevcutBolumler = () => BOLUMLER.filter(([k]) => veri.izinVar(k));
+const durum = { arac: { arama: "", filtre: "hepsi" }, ic: { arama: "", ay: null } };
 export const kalanYaz = (gun) => (gun === 0 ? "Bugün bitiyor" : gun > 0 ? `${gun} gün kaldı` : `${-gun} gün geçti`);
 export const belgeTonu = (seviye) => ({ gecmis: "kirmizi", yakin: "kehribar", iyi: "yesil" })[seviye];
 
-export async function ciz(yeniden) {
-  const bolumler = mevcutBolumler();
-  if (!bolumler.some(([k]) => k === durum.bolum)) durum.bolum = bolumler[0][0];
-  const icerik = await (durum.bolum === "arac" ? aracEkrani() : icHizmetEkrani());
-  return h("div", { class: "sayfa" }, bolumler.length > 1 && segment(bolumler, durum.bolum, (k) => { durum.bolum = k; yeniden(); }), icerik);
-}
+// Masaüstündeki gibi her modül kendi ekranıdır: Araç Yönetimi, İç Hizmetler.
+export const aracSayfasi = async () => h("div", { class: "sayfa" }, await aracEkrani());
+export const icHizmetSayfasi = async () => h("div", { class: "sayfa" }, await icHizmetEkrani());
 
 // ── Araçlar ─────────────────────────────────────────────────────────────────
 async function aracEkrani() {

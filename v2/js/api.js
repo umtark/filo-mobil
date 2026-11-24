@@ -1,9 +1,18 @@
 // Supabase ile konuşan tek katman: giriş (GoTrue) ve tablo/fonksiyon çağrıları (PostgREST). Kütüphane yok, derleme yok.
-import { SUPABASE_URL, ANON_KEY, KULLANICI_ALAN_ADI } from "./config.js";
+import { SUPABASE_URL, ANON_KEY } from "./config.js";
+import { kullaniciAdindanEposta } from "./kimlik.js";
+import { metin } from "./metin.js";
 
 const ANAHTAR = "filo2.oturum";
+// "Beni hatırla" işaretliyse oturum cihazda kalıcıdır (localStorage); değilse yalnızca açık sekme/uygulama süresince (sessionStorage).
+let kalici = true;
 let oturum = null;
-try { oturum = JSON.parse(localStorage.getItem(ANAHTAR) || "null"); } catch { oturum = null; }
+for (const depo of [localStorage, sessionStorage]) {
+  try {
+    const o = JSON.parse(depo.getItem(ANAHTAR) || "null");
+    if (o) { oturum = o; kalici = depo === localStorage; break; }
+  } catch { /* bozuk kayıt yok sayılır */ }
+}
 
 export class ApiHatasi extends Error {
   constructor(mesaj, durum) { super(mesaj); this.durum = durum; }
@@ -15,13 +24,15 @@ export const kullanici = () => (oturum && oturum.user) || null;
 
 function oturumKaydet(o) {
   oturum = o;
-  if (o) localStorage.setItem(ANAHTAR, JSON.stringify({ access_token: o.access_token, refresh_token: o.refresh_token, expires_at: o.expires_at, user: { id: o.user.id, email: o.user.email } }));
-  else localStorage.removeItem(ANAHTAR);
+  const [hedef, diger] = kalici ? [localStorage, sessionStorage] : [sessionStorage, localStorage];
+  diger.removeItem(ANAHTAR);
+  if (o) hedef.setItem(ANAHTAR, JSON.stringify({ access_token: o.access_token, refresh_token: o.refresh_token, expires_at: o.expires_at, user: { id: o.user.id, email: o.user.email } }));
+  else hedef.removeItem(ANAHTAR);
 }
 
 function hataMetni(cevap, govde) {
   const m = (govde && (govde.error_description || govde.msg || govde.message)) || "";
-  if (m === "Invalid login credentials") return "Kullanıcı adı ya da parola hatalı.";
+  if (m === "Invalid login credentials") return metin("login_hata_sifre");
   if (cevap.status === 401) return "Oturum süresi doldu, tekrar giriş yapın.";
   if (cevap.status === 403 || (govde && govde.code === "42501")) return "Bu işlem için yetkiniz yok.";
   return m || `İşlem yapılamadı (${cevap.status}).`;
@@ -39,7 +50,7 @@ async function cagir(yol, { yontem = "GET", govde, ust = {}, jetonlu = true } = 
   try {
     cevap = await fetch(SUPABASE_URL + yol, { method: yontem, headers: basliklar, body: govde === undefined ? undefined : JSON.stringify(govde) });
   } catch {
-    throw new ApiHatasi("Sunucuya ulaşılamıyor. İnternet bağlantınızı kontrol edin.", 0);
+    throw new ApiHatasi(metin("login_hata_sunucu"), 0);
   }
   let veri = null;
   try { veri = await cevap.json(); } catch { veri = null; }
@@ -55,19 +66,12 @@ function oturumAyarla(v) {
   oturumKaydet({ ...v, expires_at: v.expires_at || Math.floor(Date.now() / 1000) + (v.expires_in || 3600) });
 }
 
-// Kullanıcı yalnızca kullanıcı adını yazar ("Ümit Arik" -> umitarik@filo.local); '@' içeriyorsa e-posta olduğu gibi kullanılır.
-// Dönüşüm supabase/kullanici_aktar.py içindeki kullanici_eposta ile aynı kalmalıdır.
-const TR_HARITA = { ç: "c", ğ: "g", ı: "i", ö: "o", ş: "s", ü: "u", â: "a", î: "i", û: "u" };
-export const kullaniciAdindanEposta = (ad) => {
-  const t = String(ad).trim();
-  if (t.includes("@")) return t.toLowerCase();
-  const sade = t.replace(/İ/g, "i").replace(/I/g, "ı").toLowerCase().replace(/[çğıöşüâîû]/g, (c) => TR_HARITA[c]).replace(/[^a-z0-9._-]/g, "");
-  return `${sade}@${KULLANICI_ALAN_ADI}`;
-};
-export const epostadanKullaniciAdi = (e) => String(e || "").replace(new RegExp(`@${KULLANICI_ALAN_ADI.replace(/\./g, "\\.")}$`, "i"), "");
+// Kullanıcı kullanıcı adını yazar; giriş e-postası işletmenin alan adıyla kurulur (kimlik.js). Alan adı, şirket kodundan marka_getir ile bulunur.
+export { epostadanKullaniciAdi } from "./kimlik.js";
 
-export async function girisYap(kullaniciAdi, parola) {
-  const v = await cagir("/auth/v1/token?grant_type=password", { yontem: "POST", govde: { email: kullaniciAdindanEposta(kullaniciAdi), password: parola }, jetonlu: false });
+export async function girisYap(kullaniciAdi, parola, alan, kalicilik = true) {
+  kalici = kalicilik;
+  const v = await cagir("/auth/v1/token?grant_type=password", { yontem: "POST", govde: { email: kullaniciAdindanEposta(kullaniciAdi, alan), password: parola }, jetonlu: false });
   oturumAyarla(v);
 }
 

@@ -1,10 +1,11 @@
 // Uygulama kabuğunu çevrimdışı açar. Veri (Supabase) ve oturum istekleri ASLA önbelleğe alınmaz.
-const SURUM = "filo2-v2";
+const SURUM = "filo2-v6";
 const KABUK = [
   "./", "index.html", "stil.css", "manifest.webmanifest",
-  "js/uygulama.js", "js/api.js", "js/config.js", "js/veri.js", "js/hesap.js", "js/bicim.js", "js/ui.js", "js/marka.js", "js/marka_normal.js",
-  "js/ekranlar/bugun.js", "js/ekranlar/okul.js", "js/ekranlar/muhasebe.js", "js/ekranlar/filo.js", "js/ekranlar/hesap.js",
-  "ikon-192.png", "ikon-512.png", "favicon-32.png", "apple-touch-icon.png",
+  "js/uygulama.js", "js/api.js", "js/config.js", "js/veri.js", "js/hesap.js", "js/bicim.js", "js/ui.js", "js/marka.js", "js/marka_normal.js", "js/kimlik.js", "js/metin.js", "js/menu.js",
+  "js/ekranlar/bugun.js", "js/ekranlar/okul.js", "js/ekranlar/muhasebe.js", "js/ekranlar/filo.js", "js/ekranlar/evrak.js", "js/ekranlar/hesap.js", "js/ekranlar/yonetim.js", "js/ekranlar/basvuru.js",
+  "ikon/onay-animasyon.png", "ikon/goz-acik.png", "ikon/goz-kapali.png", "ikon-192.png", "ikon-512.png", "favicon-32.png", "apple-touch-icon.png",
+  ...["ana-sayfa", "sirket-evrak", "fatura", "arac", "esnaf", "akaryakit", "ic-hizmet", "okul", "ayarlar"].map((a) => `ikon/menu/${a}.png`),
 ];
 
 self.addEventListener("install", (e) => {

@@ -1,0 +1,175 @@
+// Yönetim (yalnızca platform yöneticisi): şirket başvurularını onaylar/reddeder, doğrudan şirket açar, lisans uzatır, şirketi kapatır/açar.
+// Yetki sunucuda zorlanır (platform_* fonksiyonları); bu ekran yalnızca yöneticiye gösterilir.
+import * as api from "../api.js";
+import { sirketKoduOner, sirketKodunuNormalle } from "../kimlik.js";
+import { tarihCoz, tarihYaz } from "../bicim.js";
+import { h, kart, satir, bosDurum, panelAc, toast, animOnay } from "../ui.js";
+
+const PAROLA_ALFABESI = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";   // karışan karakterler (0/O, 1/l/I) yok
+
+export function rastgeleParola(uzunluk = 14) {
+  const b = new Uint32Array(uzunluk);
+  crypto.getRandomValues(b);
+  return Array.from(b, (x) => PAROLA_ALFABESI[x % PAROLA_ALFABESI.length]).join("");
+}
+
+const baglanti = (kod) => `${location.origin}${location.pathname}?i=${kod}`;
+const tarihMetni = (iso) => (iso ? tarihYaz(tarihCoz(String(iso).slice(0, 10))) : "");
+const lisansMetni = (s) => {
+  if (s.omur_boyu) return "süresiz";
+  const kalan = Math.round((new Date(s.lisans_bitis + "T00:00:00") - new Date(new Date().toDateString())) / 86400000);
+  return kalan < 0 ? `süresi ${-kalan} gün önce doldu` : `${tarihMetni(s.lisans_bitis)} (${kalan} gün)`;
+};
+
+// Bir düğmeyi işlem boyunca kilitler; hata olursa mesaj alanına yazar.
+async function yap(dugme, mesaj, is) {
+  const eski = dugme.textContent;
+  dugme.disabled = true; mesaj.hidden = true;
+  try { await is(); }
+  catch (e) { mesaj.textContent = e.message; mesaj.hidden = false; }
+  finally { dugme.disabled = false; dugme.textContent = eski; }
+}
+
+function sayi(girdi) {
+  const t = String(girdi.value).trim();
+  return t === "" ? null : Number.parseInt(t, 10);
+}
+
+function lisansAlanlari(varsayilanGun = 30) {
+  const gun = h("input", { class: "girdi", type: "number", inputmode: "numeric", min: "0", value: String(varsayilanGun), "aria-label": "Lisans süresi (gün)" });
+  const omur = animOnay({ etiket: "Süresiz lisans", degisti: (acik) => { gun.disabled = acik; } });
+  const sinir = h("input", { class: "girdi", type: "number", inputmode: "numeric", min: "1", placeholder: "Sınırsız", "aria-label": "Kullanıcı sınırı" });
+  const dugumler = [
+    h("label", { class: "alan" }, h("span", {}, "Lisans süresi (gün)"), gun),
+    omur,
+    h("label", { class: "alan" }, h("span", {}, "Kullanıcı sınırı"), sinir),
+  ];
+  return { dugumler, oku: () => ({ p_gun: omur.deger() ? 0 : (sayi(gun) ?? 0), p_omur_boyu: omur.deger(), p_kullanici_siniri: sayi(sinir) }) };
+}
+
+// Müşteriye iletilecek bilgiler: tek seferlik gösterilir, kopyalanabilir.
+function sonucPaneli(baslik, satirlar, notMetni) {
+  const metin = satirlar.map(([e, d]) => `${e}: ${d}`).join("\n");
+  const kopyala = h("button", { class: "dugme ikincil genis", type: "button", onclick: async () => {
+    try { await navigator.clipboard.writeText(metin); toast("Kopyalandı"); } catch { toast("Kopyalanamadı; metni elle seçin", "hata"); }
+  } }, "Bilgileri kopyala");
+  const p = panelAc(baslik, h("div", { class: "form" },
+    h("div", { class: "kart" }, satirlar.map(([e, d]) => h("div", { class: "bilgi" }, h("span", { class: "bilgi-etiket" }, e), h("strong", { class: "kopyalanabilir" }, d)))),
+    h("p", { class: "soluk" }, notMetni), kopyala,
+    h("button", { class: "dugme birincil genis", type: "button", onclick: () => p.kapat() }, "Tamam")));
+}
+
+function yeniSirketPaneli(yenile) {
+  const ad = h("input", { class: "girdi", type: "text", autocapitalize: "words", required: true, maxlength: "80", "aria-label": "Şirket adı" });
+  const kod = h("input", { class: "girdi", type: "text", autocapitalize: "none", spellcheck: "false", required: true, maxlength: "40", "aria-label": "Şirket kodu" });
+  const kullanici = h("input", { class: "girdi", type: "text", autocapitalize: "none", spellcheck: "false", required: true, maxlength: "30", value: "yonetici", "aria-label": "Yönetici kullanıcı adı" });
+  const parola = h("input", { class: "girdi", type: "text", autocapitalize: "none", spellcheck: "false", required: true, minlength: "8", maxlength: "72", value: rastgeleParola(), "aria-label": "Şifre" });
+  const lisans = lisansAlanlari(30);
+  const mesaj = h("p", { class: "hata-metin", role: "alert", hidden: true });
+  const gonder = h("button", { class: "dugme birincil genis", type: "submit" }, "Şirketi aç");
+  let kodElle = false;
+  kod.addEventListener("input", () => { kodElle = true; });
+  ad.addEventListener("input", () => { if (!kodElle) kod.value = sirketKoduOner(ad.value); });
+  const form = h("form", { class: "form", onsubmit: (e) => {
+    e.preventDefault();
+    const k = sirketKodunuNormalle(kod.value);
+    if (!k) { mesaj.textContent = "Şirket kodu geçersiz: 3-40 karakter; küçük harf, rakam ve tire."; mesaj.hidden = false; return; }
+    yap(gonder, mesaj, async () => {
+      gonder.textContent = "Açılıyor";
+      const r = await api.rpc("platform_sirket_ac", { p_ad: ad.value, p_kod: k, p_kullanici: kullanici.value, p_parola: parola.value, ...lisans.oku() });
+      panel.kapat();
+      sonucPaneli("Şirket açıldı", [["Şirket", ad.value.trim()], ["Şirket kodu", r.kod], ["Kullanıcı adı", r.kullanici], ["Şifre", parola.value], ["Bağlantı", baglanti(r.kod)]],
+        "Şifre bir daha gösterilmez; müşteriye güvenli bir yolla iletin ve ilk girişte değiştirmesini söyleyin.");
+      yenile();
+    });
+  } },
+    h("label", { class: "alan" }, h("span", {}, "Şirket adı"), ad),
+    h("label", { class: "alan" }, h("span", {}, "Şirket kodu"), kod),
+    h("label", { class: "alan" }, h("span", {}, "Yönetici kullanıcı adı"), kullanici),
+    h("label", { class: "alan" }, h("span", {}, "Şifre"), parola,
+      h("button", { class: "dugme ikincil", type: "button", onclick: () => { parola.value = rastgeleParola(); } }, "Yeni şifre üret")),
+    lisans.dugumler, mesaj, gonder);
+  const panel = panelAc("Yeni şirket aç", form);
+}
+
+function basvuruPaneli(b, yenile) {
+  const lisans = lisansAlanlari(30);
+  const mesaj = h("p", { class: "hata-metin", role: "alert", hidden: true });
+  const onayla = h("button", { class: "dugme birincil genis", type: "button", onclick: () => yap(onayla, mesaj, async () => {
+    onayla.textContent = "Onaylanıyor";
+    const r = await api.rpc("platform_basvuru_onayla", { p_id: b.id, ...lisans.oku() });
+    panel.kapat();
+    sonucPaneli("Şirket açıldı", [["Şirket", b.ad], ["Şirket kodu", r.kod], ["Kullanıcı adı", r.kullanici], ["Bağlantı", baglanti(r.kod)]],
+      `Şifreyi başvuran kendi seçti; size gelmez. Şirket kodunu ve bağlantıyı ${r.eposta} adresine iletin.`);
+    yenile();
+  }) }, "Onayla ve şirketi aç");
+  const neden = h("input", { class: "girdi", type: "text", maxlength: "200", placeholder: "Ret nedeni (isteğe bağlı)", "aria-label": "Ret nedeni" });
+  const reddet = h("button", { class: "dugme tehlike genis", type: "button", onclick: () => yap(reddet, mesaj, async () => {
+    await api.rpc("platform_basvuru_reddet", { p_id: b.id, p_neden: neden.value });
+    panel.kapat();
+    toast("Başvuru reddedildi");
+    yenile();
+  }) }, "Reddet");
+  const bilgi = (e, d) => d && h("div", { class: "bilgi" }, h("span", { class: "bilgi-etiket" }, e), h("span", { class: "bilgi-deger" }, d));
+  const panel = panelAc(b.ad, h("div", { class: "form" },
+    h("div", { class: "kart" }, bilgi("Şirket kodu", b.kod), bilgi("Yetkili", b.yetkili), bilgi("E-posta", b.eposta), bilgi("Telefon", b.telefon),
+      bilgi("Kullanıcı adı", b.kullanici), bilgi("Not", b.not_metni), bilgi("Başvuru", tarihMetni(b.olusturma))),
+    lisans.dugumler, mesaj, onayla, neden, reddet));
+}
+
+function sirketPaneli(s, yenile) {
+  const mesaj = h("p", { class: "hata-metin", role: "alert", hidden: true });
+  const uzat = (gun, omur = false) => {
+    const d = h("button", { class: "dugme ikincil", type: "button" }, omur ? "Süresiz yap" : `+${gun} gün`);
+    d.onclick = () => yap(d, mesaj, async () => {
+      const r = await api.rpc("platform_lisans_uzat", { p_isletme: s.id, p_gun: gun, p_omur_boyu: omur });
+      toast(r.omur_boyu ? "Lisans süresiz" : `Lisans ${tarihMetni(r.lisans_bitis)} tarihine kadar`);
+      panel.kapat();
+      yenile();
+    });
+    return d;
+  };
+  const ozelGun = h("input", { class: "girdi", type: "number", inputmode: "numeric", min: "1", placeholder: "Gün", "aria-label": "Özel gün sayısı" });
+  const ozelDugme = h("button", { class: "dugme ikincil", type: "button" }, "Uzat");
+  ozelDugme.onclick = () => {
+    const g = sayi(ozelGun);
+    if (!g || g < 1) { mesaj.textContent = "Gün sayısı 1 ya da daha büyük olmalı."; mesaj.hidden = false; return; }
+    yap(ozelDugme, mesaj, async () => {
+      const r = await api.rpc("platform_lisans_uzat", { p_isletme: s.id, p_gun: g, p_omur_boyu: false });
+      toast(`Lisans ${tarihMetni(r.lisans_bitis)} tarihine kadar`);
+      panel.kapat();
+      yenile();
+    });
+  };
+  const durumDugmesi = h("button", { class: s.aktif ? "dugme tehlike genis" : "dugme birincil genis", type: "button", disabled: s.benim && s.aktif }, s.aktif ? "Şirketi kapat" : "Şirketi yeniden aç");
+  durumDugmesi.onclick = () => yap(durumDugmesi, mesaj, async () => {
+    await api.rpc("platform_isletme_aktif", { p_isletme: s.id, p_aktif: !s.aktif });
+    toast(s.aktif ? "Şirket kapatıldı" : "Şirket açıldı");
+    panel.kapat();
+    yenile();
+  });
+  const bilgi = (e, d) => h("div", { class: "bilgi" }, h("span", { class: "bilgi-etiket" }, e), h("span", { class: "bilgi-deger" }, d));
+  const panel = panelAc(s.ad, h("div", { class: "form" },
+    h("div", { class: "kart" }, bilgi("Şirket kodu", s.kod), bilgi("Durum", s.aktif ? "Açık" : "Kapalı"), bilgi("Lisans", lisansMetni(s)),
+      bilgi("Kullanıcı", `${s.kullanici_sayisi}${s.kullanici_siniri ? " / " + s.kullanici_siniri : ""}`), bilgi("Bağlantı", baglanti(s.kod))),
+    h("div", { class: "alan" }, h("span", {}, "Lisansı uzat"), h("div", { class: "dugme-sirasi" }, uzat(30), uzat(90), uzat(365), uzat(0, true))),
+    h("div", { class: "dugme-sirasi" }, ozelGun, ozelDugme),
+    mesaj, durumDugmesi, s.benim && s.aktif && h("p", { class: "soluk" }, "Kendi şirketinizi kapatamazsınız.")));
+}
+
+export async function ciz({ yenile }) {
+  const [basvurular, sirketler] = await Promise.all([api.rpc("platform_basvurular"), api.rpc("platform_isletmeler")]);
+  const bekleyen = basvurular.filter((b) => b.durum === "bekliyor");
+  const gecmis = basvurular.filter((b) => b.durum !== "bekliyor");
+  const DURUM = { onaylandi: "Onaylandı", reddedildi: "Reddedildi" };
+  return h("div", { class: "sayfa" },
+    kart(h("button", { class: "dugme birincil genis", onclick: () => yeniSirketPaneli(yenile) }, "Yeni şirket aç")),
+    kart(h("h3", {}, `Bekleyen başvurular (${bekleyen.length})`),
+      bekleyen.length ? bekleyen.map((b) => satir({ baslik: b.ad, alt: `${b.yetkili} · ${b.kod}`, sag: tarihMetni(b.olusturma), onclick: () => basvuruPaneli(b, yenile) }))
+        : bosDurum("Bekleyen başvuru yok.")),
+    kart(h("h3", {}, `Şirketler (${sirketler.length})`),
+      sirketler.map((s) => satir({ baslik: s.ad, alt: `${s.kod} · ${s.kullanici_sayisi} kullanıcı`, sag: s.aktif ? "" : "Kapalı", sagAlt: lisansMetni(s),
+        ton: !s.aktif || (!s.omur_boyu && new Date(s.lisans_bitis + "T23:59:59") < new Date()) ? "kirmizi" : "", onclick: () => sirketPaneli(s, yenile) }))),
+    gecmis.length > 0 && kart(h("h3", {}, "Karara bağlanan başvurular"),
+      gecmis.map((b) => satir({ baslik: b.ad, alt: `${b.kod} · ${tarihMetni(b.karar_zamani)}`, sag: DURUM[b.durum] || b.durum, ton: b.durum === "onaylandi" ? "yesil" : "kirmizi" }))));
+}

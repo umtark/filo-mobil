@@ -201,3 +201,43 @@ body.detay-acik { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ── Başvuru ve yönetim ── */
+.giris.basvuru { justify-content: flex-start; padding-block: 32px; }
+.ipucu { font-size: 12px; color: var(--soluk); }
+.metin-alani { padding: 12px 14px; resize: vertical; font-family: inherit; }
+.onay { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; }
+.onay input { width: 20px; height: 20px; accent-color: var(--ana); }
+.dugme-sirasi { display: flex; flex-wrap: wrap; gap: 8px; }
+.dugme-sirasi > .girdi { flex: 1; min-width: 120px; }
+.baglanti-dugme { align-self: center; min-height: 44px; padding: 0 12px; background: none; border: 0; color: var(--ana); font-size: 15px; font-weight: 600; cursor: pointer; }
+.kopyalanabilir { overflow-wrap: anywhere; user-select: all; text-align: end; }
+/* ── Masaüstü menü ikonları ── */
+.menu-resim { display: block; object-fit: contain; flex: none; user-select: none; -webkit-user-drag: none; }
+.sekme .menu-resim { opacity: .78; transition: opacity .15s, transform .15s; }
+.sekme.secili .menu-resim { opacity: 1; transform: scale(1.08); }
+.ust-ikon { display: inline-flex; flex: none; }
+.menu-icerik { display: flex; flex-direction: column; gap: 16px; }
+.menu-izgara { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.menu-kutu {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; min-height: 112px; padding: 12px 6px;
+  background: var(--yuzey2); border: 1px solid var(--cizgi); border-radius: 16px; color: var(--yazi); font-size: 13px; font-weight: 600; text-align: center;
+  overflow-wrap: anywhere;
+}
+.menu-kutu.secili { border-color: var(--ana); background: color-mix(in srgb, var(--ana) 14%, var(--yuzey2)); }
+.menu-kutu:active { filter: brightness(.94); }
+.menu-kullanici { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--cizgi); text-align: center; }
+.iki-sutun { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+select.girdi { appearance: auto; }
+/* ── Animasyonlu onay kutusu ve şifre gözü (masaüstüyle aynı kareler / ikonlar) ── */
+.onay-dugme { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0; background: none; border: 0; color: var(--yazi); font-size: 14px; text-align: start; }
+.onay-dugme:focus-visible, .goz-dugme:focus-visible { outline: 2px solid var(--ana); outline-offset: 2px; border-radius: 8px; }
+.onay-kutu { width: 30px; height: 30px; flex: none; background: url("ikon/onay-animasyon.png") 0 0 / 420px 30px no-repeat; }
+.parola-alani { position: relative; }
+.parola-girdi { padding-inline-end: 48px; }
+.goz-dugme { position: absolute; inset-block: 0; inset-inline-end: 2px; width: 44px; display: grid; place-items: center; background: none; border: 0; }
+.goz-resim { display: block; opacity: .85; }
+@media (prefers-color-scheme: light) {
+  .goz-resim { filter: invert(1); }
+  .onay-kutu { filter: drop-shadow(0 0 1px rgba(0, 0, 0, .55)); }
+}

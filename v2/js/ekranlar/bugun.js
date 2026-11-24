@@ -74,6 +74,6 @@ async function belgeler() {
     yaklasan.length
       ? h("div", { class: "liste" },
         yaklasan.slice(0, SINIR).map((b) => satir({ baslik: b.arac.plaka, alt: b.ad, sag: kalanYaz(b.gun), ton: belgeTonu(b.seviye), onclick: () => aracAc(b.arac.id, b.arac.plaka) })),
-        yaklasan.length > SINIR && h("p", { class: "soluk orta" }, `${yaklasan.length - SINIR} belge daha var (Filo sekmesi, Süresi yaklaşan)`))
+        yaklasan.length > SINIR && h("p", { class: "soluk orta" }, `${yaklasan.length - SINIR} belge daha var (Araç Yönetimi, Süresi yaklaşan)`))
       : bosDurum("30 gün içinde süresi dolacak belge yok."));
 }

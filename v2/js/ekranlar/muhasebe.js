@@ -1,20 +1,15 @@
-// Muhasebe: faturalar, esnaf hesapları, akaryakıt. Bu ilk sürümde yalnızca görüntüleme.
+// Fatura Yönetimi, Esnaf Defteri ve Akaryakıt ekranları. Bu ilk sürümde yalnızca görüntüleme.
 import { h, kart, satir, bilgiSatiri, cipler, segment, aramaKutusu, ayCubugu, sayfalamali, bosDurum, detayAc } from "../ui.js";
 import * as veri from "../veri.js";
 import { aylaraGore } from "../hesap.js";
 import { para, paraKesin, sayiYaz, tarihYaz, tarihKisa, ayAdi, ayAnahtari, bugun, eslesir, sirala } from "../bicim.js";
 
-const BOLUMLER = [["fatura", "Faturalar"], ["esnaf", "Esnaf"], ["petrol", "Akaryakıt"]];
-const durum = { bolum: null, fatura: { arama: "", tip: "hepsi" }, esnaf: { arama: "" }, petrol: { arama: "", ay: null } };
+const durum = { fatura: { arama: "", tip: "hepsi" }, esnaf: { arama: "" }, petrol: { arama: "", ay: null } };
 
-export const mevcutBolumler = () => BOLUMLER.filter(([k]) => veri.izinVar(k));
-
-export async function ciz(yeniden) {
-  const bolumler = mevcutBolumler();
-  if (!bolumler.some(([k]) => k === durum.bolum)) durum.bolum = bolumler[0][0];
-  const icerik = await { fatura: faturaEkrani, esnaf: esnafEkrani, petrol: akaryakitEkrani }[durum.bolum]();
-  return h("div", { class: "sayfa" }, bolumler.length > 1 && segment(bolumler, durum.bolum, (k) => { durum.bolum = k; yeniden(); }), icerik);
-}
+// Masaüstündeki gibi her modül kendi ekranıdır: Fatura Yönetimi, Esnaf Defteri, Akaryakıt.
+export const faturaSayfasi = async () => h("div", { class: "sayfa" }, await faturaEkrani());
+export const esnafSayfasi = async () => h("div", { class: "sayfa" }, await esnafEkrani());
+export const akaryakitSayfasi = async () => h("div", { class: "sayfa" }, await akaryakitEkrani());
 
 // ── Faturalar ───────────────────────────────────────────────────────────────
 async function faturaEkrani() {

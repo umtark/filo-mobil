@@ -3,7 +3,7 @@ import * as api from "./api.js";
 import { markaUygula } from "./marka.js";
 import { okulListesi, faturaKaydi, esnafKaydi, aracKaydi, akaryakitListesi, icHizmetListesi } from "./hesap.js";
 
-export const baglam = { isletme: null, uye: null, lisans: null, isletmeAdi: "" };
+export const baglam = { isletme: null, uye: null, lisans: null, isletmeAdi: "", platform: false };
 
 const SURE = 5 * 60 * 1000;
 const onbellek = new Map();   // anahtar -> { t, sonuc: Promise }
@@ -20,6 +20,7 @@ function onbellekli(anahtar, getir) {
 }
 
 export async function baglamKur() {
+  baglam.platform = false;
   // Yöneticiler işletmenin tüm üyeliklerini görebilir; yalnızca oturumdaki kullanıcının kendi üyeliği alınır.
   const kimlik = api.kullanici();
   if (!kimlik) { baglam.isletme = null; return false; }
@@ -37,6 +38,7 @@ export async function baglamKur() {
   baglam.isletmeAdi = (u.isletmeler && u.isletmeler.ad) || "";
   if (u.isletmeler) markaUygula({ ad: u.isletmeler.marka_ad || u.isletmeler.ad, logo: u.isletmeler.logo });
   baglam.lisans = await api.rpc("lisans_durumu", { p_isletme: u.isletme_id }).catch(() => null);
+  baglam.platform = (await api.rpc("platform_yoneticisi_mi").catch(() => false)) === true;
   onbellekTemizle();
   return true;
 }
@@ -60,6 +62,7 @@ export const akaryakit = async () => {
   return akaryakitListesi(satirlar, araclar);
 };
 export const icHizmet = () => ham("ic_hizmetler").then(icHizmetListesi);
+export const sirketEvraklari = () => ham("sirket_evraklari");
 export const araclar = async () => {
   const [satirlar, ayar] = await Promise.all([ham("araclar"), ayarlar().catch(() => ({}))]);
   return satirlar.map((a) => aracKaydi(a, ayar.bakim_periyodu_gun));

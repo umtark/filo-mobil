@@ -28,9 +28,11 @@ const YOLLAR = {
   muhasebe: "M6 3h12v18l-3-2-3 2-3-2-3 2V3zM9 8h6M9 12h6",
   filo: "M5 4h14a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM4 11h16M7 20v-3M17 20v-3M7.5 14h.01M16.5 14h.01",
   hesap: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4 4-6 8-6s8 2 8 6",
+  yonetim: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3zM9 12l2.2 2.2L15.5 10",
   geri: "M15 5l-7 7 7 7",
   sag: "M9 5l7 7-7 7",
   yenile: "M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7",
+  menu: "M4 7h16M4 12h16M4 17h16",
   ara: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-4.5-4.5",
   telefon: "M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z",
   mesaj: "M4 5h16v11H9l-5 4V5z",
@@ -180,6 +182,49 @@ export function ayCubugu(aylar, secili, sec, adlandir) {
 }
 
 export function uyariKutusu(mesaj) { return h("p", { class: "uyari-kutusu", role: "alert" }, mesaj); }
+
+// Masaüstündeki AnimCheckBox'ın aynısı: data/anim/checkbox_0..13.png kareleri (ikon/onay-animasyon.png tek şeritte), 25 ms/kare.
+// Dönen düğmede deger() işaret durumunu verir; hareket azaltma tercihi açıksa animasyonsuz geçer.
+const ONAY_KARE = 13, ONAY_MS = 25, ONAY_BOYUT = 30;
+export function animOnay({ etiket, isaretli = false, degisti, id }) {
+  let acik = isaretli, kare = isaretli ? ONAY_KARE : 0, zamanlayici = null;
+  const kutu = h("span", { class: "onay-kutu", "aria-hidden": "true" });
+  const dugme = h("button", { class: "onay-dugme", type: "button", role: "checkbox", "aria-checked": String(acik), id }, kutu, etiket && h("span", { class: "onay-etiket" }, etiket));
+  const ciz = () => { kutu.style.backgroundPosition = `${-kare * ONAY_BOYUT}px 0`; };
+  dugme.addEventListener("click", () => {
+    if (zamanlayici) return;
+    acik = !acik;
+    dugme.setAttribute("aria-checked", String(acik));
+    const hedef = acik ? ONAY_KARE : 0;
+    const bitir = () => { kare = hedef; ciz(); if (degisti) degisti(acik); };
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return bitir();
+    kare = acik ? 1 : ONAY_KARE;
+    ciz();
+    zamanlayici = setInterval(() => {
+      kare += acik ? 1 : -1;
+      ciz();
+      if (kare === hedef) { clearInterval(zamanlayici); zamanlayici = null; bitir(); }
+    }, ONAY_MS);
+  });
+  dugme.deger = () => acik;
+  ciz();
+  return dugme;
+}
+
+// Şifre alanı + masaüstündeki göz düğmesi (open_eye/close_eye): basınca şifreyi gösterir/gizler.
+export function parolaAlani(girdi) {
+  const resim = h("img", { class: "goz-resim", src: "ikon/goz-kapali.png", alt: "", width: "22", height: "22", draggable: "false" });
+  const dugme = h("button", { class: "goz-dugme", type: "button", "aria-label": "Şifreyi göster", "aria-pressed": "false" }, resim);
+  dugme.addEventListener("click", () => {
+    const goster = girdi.type === "password";
+    girdi.type = goster ? "text" : "password";
+    resim.src = goster ? "ikon/goz-acik.png" : "ikon/goz-kapali.png";
+    dugme.setAttribute("aria-pressed", String(goster));
+    dugme.setAttribute("aria-label", goster ? "Şifreyi gizle" : "Şifreyi göster");
+  });
+  girdi.classList.add("parola-girdi");
+  return h("div", { class: "parola-alani" }, girdi, dugme);
+}
 
 export function sayfalamali(liste, olustur, adim = 60) {
   const kap = h("div", { class: "liste" });
