@@ -92,6 +92,8 @@ export const sorgu = (yol) => cagir("/rest/v1/" + yol);
 
 // Supabase Storage (özel kova): dosya yükleme ve kısa ömürlü okuma bağlantısı. Yol parçaları ASCII olmalıdır.
 export const depoYukle = (kova, yol, dosya) => cagir(`/storage/v1/object/${kova}/${yol}`, { yontem: "POST", govde: dosya, ust: { "Content-Type": dosya.type || "application/octet-stream" } });
+// Evrakı doğrudan Google Drive'a koyan Supabase fonksiyonu (supabase/functions/evrak_drive). Dönen: { id, dosya }.
+export const evrakDriveYukle = (isletme, yol, dosya) => cagir("/functions/v1/evrak_drive", { yontem: "POST", govde: dosya, ust: { "Content-Type": dosya.type || "application/octet-stream", "x-isletme": isletme, "x-yol": encodeURIComponent(yol) } });
 export async function depoBaglantisi(kova, yol, saniye = 600) {
   const v = await cagir(`/storage/v1/object/sign/${kova}/${yol}`, { yontem: "POST", govde: { expiresIn: saniye } });
   return `${SUPABASE_URL}/storage/v1${v.signedURL}`;

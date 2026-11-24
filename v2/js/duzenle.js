@@ -473,8 +473,8 @@ export async function evrakFormu(id, { detaydan = false } = {}) {
   });
 }
 
-// Telefondan evrak yükleme: Drive yetkisi masaüstündeki oturumda olduğundan dosya önce Supabase'in özel "evrak_aktarim" kovasına konur;
-// masaüstü dosyayı indirip kendi evrak klasörüne (kayıttaki "dosya" yoluna) yerleştirir, mevcut Drive senkronu da Drive'a yükler.
+// Telefondan evrak yükleme: dosya Supabase fonksiyonu (evrak_drive) ile hemen Google Drive'a konur; masaüstü Drive senkronuyla kendi klasörüne indirir.
+// Fonksiyon yayında değilse ya da ulaşılamıyorsa dosya yedek olarak Supabase'in özel "evrak_aktarim" kovasına konur, masaüstü sonra Drive'a taşır.
 const EVRAK_KATEGORILERI = ["Vergi Levhası", "Ticaret Sicil Gazetesi", "Ana Sözleşme", "İmza Sirküleri", "Faaliyet Belgesi - Oda Kaydı", "Banka Evrakları", "SGK Evrakları", "Vekaletname",
   "Fatura Belgeleri", "Araç Satış Sözleşmeleri", "Araç Alış Sözleşmeleri", "Diğer Sözleşmeler", "Diğer"];
 const EVRAK_BOYUT_SINIRI = 25 * 1024 * 1024;
@@ -506,12 +506,20 @@ export async function evrakYukle() {
       const kimlik = veri.yeniKimlik();
       const depoYolu = `${veri.baglam.isletme}/${kimlik}${uzanti}`;
       const yil = (tarihCoz(g.belge_tarihi) || new Date()).getFullYear();
-      await api.depoYukle("evrak_aktarim", depoYolu, dosya);
+      let dosyaYolu = `Sirket_Evraklari/${evrakAdiTemizle(g.firma)}/${evrakAdiTemizle(g.kategori)}/${yil}/${evrakAdiTemizle(kok, "evrak")}${uzanti.replace(/[^0-9A-Za-z.]/g, "")}`;
+      let drive = null;
+      try {
+        drive = await api.evrakDriveYukle(veri.baglam.isletme, dosyaYolu, dosya);
+        dosyaYolu = drive.dosya || dosyaYolu;
+      } catch (e) {
+        if (e.durum === 401 || e.durum === 403 || e.durum === 413) throw e;   // yetki/boyut sorunu: yedek yolla geçilmez
+        await api.depoYukle("evrak_aktarim", depoYolu, dosya);                // fonksiyon yok/erişilemiyor: masaüstü aktarır
+      }
       await veri.kayitKaydet("sirket_evraklari", null, () => ({
         id: kimlik, baslik: g.baslik || kok, firma: g.firma, kategori: g.kategori, yil, belge_tarihi: g.belge_tarihi, gecerlilik: g.gecerlilik, etiketler: g.etiketler, not: g.not,
-        dosya: `Sirket_Evraklari/${evrakAdiTemizle(g.firma)}/${evrakAdiTemizle(g.kategori)}/${yil}/${evrakAdiTemizle(kok, "evrak")}${uzanti.replace(/[^0-9A-Za-z.]/g, "")}`,
+        dosya: dosyaYolu,
         dosya_adi: dosya.name, boyut: dosya.size, ekleyen: (veri.baglam.uye && veri.baglam.uye.ad) || "", eklenme: yerelIso(), arsiv: false, surum_grup: kimlik, metin: "",
-        aktarim: { durum: "bekliyor", yol: depoYolu },
+        ...(drive ? { drive_id: drive.id } : { aktarim: { durum: "bekliyor", yol: depoYolu } }),
       }));
       await sonra();
     },

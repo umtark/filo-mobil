@@ -77,5 +77,6 @@ async function evrakDetay(id) {
     bilgiSatiri(etiket("sevrak_gecerlilik"), r.gecerlilikTarihi ? `${tarihYaz(r.gecerlilikTarihi)} (${kalanMetni(r.gun)})` : "", ton(r.gun)),
     bilgiSatiri(etiket("sevrak_etiketler"), r.etiketler), bilgiSatiri(etiket("sevrak_not"), r.not), bilgiSatiri("Dosya", r.dosya_adi), bekliyor(r) && bilgiSatiri("Aktarım", "Bilgisayara aktarılmayı bekliyor", "kehribar")),
     bekliyor(r) && h("button", { class: "dugme ikincil genis", type: "button", onclick: () => dosyaAc(r) }, ikon("indir", 18), "Dosyayı aç"),
+    !bekliyor(r) && r.drive_id && h("a", { class: "dugme ikincil genis", href: `https://drive.google.com/file/d/${encodeURIComponent(r.drive_id)}/view`, target: "_blank", rel: "noopener" }, ikon("indir", 18), "Drive'da aç"),
     veri.yazabilir("sirket_evrak") && islemDugmeleri({ duzenle: () => duz.evrakFormu(id, { detaydan: true }) }));
 }
