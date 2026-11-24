@@ -43,6 +43,20 @@ export async function baglamKur() {
   return true;
 }
 
+// Çalışan oturumda yetki/üyelik değişikliğini sunucudan okur: "kaldirildi" | "degisti" | "ayni".
+export async function yetkiKontrol() {
+  const kimlik = api.kullanici();
+  if (!kimlik || !baglam.isletme || !baglam.uye) return "ayni";
+  const s = await api.sorgu(`uyelikler?select=ad,rol,izinler,salt_okunur&isletme_id=eq.${baglam.isletme}&kullanici_id=eq.${encodeURIComponent(kimlik.id)}&aktif=eq.true`);
+  if (!s.length) return "kaldirildi";
+  const yeni = s[0], eski = baglam.uye;
+  const imza = (u) => JSON.stringify([u.rol, [...(u.izinler || [])].sort(), Boolean(u.salt_okunur)]);
+  if (imza(yeni) === imza(eski)) return "ayni";
+  baglam.uye = { ...eski, ...yeni };
+  onbellekTemizle();
+  return "degisti";
+}
+
 export const lisansAcik = () => !baglam.lisans || baglam.lisans.acik !== false;
 export const izinVar = (modul) => Boolean(baglam.uye) && lisansAcik() && (["sahip", "yonetici"].includes(baglam.uye.rol) || (baglam.uye.izinler || []).includes(modul));
 export const yazabilir = (modul) => izinVar(modul) && !baglam.uye.salt_okunur;

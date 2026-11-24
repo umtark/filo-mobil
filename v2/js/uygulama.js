@@ -44,6 +44,7 @@ const simge = (s, boyut) => (s.resim ? h("img", { class: "menu-resim", src: s.re
 let aktif = null;
 let cizimSirasi = 0;
 let icerik, baslik, baslikIkonu, sekmeCubugu, bildirim, gorunenSekmeler = [];
+let kabukAcik = false;
 
 // ── Açılış ──────────────────────────────────────────────────────────────────
 async function baslat() {
@@ -70,11 +71,13 @@ function kurulumEkrani() {
 }
 
 function hataEkrani(mesaj, tekrar) {
+  kabukAcik = false;
   kok.replaceChildren(h("main", { class: "tam-ekran giris" }, h("h1", {}, "Açılamadı"), hataGoster({ message: mesaj }, tekrar ? baslat : null),
     h("button", { class: "dugme ikincil", onclick: cikis }, "Çıkış yap")));
 }
 
 function girisEkrani(hata = "") {
+  kabukAcik = false;
   const sirket = sirketBaslangici();
   const sirketGirdisi = h("input", { class: "girdi", type: "text", inputmode: "numeric", pattern: "[0-9]*", maxlength: "6", autocomplete: "off", spellcheck: "false", required: true,
     "aria-label": "Şirket kodu", placeholder: "Şirket kodu (6 haneli)", value: sirket.kod, readonly: sirket.kilitli });
@@ -146,6 +149,7 @@ function cikis() {
 
 // ── Kabuk ───────────────────────────────────────────────────────────────────
 function kabuk() {
+  kabukAcik = true;
   const sekmeler = SEKMELER.filter((s) => s.goster());
   gorunenSekmeler = sekmeler;
   baslik = h("h1", {});
@@ -223,6 +227,29 @@ async function sekmeCiz(id, kaydirmayiKoru = false) {
     icerik.replaceChildren(hataGoster(e, () => sekmeCiz(id)));
   }
 }
+
+// ── Yetki izleme ────────────────────────────────────────────────────────────
+// Yönetici yetkiyi değiştirince ya da hesabı kaldırınca açık oturum yeniden giriş beklemeden güncellenir.
+let yetkiKontrolSuruyor = false;
+async function yetkiIzle() {
+  if (!kabukAcik || yetkiKontrolSuruyor || document.hidden) return;
+  yetkiKontrolSuruyor = true;
+  try {
+    const durum = await veri.yetkiKontrol();
+    if (!kabukAcik) return;
+    if (durum === "kaldirildi") {
+      api.cikisYap(); veri.onbellekTemizle(); aktif = null; tumDetaylariKapat();
+      return girisEkrani("Hesabınızın bu işletmeye erişimi kaldırıldı.");
+    }
+    if (durum === "degisti") { tumDetaylariKapat(); kabuk(); toast("Yetkileriniz güncellendi"); }
+  } catch (e) {
+    if (e.durum === 401 && !api.girisVar()) girisEkrani("Oturum süresi doldu, tekrar giriş yapın.");
+  } finally { yetkiKontrolSuruyor = false; }
+}
+setInterval(yetkiIzle, 10000);
+document.addEventListener("visibilitychange", yetkiIzle);
+window.addEventListener("focus", yetkiIzle);
+window.addEventListener("online", yetkiIzle);
 
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
