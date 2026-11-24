@@ -16,6 +16,7 @@ import * as yonetim from "./ekranlar/yonetim.js";
 import { durumEkrani } from "./ekranlar/durum.js";
 import { basvuruEkrani } from "./ekranlar/basvuru.js";
 import { MENU, ALT_CUBUK_SIRASI } from "./menu.js";
+import * as profil from "./profil.js";
 import { metin, duz } from "./metin.js";
 
 const kok = document.getElementById("uygulama");
@@ -161,6 +162,12 @@ function girisEkrani(hata = "") {
   (kayitliAd ? parola : eposta).focus();   // masaüstündeki gibi: kayıtlı kullanıcı varsa şifreye odaklanır
 }
 
+function avatarOlustur(ad) {
+  const el = h("span", { class: "avatar", "aria-hidden": "true" }, (ad[0] || "?").toLocaleUpperCase("tr"));
+  profil.avatarUygula(el);
+  return el;
+}
+
 function cikis() {
   cekmeceKapat(false);
   api.cikisYap();
@@ -229,7 +236,7 @@ function cekmeceAc() {
       h("button", { class: "ikon-dugme", "aria-label": "Kapat", onclick: () => cekmeceKapat() }, ikon("kapat"))),
     liste,
     h("div", { class: "cekmece-alt-kisim" },
-      h("div", { class: "cekmece-kullanici" }, h("span", { class: "avatar", "aria-hidden": "true" }, (ad[0] || "?").toLocaleUpperCase("tr")),
+      h("div", { class: "cekmece-kullanici" }, avatarOlustur(ad),
         h("span", { class: "satir-metin" }, h("span", { class: "satir-baslik" }, ad), h("span", { class: "satir-alt" }, rol))),
       h("button", { class: "dugme tehlike genis", onclick: cikis }, metin("settings_session_logout"))));
   const arka = h("div", { class: "cekmece-arka", onclick: (e) => { if (e.target === arka) cekmeceKapat(); } }, panel);

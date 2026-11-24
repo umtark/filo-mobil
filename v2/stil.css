@@ -268,8 +268,12 @@ body.detay-acik { overflow: hidden; }
 .cekmece-kullanici { display: flex; align-items: center; gap: 12px; }
 .avatar {
   display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex: none; border-radius: 50%;
-  background: var(--ana); color: var(--ana-ustu); font-weight: 700;
+  background: var(--ana) center / cover no-repeat; color: var(--ana-ustu); font-weight: 700;
 }
+.avatar.foto { color: transparent; }
+.avatar-buyuk { width: 96px; height: 96px; font-size: 36px; }
+.avatar-dugme { display: inline-flex; padding: 0; border: 0; background: none; border-radius: 50%; cursor: pointer; }
+.profil-foto { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 8px 0 14px; }
 .menu-icerik { display: flex; flex-direction: column; gap: 16px; }
 .menu-izgara { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .menu-kutu {

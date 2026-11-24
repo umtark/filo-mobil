@@ -91,7 +91,8 @@ export function cikisYap() { oturumKaydet(null); }
 export const sorgu = (yol) => cagir("/rest/v1/" + yol);
 
 // Supabase Storage (özel kova): dosya yükleme ve kısa ömürlü okuma bağlantısı. Yol parçaları ASCII olmalıdır.
-export const depoYukle = (kova, yol, dosya) => cagir(`/storage/v1/object/${kova}/${yol}`, { yontem: "POST", govde: dosya, ust: { "Content-Type": dosya.type || "application/octet-stream" } });
+export const depoYukle = (kova, yol, dosya, ek = {}) => cagir(`/storage/v1/object/${kova}/${yol}`, { yontem: "POST", govde: dosya, ust: { "Content-Type": dosya.type || "application/octet-stream", ...ek } });
+export const depoSil = (kova, yol) => cagir(`/storage/v1/object/${kova}/${yol}`, { yontem: "DELETE" });
 // Evrakı doğrudan Google Drive'a koyan Supabase fonksiyonu (supabase/functions/evrak_drive). Dönen: { id, dosya }.
 export const evrakDriveYukle = (isletme, yol, dosya) => cagir("/functions/v1/evrak_drive", { yontem: "POST", govde: dosya, ust: { "Content-Type": dosya.type || "application/octet-stream", "x-isletme": isletme, "x-yol": encodeURIComponent(yol) } });
 export async function depoBaglantisi(kova, yol, saniye = 600) {
