@@ -1,5 +1,6 @@
 // Hesap: kim giriş yapmış, lisans durumu, çıkış.
-import { h, kart, bilgiSatiri, toast } from "../ui.js";
+import { h, kart, satir, bilgiSatiri, toast, detayAc } from "../ui.js";
+import * as kullanicilar from "./kullanicilar.js";
 import { metin } from "../metin.js";
 import * as veri from "../veri.js";
 import * as api from "../api.js";
@@ -23,6 +24,7 @@ export async function ciz({ cikis, yenile }) {
     kart(h("h3", {}, "Hesap"), bilgiSatiri("Kullanıcı", kullanici && api.epostadanKullaniciAdi(kullanici.email)), bilgiSatiri("İşletme", veri.baglam.isletmeAdi),
       bilgiSatiri("Rol", ROL[u.rol] || u.rol), bilgiSatiri("Yetkiler", yetkiler), bilgiSatiri("Erişim", u.salt_okunur ? "Yalnızca görüntüleme" : "Görüntüleme ve ödeme girişi"),
       bilgiSatiri("Lisans", lisansMetni, lisansTon)),
+    ["sahip", "yonetici"].includes(u.rol) && kart(satir({ baslik: "Kullanıcılar", onclick: () => detayAc("Kullanıcılar", () => kullanicilar.ciz()) })),
     kart(h("button", { class: "dugme ikincil genis", onclick: () => { yenile(); toast("Veriler yenilendi"); } }, "Verileri yenile"),
       h("button", { class: "dugme tehlike genis", onclick: cikis }, metin("settings_session_logout"))),
     h("p", { class: "soluk orta" }, "Filo Muhasebe · mobil v2"));
