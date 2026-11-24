@@ -4,7 +4,8 @@ import * as veri from "../veri.js";
 import { aylaraGore } from "../hesap.js";
 import { ekleDugmesi, islemDugmeleri } from "../form.js";
 import * as duz from "../duzenle.js";
-import { aktarDugmesi } from "../rapor.js";
+import { ciktiDugmeleri } from "../cikti.js";
+import { aracPdf, aracXlsx, icHizmetPdf, icHizmetXlsx } from "../cikti_filo.js";
 import { para, sayiYaz, tarihYaz, tarihKisa, ayAdi, ayAnahtari, bugun, eslesir, sirala, telefonTemizle } from "../bicim.js";
 
 const durum = { arac: { arama: "", filtre: "hepsi" }, ic: { arama: "", ay: null }, kayit: { arama: "" } };
@@ -16,6 +17,8 @@ export const aracSayfasi = async (alt = "liste") => h("div", { class: "sayfa" },
 export const icHizmetSayfasi = async () => h("div", { class: "sayfa" }, await icHizmetEkrani());
 
 // ── Araçlar ─────────────────────────────────────────────────────────────────
+const ARAC_SECENEK = [{ k: "bakim", ad: "Yağ, bakım ve harcama kayıtlarını ekle", v: false }];
+
 async function aracEkrani() {
   const liste = (await veri.araclar()).slice().sort((a, b) => sirala(a.plaka, b.plaka));
   const sorunlu = (a) => a.belgeler.some((b) => b.seviye !== "iyi");
@@ -30,7 +33,11 @@ async function aracEkrani() {
   }
   guncelle();
   return h("div", {}, veri.yazabilir("arac") && ekleDugmesi("Yeni araç", () => duz.aracFormu(null)),
-    aramaKutusu(d.arama, (v) => { d.arama = v; guncelle(); }, "Plaka, firma ya da şoför ara"), cipAlani, sonuc);
+    aramaKutusu(d.arama, (v) => { d.arama = v; guncelle(); }, "Plaka, firma ya da şoför ara"),
+    ciktiDugmeleri({ dosya: "arac_kayitlari",
+      pdf: { yatay: true, altSol: "Araç Kayıtları Analiz Raporu", secenekler: ARAC_SECENEK, uret: async (c) => aracPdf(c, await veri.hamListe("araclar")) },
+      xlsx: { secenekler: ARAC_SECENEK, uret: async (c) => aracXlsx(c, await veri.hamListe("araclar")) } }),
+    cipAlani, sonuc);
 }
 
 // Masaüstündeki Yağ Bakımı / Genel Tamir-Bakım / Harcamalar sekmeleri: tüm araçların kayıtları tek listede (plaka ile).
@@ -128,8 +135,9 @@ async function icHizmetEkrani() {
       ayCubugu(sirali, d.ay, (a) => { d.ay = a; guncelle(); }, ayAdi),
       kart(h("p", { class: "kart-etiket" }, "Seferler"), h("p", { class: "buyuk-sayi" }, para(tutar)), h("p", { class: "soluk" }, `${ay.length} sefer · ${sayiYaz(kisi)} kişi`)),
       aramaKutusu(d.arama, (v) => { d.arama = v; ara(); }, "Plaka, şoför, güzergah ya da yer ara"),
-      aktarDugmesi(() => [`ic-hizmet-${d.ay}`, ["Tarih", "Saat", "Plaka", "Şoför", "Güzergah", "Gidilen yer", "Kişi", "Personel", "Tutar", "Fiş no"],
-        (aylar.get(d.ay) || []).map((s) => [s.tarih, s.saat, s.plaka, s.sofor, s.guzergah, s.yer, s.kisi, s.personel, s.tutar, s.fis])]),
+      ciktiDugmeleri({ dosya: "ic_hizmetler", donem: true, varsayilanAy: () => d.ay,
+        pdf: { yatay: true, altSol: "İç Hizmetler Raporu", uret: (c) => icHizmetPdf(c, liste) },
+        xlsx: { uret: async (c) => icHizmetXlsx(c, liste, await veri.icFiyatlar()) } }),
       h("div", { id: "ic-liste" }));
     ara();
   }

@@ -5,6 +5,8 @@ import { aylikGelirGider, okulToplam } from "../hesap.js";
 import { para, ayAdi, ayAnahtari, bugun } from "../bicim.js";
 import { durum as okulDurumu } from "./okul.js";
 import { aracAc, kalanYaz, belgeTonu } from "./filo.js";
+import { ciktiDugmeleri } from "../cikti.js";
+import { genelVeri, genelDurumPdf } from "../cikti_genel.js";
 
 const durum = { ay: null };
 
@@ -14,6 +16,18 @@ export async function ciz(sekmeyeGit) {
     h("div", { class: "karsilama" },
       h("p", { class: "soluk" }, new Intl.DateTimeFormat("tr-TR", { weekday: "long", day: "numeric", month: "long" }).format(d)),
       h("h2", {}, veri.baglam.isletmeAdi || "Filo Muhasebe")));
+  if (["fatura", "petrol", "esnaf", "okul", "arac", "ic_hizmet"].every(veri.izinVar)) {
+    sayfa.append(ciktiDugmeleri({
+      dosya: "genel_durum_raporu", donem: true,
+      pdf: {
+        ad: "Genel Durum Raporu", yatay: false, altSol: "Genel Durum Raporu",
+        async uret(ctx) {
+          const [faturalar, akaryakit, esnaflar, icHizmet, okul, araclar] = await Promise.all([veri.faturalar(), veri.akaryakit(), veri.esnaflar(), veri.icHizmet(), veri.okul(), veri.araclar()]);
+          genelDurumPdf(ctx, genelVeri({ faturalar, akaryakit, esnaflar, icHizmet, okul, araclar }, ctx.donem));
+        },
+      },
+    }));
+  }
   if (["fatura", "petrol", "esnaf"].every(veri.izinVar)) sayfa.append(blok(gelirGider));
   if (veri.izinVar("okul")) sayfa.append(blok(() => tahsilat(sekmeyeGit)));
   if (veri.izinVar("arac")) sayfa.append(blok(belgeler));

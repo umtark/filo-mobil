@@ -1,10 +1,11 @@
-// Şirket Evrakları: masaüstündeki aynı kayıtlar (firma, kategori, başlık, geçerlilik). Bu ilk sürümde yalnızca görüntüleme;
-// dosyaların kendisi Google Drive'da durur, telefondan yalnızca bilgileri görülür.
-import { h, kart, satir, bilgiSatiri, aramaKutusu, sayfalamali, bosDurum, detayAc, animOnay } from "../ui.js";
+// Şirket Evrakları: masaüstündeki aynı kayıtlar (firma, kategori, başlık, geçerlilik). Dosyalar Google Drive'da durur; telefondan yüklenen dosya
+// önce geçici aktarım kovasına gider, masaüstü onu Drive yoluna taşır (bkz. duzenle.js evrakYukle, supabase/evrak_aktarim.sql).
+import { h, ikon, toast, kart, satir, bilgiSatiri, aramaKutusu, sayfalamali, bosDurum, detayAc, animOnay } from "../ui.js";
+import * as api from "../api.js";
 import * as veri from "../veri.js";
 import { tarihCoz, tarihYaz, gunFarki, eslesir, sirala } from "../bicim.js";
 import { metin, etiket } from "../metin.js";
-import { islemDugmeleri } from "../form.js";
+import { islemDugmeleri, ekleDugmesi } from "../form.js";
 import * as duz from "../duzenle.js";
 
 const UYARI_GUN = 30;   // masaüstündeki _SEVRAK_UYARI_GUN ile aynı
@@ -44,6 +45,7 @@ export async function ciz() {
   guncelle();
   return h("div", { class: "sayfa" },
     h("p", { class: "soluk" }, metin("sevrak_sayfa_aciklama")),
+    veri.yazabilir("sirket_evrak") && ekleDugmesi("Evrak yükle", () => duz.evrakYukle()),
     aramaKutusu(durum.arama, (v) => { durum.arama = v; guncelle(); }, metin("sevrak_ara_ph")),
     h("div", { class: "iki-sutun" },
       secim("Firma", metin("sevrak_tum_firmalar"), firmalar, durum.firma, (v) => { durum.firma = v; guncelle(); }),
@@ -51,9 +53,15 @@ export async function ciz() {
     arsiv, ozet, sonuc);
 }
 
+const bekliyor = (r) => Boolean(r.aktarim && r.aktarim.durum === "bekliyor");
+
+async function dosyaAc(r) {
+  try { window.open(await api.depoBaglantisi("evrak_aktarim", r.aktarim.yol), "_blank", "noopener"); } catch (e) { toast(e.message || "Dosya açılamadı", "hata"); }
+}
+
 function evrakSatiri(r) {
   return satir({
-    baslik: r.baslik || r.dosya_adi, alt: [r.firma, r.kategori, r.yil].filter(Boolean).join(" · "),
+    baslik: r.baslik || r.dosya_adi, alt: [r.firma, r.kategori, r.yil, bekliyor(r) && "Aktarım bekliyor"].filter(Boolean).join(" · "),
     sag: r.gecerlilikTarihi ? kalanMetni(r.gun) : "", sagAlt: r.gecerlilikTarihi ? tarihYaz(r.gecerlilikTarihi) : "", ton: ton(r.gun),
     onclick: () => detayAc(r.baslik || r.dosya_adi, () => evrakDetay(r.id)),
   });
@@ -67,6 +75,7 @@ async function evrakDetay(id) {
     bilgiSatiri(etiket("sevrak_firma"), r.firma), bilgiSatiri(etiket("sevrak_kategori"), r.kategori), bilgiSatiri(etiket("sevrak_baslik_lbl"), r.baslik),
     bilgiSatiri(etiket("sevrak_yil"), r.yil), bilgiSatiri(etiket("sevrak_belge_tarihi"), r.belgeTarihi ? tarihYaz(r.belgeTarihi) : ""),
     bilgiSatiri(etiket("sevrak_gecerlilik"), r.gecerlilikTarihi ? `${tarihYaz(r.gecerlilikTarihi)} (${kalanMetni(r.gun)})` : "", ton(r.gun)),
-    bilgiSatiri(etiket("sevrak_etiketler"), r.etiketler), bilgiSatiri(etiket("sevrak_not"), r.not), bilgiSatiri("Dosya", r.dosya_adi)),
+    bilgiSatiri(etiket("sevrak_etiketler"), r.etiketler), bilgiSatiri(etiket("sevrak_not"), r.not), bilgiSatiri("Dosya", r.dosya_adi), bekliyor(r) && bilgiSatiri("Aktarım", "Bilgisayara aktarılmayı bekliyor", "kehribar")),
+    bekliyor(r) && h("button", { class: "dugme ikincil genis", type: "button", onclick: () => dosyaAc(r) }, ikon("indir", 18), "Dosyayı aç"),
     veri.yazabilir("sirket_evrak") && islemDugmeleri({ duzenle: () => duz.evrakFormu(id, { detaydan: true }) }));
 }

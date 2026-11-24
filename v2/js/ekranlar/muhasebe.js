@@ -4,7 +4,8 @@ import * as veri from "../veri.js";
 import { aylaraGore } from "../hesap.js";
 import { ekleDugmesi, islemDugmeleri } from "../form.js";
 import * as duz from "../duzenle.js";
-import { aktarDugmesi } from "../rapor.js";
+import { ciktiDugmeleri } from "../cikti.js";
+import { faturaPdf, faturaXlsx, esnafPdf, esnafXlsx, esnaflarPdf, esnaflarXlsx, petrolPdf, petrolXlsx } from "../cikti_muhasebe.js";
 import { para, paraKesin, sayiYaz, tarihYaz, tarihKisa, ayAdi, ayAnahtari, bugun, eslesir, sirala } from "../bicim.js";
 
 const durum = { fatura: { arama: "", tip: "hepsi" }, esnaf: { arama: "" }, petrol: { arama: "", ay: null } };
@@ -22,13 +23,10 @@ async function faturaEkrani(alt = "tum") {
   d.tip = { tum: "hepsi", gelen: "gelen", giden: "giden" }[alt] || "hepsi";   // Tüm Kayıtlar / Gelen / Giden: masaüstündeki sekmeler
   const sonuc = h("div");
   const ozet = h("p", { class: "soluk ozet-satir" });
-  let gorunen = [];
-  const aktar = aktarDugmesi(() => ["faturalar", ["Tarih", "Tür", "Fatura No", "Firma", "Açıklama", "Matrah", "KDV %", "KDV", "Tevkifat", "Tevkifat Tutarı", "Toplam"],
-    gorunen.map((f) => [f.tarih, f.giden ? "Giden" : "Gelen", f.no, f.firma, f.aciklama, f.matrah, f.kdvOrani, f.kdv, f.tevkifat, f.tevTutar, f.toplam])]);
+  const aktar = faturaCiktisi(liste);
 
   function guncelle() {
     const g = liste.filter((f) => (d.tip === "hepsi" || (d.tip === "giden") === f.giden) && (!d.arama || eslesir(`${f.firma} ${f.no} ${f.aciklama}`, d.arama)));
-    gorunen = g;
     const toplam = g.reduce((t, f) => t + f.toplam, 0);
     ozet.textContent = d.tip === "hepsi" ? `${g.length} fatura` : `${g.length} fatura · toplam ${para(toplam)}`;
     sonuc.replaceChildren(g.length ? sayfalamali(g, faturaSatiri) : bosDurum("Fatura bulunamadı."));
@@ -39,8 +37,16 @@ async function faturaEkrani(alt = "tum") {
 }
 
 // Aylık Özet: ayın gelen / giden toplamları ve KDV farkı (giden KDV - gelen KDV).
+// Masaüstündeki Gelen / Giden Fatura Analizi: PDF (kayıtlar, firma cari durumu, özet) ve Excel (gelen/giden yan yana + özet, cari sayfası).
+function faturaCiktisi(liste) {
+  return ciktiDugmeleri({ dosya: "fatura_raporu", donem: true,
+    pdf: { yatay: true, altSol: "Gelen / Giden Fatura Analizi", uret: (c) => faturaPdf(c, liste) },
+    xlsx: { uret: (c) => faturaXlsx(c, liste) } });
+}
+
 async function faturaOzeti() {
-  const aylar = aylaraGore(await veri.faturalar());
+  const tumFaturalar = await veri.faturalar();
+  const aylar = aylaraGore(tumFaturalar);
   const sirali = [...aylar.keys()].sort().reverse();
   if (!sirali.length) return bosDurum("Fatura kaydı yok.");
   const toplamla = (liste) => {
@@ -50,8 +56,7 @@ async function faturaOzeti() {
   };
   const satirlar = sirali.map((a) => [a, toplamla(aylar.get(a))]);
   return h("div", {},
-    aktarDugmesi(() => ["fatura-aylik-ozet", ["Ay", "Fatura adedi", "Gelen toplam", "Giden toplam", "Gelen KDV", "Giden KDV", "KDV farkı", "Tevkifat"],
-      satirlar.map(([a, t]) => [ayAdi(a), t.adet, t.gelen, t.giden, t.gelenKdv, t.gidenKdv, t.gidenKdv - t.gelenKdv, t.tev])]),
+    faturaCiktisi(tumFaturalar),
     satirlar.map(([a, t]) => kart(h("h3", {}, ayAdi(a)), h("p", { class: "soluk" }, `${t.adet} fatura`),
       h("div", { class: "bilgi-grid" }, bilgiSatiri("Gelen", para(t.gelen)), bilgiSatiri("Giden", para(t.giden)),
         bilgiSatiri("Gelen KDV", para(t.gelenKdv)), bilgiSatiri("Giden KDV", para(t.gidenKdv)),
@@ -94,7 +99,9 @@ async function esnafEkrani() {
     kart(h("p", { class: "kart-etiket" }, "Toplam borç"), h("p", { class: "buyuk-sayi" }, para(borc)), h("p", { class: "soluk" }, `${liste.filter((e) => e.bakiye > 0.01).length} esnafa borç var`)),
     veri.yazabilir("esnaf") && ekleDugmesi("Yeni esnaf", () => duz.esnafFormu(null)),
     aramaKutusu(d.arama, (v) => { d.arama = v; guncelle(); }, "Esnaf ara"),
-    aktarDugmesi(() => ["esnaf-borc", ["Esnaf", "Toplam işlem", "Ödenen", "Kalan borç"], liste.filter((e) => !d.arama || eslesir(e.isim, d.arama)).map((e) => [e.isim, e.borc, e.odenen, e.bakiye])]), sonuc);
+    ciktiDugmeleri({ dosya: "esnaf_raporu", donem: true,
+      pdf: { yatay: true, altSol: "Esnaf Hesap Raporu", uret: (c) => esnaflarPdf(c, liste) },
+      xlsx: { uret: (c) => esnaflarXlsx(c, liste) } }), sonuc);
 }
 
 function esnafSatiri(e) {
@@ -109,6 +116,9 @@ async function esnafDetay(id) {
   return h("div", { class: "sayfa" },
     kart(h("p", { class: "kart-etiket" }, "Kalan borç"), h("p", { class: "buyuk-sayi " + (e.bakiye > 0.01 ? "kirmizi" : "yesil") }, para(Math.max(0, e.bakiye))),
       h("div", { class: "bilgi-grid" }, bilgiSatiri("Toplam işlem", para(e.borc)), bilgiSatiri("Ödenen", para(e.odenen)))),
+    ciktiDugmeleri({ dosya: "esnaf_hesap", donem: true,
+      pdf: { yatay: true, altSol: e.isim, uret: (c) => esnafPdf(c, e) },
+      xlsx: { uret: (c) => esnafXlsx(c, e) } }),
     yaz && h("div", { class: "iki-sutun" },
       h("button", { class: "dugme birincil", type: "button", onclick: () => duz.esnafIslemFormu(id, null) }, "İşlem ekle"),
       h("button", { class: "dugme birincil", type: "button", onclick: () => duz.esnafIslemFormu(id, null, { odeme: true }) }, "Ödeme ekle")),
@@ -142,8 +152,9 @@ async function akaryakitEkrani() {
       ayCubugu(sirali, d.ay, (a) => { d.ay = a; guncelle(); }, ayAdi),
       kart(h("p", { class: "kart-etiket" }, "Yakıt alımı"), h("p", { class: "buyuk-sayi" }, para(tutar)), h("p", { class: "soluk" }, `${alim.length} alım${litre ? ` · ${sayiYaz(litre)} lt` : ""}`)),
       aramaKutusu(d.arama, (v) => { d.arama = v; ara(); }, "Plaka ya da istasyon ara"),
-      aktarDugmesi(() => [`akaryakit-${d.ay}`, ["Tarih", "Plaka", "İstasyon", "Litre", "Fiyat", "Tutar", "Fiş no", "Tür"],
-        (aylar.get(d.ay) || []).map((r) => [r.tarih, r.plaka, r.istasyon, r.litre, r.fiyat, r.tutar, r.fis, r.odeme ? "Ödeme" : "Alım"])]),
+      ciktiDugmeleri({ dosya: "akaryakit_ekstre", donem: true, varsayilanAy: () => d.ay,
+        pdf: { yatay: false, altSol: "Akaryakıt Hesap Ekstresi", uret: (c) => petrolPdf(c, liste.filter((r) => !d.arama || eslesir(`${r.plaka} ${r.istasyon}`, d.arama))) },
+        xlsx: { uret: (c) => petrolXlsx(c, liste.filter((r) => !d.arama || eslesir(`${r.plaka} ${r.istasyon}`, d.arama))) } }),
       h("div", { id: "yakit-liste" }));
     ara();
   }

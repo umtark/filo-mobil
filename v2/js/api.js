@@ -40,7 +40,8 @@ function hataMetni(cevap, govde) {
 
 async function cagir(yol, { yontem = "GET", govde, ust = {}, jetonlu = true } = {}, tekrar = true) {
   const basliklar = { apikey: ANON_KEY, ...ust };
-  if (govde !== undefined) basliklar["Content-Type"] = "application/json";
+  const ham = typeof Blob !== "undefined" && govde instanceof Blob;   // dosya yükleme: gövde olduğu gibi gider
+  if (govde !== undefined && !ham) basliklar["Content-Type"] = "application/json";
   if (jetonlu) {
     if (oturum && oturum.expires_at && oturum.expires_at - 30 < Date.now() / 1000) await yenile();
     // Yeni tip "publishable" anahtar JWT değildir; Authorization'a yalnızca kullanıcının oturum jetonu konur.
@@ -48,7 +49,7 @@ async function cagir(yol, { yontem = "GET", govde, ust = {}, jetonlu = true } = 
   }
   let cevap;
   try {
-    cevap = await fetch(SUPABASE_URL + yol, { method: yontem, headers: basliklar, body: govde === undefined ? undefined : JSON.stringify(govde) });
+    cevap = await fetch(SUPABASE_URL + yol, { method: yontem, headers: basliklar, body: govde === undefined ? undefined : ham ? govde : JSON.stringify(govde) });
   } catch {
     throw new ApiHatasi(duz("login_hata_sunucu"), 0);
   }
@@ -88,6 +89,13 @@ async function yenile() {
 export function cikisYap() { oturumKaydet(null); }
 
 export const sorgu = (yol) => cagir("/rest/v1/" + yol);
+
+// Supabase Storage (özel kova): dosya yükleme ve kısa ömürlü okuma bağlantısı. Yol parçaları ASCII olmalıdır.
+export const depoYukle = (kova, yol, dosya) => cagir(`/storage/v1/object/${kova}/${yol}`, { yontem: "POST", govde: dosya, ust: { "Content-Type": dosya.type || "application/octet-stream" } });
+export async function depoBaglantisi(kova, yol, saniye = 600) {
+  const v = await cagir(`/storage/v1/object/sign/${kova}/${yol}`, { yontem: "POST", govde: { expiresIn: saniye } });
+  return `${SUPABASE_URL}/storage/v1${v.signedURL}`;
+}
 export const rpc = (ad, govde) => cagir("/rest/v1/rpc/" + ad, { yontem: "POST", govde });
 const DONUS = { Prefer: "return=representation" };
 export const ekle = (tablo, satir) => cagir("/rest/v1/" + tablo, { yontem: "POST", govde: satir, ust: DONUS });

@@ -7,7 +7,9 @@ import { duz, doldur } from "../metin.js";
 import { para, paraKesin, sayi, tarihYaz, tarihCoz, ayAdi, ayAnahtari, ayEkle, eslesir, sirala, isoTarih, bugun, telefonTemizle } from "../bicim.js";
 import { ekleDugmesi, islemDugmeleri } from "../form.js";
 import * as ed from "../duzenle.js";
-import { aktarDugmesi } from "../rapor.js";
+import { ciktiDugmeleri } from "../cikti.js";
+import { ogrenciListesiXlsx, kullanmayanXlsx, servislerPdf, servislerXlsx, servisOgrenciPdf, servisOgrenciXlsx, puantajPdf, tahsilatOzetPdf, tahsilatDetayPdf, tahsilatXlsx, ogrenciOdemePdf, indirimPdf } from "../cikti_okul.js";
+import { gelenGunSayisi, gelmeyenGunler, odenecekTutar } from "../puantaj.js";
 import { kalanYaz, belgeTonu } from "./filo.js";
 
 export const durum = { arama: "", filtre: "hepsi", yontem: "", kullanmayan: "", servis: "", puantajAy: null, puantaj: "" };
@@ -19,6 +21,17 @@ const YONTEM_KARTLARI = [["nakit", "tah_kpi_nakit", "nakit_payment", 0.7], ["iba
 
 const ilerleme = (oran) => h("div", { class: "ilerleme", role: "progressbar", "aria-valuenow": Math.round(oran * 100), "aria-valuemin": 0, "aria-valuemax": 100 },
   h("span", { style: `width:${Math.min(100, Math.max(0, oran * 100)).toFixed(1)}%` }));
+
+const okulHam = () => veri.hamListe("okul_ogrenciler");
+
+function tahsilatCiktilari(liste) {
+  return h("div", { class: "cikti-grup" },
+    ciktiDugmeleri({ dosya: "tahsilat_ozet",
+      pdf: { ad: "PDF özet", yatay: true, altSol: "Tahsilat Raporu — Dönem Özeti", uret: (c) => tahsilatOzetPdf(c, liste) },
+      xlsx: { uret: (c) => tahsilatXlsx(c, liste) } }),
+    ciktiDugmeleri({ dosya: "tahsilat_detay", pdf: { ad: "PDF detay", yatay: false, altSol: "Tahsilat Raporu — Detaylı Döküm", uret: (c) => tahsilatDetayPdf(c, liste) } }),
+    ciktiDugmeleri({ dosya: "indirim_analizi", pdf: { ad: "İndirim analizi", yatay: false, altSol: "İndirim Analizi", uret: async (c) => indirimPdf(c, await okulHam()) } }));
+}
 
 // Masaüstündeki Okul sekmeleri: Öğrenciler, Servis Kullanmayanlar, Servisler, Tahsilat Raporu.
 export async function ciz(alt = "ogrenciler") {
@@ -40,7 +53,7 @@ async function kullanmayanEkrani() {
     sonuc.replaceChildren(g.length ? sayfalamali(g, (o) => satir({ baslik: o.ad, alt: [o.sinif, o.veli].filter(Boolean).join(" · "), sag: o.neden, onclick: () => detayAc(o.ad, () => kullanmayanDetay(o.id)) })) : bosDurum("Öğrenci bulunamadı."));
   }
   guncelle();
-  return h("div", {}, yeni, aramaKutusu(durum.kullanmayan, (v) => { durum.kullanmayan = v; guncelle(); }, "Öğrenci, sınıf ya da veli ara"), ozet, sonuc);
+  return h("div", {}, yeni, ciktiDugmeleri({ dosya: "servis_kullanmayanlar", xlsx: { uret: async (c) => kullanmayanXlsx(c, await okulHam()) } }), aramaKutusu(durum.kullanmayan, (v) => { durum.kullanmayan = v; guncelle(); }, "Öğrenci, sınıf ya da veli ara"), ozet, sonuc);
 }
 
 async function kullanmayanDetay(id) {
@@ -71,7 +84,9 @@ async function servislerEkrani() {
     }) : bosDurum("Servis bulunamadı."));
   }
   guncelle();
-  return h("div", {}, yeni, aramaKutusu(durum.servis, (v) => { durum.servis = v; guncelle(); }, "Plaka, şoför ya da güzergah ara"), ozet, sonuc);
+  return h("div", {}, yeni, ciktiDugmeleri({ dosya: "servis_araclari",
+    pdf: { yatay: true, altSol: "Servis Araçları Listesi", uret: async (c) => servislerPdf(c, await okulHam()) },
+    xlsx: { uret: async (c) => servislerXlsx(c, await okulHam()) } }), aramaKutusu(durum.servis, (v) => { durum.servis = v; guncelle(); }, "Plaka, şoför ya da güzergah ara"), ozet, sonuc);
 }
 
 async function servisDetay(id) {
@@ -87,6 +102,9 @@ async function servisDetay(id) {
     kart(h("h3", {}, "Belgeler"), s.belgeler.length
       ? h("div", { class: "liste" }, s.belgeler.map((b) => satir({ baslik: b.ad, alt: `Bitiş: ${tarihYaz(b.son)}`, sag: kalanYaz(b.gun), ton: belgeTonu(b.seviye) })))
       : bosDurum("Belge tarihi girilmemiş.")),
+    ciktiDugmeleri({ dosya: `servis_ogrencileri_${s.plaka}`.replace(/\s+/g, "_"),
+      pdf: { ad: "Öğrenci listesi PDF", yatay: true, altSol: s.plaka, uret: async (c) => servisOgrenciPdf(c, await okulHam(), (await okulHam()).find((x) => x.id === id)) },
+      xlsx: { ad: "Öğrenci listesi Excel", uret: async (c) => servisOgrenciXlsx(c, await okulHam(), (await okulHam()).find((x) => x.id === id)) } }),
     veri.yazabilir("okul") && islemDugmeleri({ duzenle: () => ed.servisFormu(id, { detaydan: true }) }));
 }
 
@@ -112,17 +130,16 @@ async function puantajEkrani() {
   function guncelle() {
     const ay = durum.puantajAy;
     const g = servisler.filter((s) => !durum.puantaj || eslesir(`${s.plaka} ${s.guzergah || ""} ${s.sofor_ad || ""} ${s.arac_sahibi || ""}`, durum.puantaj));
-    const gunler = (s) => ((s.puantaj || {})[ay] || []).length;
+    const gunler = (s) => gelenGunSayisi(s, ay, ayar);
     const gruplar = new Map();
     for (const s of g) { const k = String(s.kademe || ""); (gruplar.get(k) || gruplar.set(k, []).get(k)).push(s); }
     const kademeler = [...gruplar.keys()].sort((a, b) => (sira.indexOf(a) < 0 ? 99 : sira.indexOf(a)) - (sira.indexOf(b) < 0 ? 99 : sira.indexOf(b)));
     kap.replaceChildren(
       ayCubugu(aylar, ay, (a) => { durum.puantajAy = a; guncelle(); }, ayAdi),
-      kart(h("p", { class: "kart-etiket" }, ayAdi(ay)), h("p", { class: "buyuk-sayi" }, `${servisler.reduce((t, s) => t + gunler(s), 0)} gün`),
-        h("p", { class: "soluk" }, `${servisler.filter((s) => gunler(s)).length} / ${servisler.length} serviste puantaj var`)),
+      kart(h("p", { class: "kart-etiket" }, `${ayAdi(ay)} · ödenecek`), h("p", { class: "buyuk-sayi" }, para(servisler.reduce((t, s) => t + odenecekTutar(s, ay, ayar), 0))),
+        h("p", { class: "soluk" }, `${servisler.filter((s) => gelmeyenGunler(s, ay).size).length} serviste gelmeyen gün var`)),
       aramaKutusu(durum.puantaj, (v) => { durum.puantaj = v; guncelle(); }, "Plaka, güzergah ya da şoför ara"),
-      aktarDugmesi(() => [`puantaj-${ay}`, ["Plaka", "Kademe", "Güzergah", "Şoför", "Araç sahibi", "Çalışılan gün", "Günler", "Ödeme tarihi"],
-        servisler.map((s) => [s.plaka, etiketler[s.kademe] || s.kademe || "", s.guzergah || "", s.sofor_ad || "", s.arac_sahibi || "", ((s.puantaj || {})[ay] || []).length, ((s.puantaj || {})[ay] || []).join(" "), ((s.odemeler || {})[ay]) || ""])]),
+      ciktiDugmeleri({ dosya: `servis_puantaj_${ay}`, pdf: { yatay: true, altSol: "Servis Puantaj Listesi", uret: (c) => puantajPdf(c, ham, ayar, durum.puantajAy) } }),
       sonuc);
     sonuc.replaceChildren(...(g.length ? kademeler.map((k) => h("section", { class: "grup" },
       h("h3", { class: "grup-baslik" }, etiketler[k] || k || "Diğer"),
@@ -172,9 +189,8 @@ async function ogrencilerEkrani(tahsilat) {
   guncelle();
   const arama = aramaKutusu(durum.arama, (v) => { durum.arama = v; guncelle(); }, "Öğrenci, sınıf ya da plaka ara");
   const yeni = !tahsilat && veri.yazabilir("okul") && ekleDugmesi("Yeni öğrenci", () => ed.ogrenciFormu(null));
-  if (!tahsilat) return h("div", { class: "sayfa" }, yeni, arama, cipAlani, sonuc);
-  const aktar = aktarDugmesi(() => ["tahsilat", ["Öğrenci", "Sınıf", "Servis", "Ücret", "Ödenen", "Kalan", "Durum"],
-    liste.map((o) => [o.ad, o.sinif, o.plaka, o.ucret, o.odenen, o.kalan, { bekliyor: "Ödemedi", kismi: "Eksik", odendi: "Ödendi" }[o.durum]])]);
+  if (!tahsilat) return h("div", { class: "sayfa" }, yeni, ciktiDugmeleri({ dosya: "ogrenci_listesi", xlsx: { uret: async (c) => ogrenciListesiXlsx(c, await okulHam()) } }), arama, cipAlani, sonuc);
+  const aktar = tahsilatCiktilari(liste);
   return h("div", { class: "sayfa" }, ozet, yontemKartlari, aktar, h("p", { class: "ipucu" }, duz("tah_kpi_not_tekil")), arama, cipAlani, sonuc);
 }
 
@@ -206,6 +222,7 @@ function detay(o) {
       h("div", { class: "bilgi-grid" }, bilgiSatiri("Ücret", para(o.ucret)), bilgiSatiri("Ödenen", para(o.odenen))),
       yazabilir && h("button", { class: "dugme birincil genis", onclick: () => odemePaneli(o) }, ikon("arti", 18), "Ödeme ekle")),
     o.telefonlar.length > 0 && kart(h("h3", {}, o.veli ? `Ulaş · ${o.veli}` : "Ulaş"), o.telefonlar.map(([kim, tel]) => telefonSatiri(kim, tel))),
+    ciktiDugmeleri({ dosya: "odeme_gecmisi", pdf: { ad: "Ödeme geçmişi PDF", yatay: false, altSol: "Ödeme Geçmişi Raporu", uret: (c) => ogrenciOdemePdf(c, o) } }),
     kart(h("h3", {}, "Ödemeler"),
       o.odemeler.length
         ? o.odemeler.map((g) => satir({ baslik: para(g.tutar), alt: [tarihYaz(g.tarih), YONTEM[g.yontem] || g.yontem, g.not].filter(Boolean).join(" · "), sagAlt: g.kisi ? `Telefon: ${g.kisi}` : "",

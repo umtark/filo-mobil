@@ -4,6 +4,7 @@ import { h, ikon, detayYenile, geri, panelAc, toast } from "./ui.js";
 import * as veri from "./veri.js";
 import { formAc, onayAc, trTarih, trdenIso, isodanTr, yuvarla } from "./form.js";
 import { sayi, tarihCoz, sirala, ayAdi } from "./bicim.js";
+import * as api from "./api.js";
 
 // Kayıt kaydedilince listeyi (ve açık detayı) yeniler; detaydan silinince önce bir adım geri dönülür.
 export async function sonra(detaydan = false) {
@@ -472,8 +473,53 @@ export async function evrakFormu(id, { detaydan = false } = {}) {
   });
 }
 
+// Telefondan evrak yükleme: Drive yetkisi masaüstündeki oturumda olduğundan dosya önce Supabase'in özel "evrak_aktarim" kovasına konur;
+// masaüstü dosyayı indirip kendi evrak klasörüne (kayıttaki "dosya" yoluna) yerleştirir, mevcut Drive senkronu da Drive'a yükler.
+const EVRAK_KATEGORILERI = ["Vergi Levhası", "Ticaret Sicil Gazetesi", "Ana Sözleşme", "İmza Sirküleri", "Faaliyet Belgesi - Oda Kaydı", "Banka Evrakları", "SGK Evrakları", "Vekaletname",
+  "Fatura Belgeleri", "Araç Satış Sözleşmeleri", "Araç Alış Sözleşmeleri", "Diğer Sözleşmeler", "Diğer"];
+const EVRAK_BOYUT_SINIRI = 25 * 1024 * 1024;
+// Masaüstündeki _sevrak_ad_temizle ile aynı: Windows ve Drive için güvenli klasör/dosya adı.
+const evrakAdiTemizle = (ad, varsayilan = "Diger") => (String(ad || "").replace(/[<>:"/\\|?*'\u0000-\u001f]/g, "-").replace(/\s+/g, " ").trim().replace(/^[ .-]+|[ .-]+$/g, "").slice(0, 80) || varsayilan);
+const yerelIso = (d = new Date()) => { const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+
+export async function evrakYukle() {
+  const tumu = await veri.sirketEvraklari();
+  let secili = null;
+  const girdi = h("input", { type: "file", class: "girdi", accept: ".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,.xls,.xlsx,.txt,.csv", "aria-label": "Dosya" });
+  girdi.addEventListener("change", () => { secili = girdi.files[0] || null; });
+  formAc({
+    baslik: "Evrak yükle", kaydetEtiket: "Yükle",
+    alanlar: [
+      { ad: "dosya", etiket: "Dosya", zorunlu: true, tur: "ozel", kur: () => ({ kok: h("label", { class: "alan" }, h("span", {}, "Dosya"), girdi), oku: () => secili, bos: () => !secili }) },
+      { ad: "baslik", etiket: "Başlık" },
+      { ad: "firma", etiket: "Firma", zorunlu: true, liste: tekil(tumu.map((r) => r.firma)) },
+      { ad: "kategori", etiket: "Kategori", zorunlu: true, liste: tekil([...EVRAK_KATEGORILERI, ...tumu.map((r) => r.kategori)]) },
+      { yan: [{ ad: "belge_tarihi", etiket: "Belge tarihi", tur: "tarih", bosDeger: "" }, { ad: "gecerlilik", etiket: "Geçerlilik bitişi", tur: "tarih", bosDeger: "" }] },
+      { ad: "etiketler", etiket: "Etiketler" },
+      { ad: "not", etiket: "Not", tur: "uzun" },
+    ],
+    kaydet: async (g) => {
+      const dosya = g.dosya;
+      if (dosya.size > EVRAK_BOYUT_SINIRI) throw new Error("Dosya 25 MB'den büyük olamaz.");
+      const m = /^(.*?)(\.[0-9A-Za-z]{1,10})?$/.exec(dosya.name) || [];
+      const kok = m[1] || dosya.name, uzanti = String(m[2] || "").toLowerCase();
+      const kimlik = veri.yeniKimlik();
+      const depoYolu = `${veri.baglam.isletme}/${kimlik}${uzanti}`;
+      const yil = (tarihCoz(g.belge_tarihi) || new Date()).getFullYear();
+      await api.depoYukle("evrak_aktarim", depoYolu, dosya);
+      await veri.kayitKaydet("sirket_evraklari", null, () => ({
+        id: kimlik, baslik: g.baslik || kok, firma: g.firma, kategori: g.kategori, yil, belge_tarihi: g.belge_tarihi, gecerlilik: g.gecerlilik, etiketler: g.etiketler, not: g.not,
+        dosya: `Sirket_Evraklari/${evrakAdiTemizle(g.firma)}/${evrakAdiTemizle(g.kategori)}/${yil}/${evrakAdiTemizle(kok, "evrak")}${uzanti.replace(/[^0-9A-Za-z.]/g, "")}`,
+        dosya_adi: dosya.name, boyut: dosya.size, ekleyen: (veri.baglam.uye && veri.baglam.uye.ad) || "", eklenme: yerelIso(), arsiv: false, surum_grup: kimlik, metin: "",
+        aktarim: { durum: "bekliyor", yol: depoYolu },
+      }));
+      await sonra();
+    },
+  });
+}
+
 // ── Servis puantajı ─────────────────────────────────────────────────────────
-// puantaj: { "2026-09": [1, 2, 3] } çalışılan günler; odemeler: { "2026-09": "15.10.2026" } servis sahibine ödeme tarihi.
+// puantaj: { "2026-09": [1, 2, 3] } servisin çalışmadığı günler (masaüstüyle aynı; kayıt yoksa her gün çalışılmış sayılır); odemeler: { "2026-09": "15.10.2026" } servis sahibine ödeme tarihi.
 const HAFTA = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
 
 export async function puantajPaneliAc(servisId, ay) {
@@ -481,7 +527,8 @@ export async function puantajPaneliAc(servisId, ay) {
   if (!k) throw new Error("Servis bulunamadı.");
   const yil = Number(ay.slice(0, 4)), ayNo = Number(ay.slice(5, 7));
   const gunSayisi = new Date(yil, ayNo, 0).getDate();
-  const secili = new Set(((k.puantaj || {})[ay] || []).map(Number));
+  const yok = new Set(((k.puantaj || {})[ay] || []).map(Number));
+  const secili = new Set(Array.from({ length: gunSayisi }, (_, i) => i + 1).filter((g) => !yok.has(g)));
   const sayac = h("strong", {});
   const izgara = h("div", { class: "gun-izgara" });
   const ciz = () => {
@@ -506,7 +553,7 @@ export async function puantajPaneliAc(servisId, ay) {
   kaydet.onclick = async () => {
     kaydet.disabled = true; hata.hidden = true;
     try {
-      const gunler = [...secili].sort((a, b) => a - b);
+      const gunler = Array.from({ length: gunSayisi }, (_, i) => i + 1).filter((g) => !secili.has(g));
       const odeme = tarih.value ? isodanTr(tarih.value) : "";
       await veri.kayitKaydet("okul_ogrenciler", servisId, (v) => {
         v.puantaj = { ...(v.puantaj || {}) };

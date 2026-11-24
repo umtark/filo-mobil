@@ -108,7 +108,7 @@ export function esnafKaydi(e) {
   const islemler = (Array.isArray(e.islemler) ? e.islemler : []).map((i) => {
     const toplam = sayi(i.toplam);
     if (i.is_odeme) odenen += toplam; else borc += toplam;
-    return { id: i.id, tarih: tarihCoz(i.tarih), plaka: i.plaka && i.plaka !== "-" ? i.plaka : "", aciklama: i.aciklama || "", toplam, odeme: Boolean(i.is_odeme) };
+    return { id: i.id, tarih: tarihCoz(i.tarih), plaka: i.plaka && i.plaka !== "-" ? i.plaka : "", aciklama: i.aciklama || "", toplam, odeme: Boolean(i.is_odeme), tip: i.islem_tipi || "", parca: sayi(i.tutar), iscilik: sayi(i.iscilik) };
   }).sort((a, b) => (b.tarih ? b.tarih.getTime() : 0) - (a.tarih ? a.tarih.getTime() : 0));
   return { id: e.id, isim: e.isim || "", borc, odenen, bakiye: borc - odenen, islemler };
 }
@@ -167,7 +167,7 @@ export function akaryakitListesi(satirlar, araclar) {
 export function icHizmetListesi(satirlar) {
   return satirlar.map((s) => ({
     id: s.id, tarih: tarihCoz(s.tarih), saat: s.saat || "", plaka: s.plaka || "", sofor: s.sofor || "", personel: s.personel || "",
-    guzergah: s.guzergah || "", yer: s.gidilen_yer || "", kisi: Math.round(sayi(s.kisi_sayisi)), tutar: sayi(s.tutar), fis: String(s.fis_no || ""), aciklama: s.aciklama || "",
+    guzergah: s.guzergah || "", yer: s.gidilen_yer || "", kisi: Math.round(sayi(s.kisi_sayisi)), tutar: sayi(s.tutar), fis: String(s.fis_no || ""), aciklama: s.aciklama || "", bolumDagilim: s.bolum_dagilim && typeof s.bolum_dagilim === "object" ? s.bolum_dagilim : {},
   })).filter((s) => s.tarih).sort((a, b) => b.tarih - a.tarih || sirala(b.saat, a.saat));
 }
 
