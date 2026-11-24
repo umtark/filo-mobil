@@ -38,7 +38,7 @@ const EKRANLAR = {
   ayarlar: (alt) => (alt === "kullanicilar" ? kullanicilar.ciz() : hesap.ciz({ cikis, yenile: tazele })),
 };
 const SEKMELER = [
-  ...MENU.map((m) => ({ ...m, goster: () => m.id === "ayarlar" || veri.izinVar(m.izin), ciz: EKRANLAR[m.id] })),
+  ...MENU.map((m) => ({ ...m, goster: () => veri.izinVar(m.izin), ciz: EKRANLAR[m.id] })),
   { id: "yonetim", ad: "Yönetim", ikon: "yonetim", goster: () => veri.baglam.platform, ciz: () => yonetim.ciz({ yenile: yeniden }) },
 ];
 const simge = (s, boyut) => (s.resim ? h("img", { class: "menu-resim", src: s.resim, alt: "", width: boyut, height: boyut, draggable: "false" }) : ikon(s.ikon, boyut));

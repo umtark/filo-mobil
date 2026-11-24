@@ -1,7 +1,7 @@
 // Tam ekran durum sayfası: şirket bloke edilmişse "Bloke edildi", platform bakımdaysa "Bakım modu", kullanıcıya hiçbir sekme izni verilmemişse "Erişim kısıtlandı".
 import { h } from "../ui.js";
 
-const RESIM = { bloke: "ikon/bloke.png", bakim: "ikon/bakim-modu.png", erisim: "ikon/bloke.png" };
+const RESIM = { bloke: "ikon/Bloke.png", bakim: "ikon/bakim-modu.png", erisim: "ikon/Bloke.png" };
 const ERISIM_BASLIK = "Hesabınızın erişimi kısıtlandı";
 const ERISIM_METIN = "Bu hesap için hiçbir sekmeye erişim izni tanımlanmamış. Yöneticinizle iletişime geçin.";
 const BAKIM_VARSAYILAN = "Sistem güncelleniyor. Lütfen daha sonra tekrar deneyin.";
