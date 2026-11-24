@@ -53,7 +53,7 @@ async function baslat() {
   if (sirket.kod) sirketBilgisiYukle(sirket.kod);   // beklenmez: giriş ekranı son bilinen markayla anında açılır, taze marka gelince güncellenir
   if (!api.yapilandirildi()) return kurulumEkrani();
   if (!api.girisVar()) return girisEkrani();
-  kok.replaceChildren(h("div", { class: "tam-ekran" }, yukleniyor()));
+  kok.replaceChildren(h("div", { class: "tam-ekran" }, yukleniyor(3)));
   try {
     if (!(await veri.baglamKur())) return hataEkrani("Bu hesap henüz bir işletmeye bağlı değil. Yöneticinizden hesabınızı işletmeye eklemesini isteyin.", false);
   } catch (e) {

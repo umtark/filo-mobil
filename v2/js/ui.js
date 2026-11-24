@@ -133,7 +133,7 @@ async function detayCiz(koru = false) {
 }
 
 // ── Ortak bileşenler ────────────────────────────────────────────────────────
-export const yukleniyor = () => h("div", { class: "yukleniyor", role: "status" }, h("span", { class: "nokta" }), h("span", { class: "nokta" }), h("span", { class: "nokta" }), h("span", { class: "gizli" }, "Yükleniyor"));
+export const yukleniyor = (satir = 5) => h("div", { class: "yukleniyor", role: "status" }, Array.from({ length: satir }, () => h("div", { class: "iskelet" })), h("span", { class: "gizli" }, "Yükleniyor"));
 export const bosDurum = (mesaj) => h("p", { class: "bos" }, mesaj);
 
 export function hataGoster(e, tekrar) {

@@ -22,8 +22,8 @@ export async function ciz(sekmeyeGit) {
 
 // Bloğu hemen yer tutucuyla koyar, veri gelince doldurur.
 function blok(olustur) {
-  const kap = h("div", {}, kart(yukleniyor()));
-  const calistir = () => olustur().then((d) => kap.replaceChildren(d), (e) => kap.replaceChildren(kart(hataGoster(e, () => { kap.replaceChildren(kart(yukleniyor())); calistir(); }))));
+  const kap = h("div", {}, kart(yukleniyor(2)));
+  const calistir = () => olustur().then((d) => kap.replaceChildren(d), (e) => kap.replaceChildren(kart(hataGoster(e, () => { kap.replaceChildren(kart(yukleniyor(2))); calistir(); }))));
   calistir();
   return kap;
 }
