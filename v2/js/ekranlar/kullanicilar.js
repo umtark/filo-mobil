@@ -70,8 +70,27 @@ function formPaneli(uye, yenile) {
   const panel = panelAc(yeni ? "Yeni kullanıcı" : uye.ad, form);
 }
 
+// Son nabzı 2 dakikadan yeni olan (ve oturumu bu cihazda açık olan) kullanıcı çevrimiçi sayılır; masaüstü de nabız gönderir.
+const CEVRIMICI_SN = 120;
+const cevrimiciMi = (u) => u.ad === ben().ad || Boolean(u.son_gorulme && (Date.now() - Date.parse(u.son_gorulme)) / 1000 < CEVRIMICI_SN);
+function sonGorulme(u) {
+  if (cevrimiciMi(u)) return "Çevrimiçi";
+  if (!u.son_gorulme) return "";
+  const dk = Math.max(1, Math.round((Date.now() - Date.parse(u.son_gorulme)) / 60000));
+  if (dk < 60) return `${dk} dk önce`;
+  const sa = Math.round(dk / 60);
+  return sa < 24 ? `${sa} sa önce` : `${Math.round(sa / 24)} gün önce`;
+}
+
 export async function ciz() {
-  const liste = await api.sorgu(`uyelikler?select=ad,rol,izinler,salt_okunur&isletme_id=eq.${veri.baglam.isletme}&aktif=eq.true&order=olusturma`);
+  const sorgu = (alanlar) => api.sorgu(`uyelikler?select=${alanlar}&isletme_id=eq.${veri.baglam.isletme}&aktif=eq.true&order=olusturma`);
+  let liste;
+  try { liste = await sorgu("ad,rol,izinler,salt_okunur,son_gorulme"); }
+  catch (e) {
+    if (e.durum !== 400) throw e;   // nabiz.sql henüz uygulanmamış: çevrimiçi bilgisi olmadan devam edilir
+    liste = await sorgu("ad,rol,izinler,salt_okunur");
+  }
+  const nabizVar = liste.some((u) => "son_gorulme" in u);
   const kap = h("div", { class: "sayfa" });
   const yenile = async () => {
     const t = await ciz();
@@ -84,8 +103,10 @@ export async function ciz() {
   };
   kap.append(
     kart(h("button", { class: "dugme birincil genis", onclick: () => formPaneli(null, yenile) }, "Kullanıcı ekle")),
+    nabizVar && kart(h("p", { class: "kart-etiket" }, "Çevrimiçi"), h("p", { class: "buyuk-sayi yesil" }, `${liste.filter(cevrimiciMi).length} / ${liste.length}`)),
     liste.length
-      ? kart(liste.map((u) => satir({ baslik: u.ad, alt: ozet(u), sag: u.rol === "kullanici" ? "" : ROL[u.rol], onclick: yonetilebilir(u) ? () => formPaneli(u, yenile) : undefined })))
+      ? kart(liste.map((u) => satir({ baslik: u.ad, alt: ozet(u), sag: nabizVar ? sonGorulme(u) : u.rol === "kullanici" ? "" : ROL[u.rol], ton: nabizVar && cevrimiciMi(u) ? "yesil" : "",
+        onclick: yonetilebilir(u) ? () => formPaneli(u, yenile) : undefined })))
       : bosDurum("Kullanıcı yok"));
   return kap;
 }

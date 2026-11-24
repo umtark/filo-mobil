@@ -37,6 +37,36 @@ export function okulListesi(satirlar) {
     .sort((a, b) => a.sira - b.sira || sirala(a.ad, b.ad));
 }
 
+// Servis kullanmayan (ya da servise atanmamış) öğrenciler: masaüstündeki "Servis Kullanmayanlar" sekmesi.
+export function servisKullanmayanListesi(satirlar) {
+  return satirlar
+    .filter((o) => !String(o.id).startsWith("srv_") && !ogrenciKaydi(o).servisVar)
+    .map((o) => {
+      const k = ogrenciKaydi(o);
+      return { id: o.id, ad: k.ad, sinif: k.sinif, veli: k.veli, tel: k.tel, telefonlar: k.telefonlar, neden: o.servis_kullanmiyor ? "Servis kullanmıyor" : "Servise atanmamış" };
+    })
+    .sort((a, b) => sirala(a.ad, b.ad));
+}
+
+// Servisler sekmesi: id'si "srv_" ile başlayan araç kayıtları; her servisteki öğrenci sayısı plakadan hesaplanır.
+export function servisListesi(satirlar) {
+  const adet = new Map();
+  for (const o of satirlar) {
+    if (String(o.id).startsWith("srv_") || o.servis_kullanmiyor) continue;
+    const p = String(o.servis_plaka || "").trim().toUpperCase();
+    if (p) adet.set(p, (adet.get(p) || 0) + 1);
+  }
+  return satirlar.filter((s) => String(s.id).startsWith("srv_")).map((s) => {
+    const plaka = String(s.plaka || "").trim();
+    const belgeler = [["Sigorta", s.sigorta_bitis], ["Muayene", s.muayene_bitis], ["Koltuk sigortası", s.koltuk_bitis]]
+      .map(([ad, d]) => ({ ad, son: tarihCoz(d) })).filter((b) => b.son).map((b) => ({ ...b, ...belgeDurumu(b.son) })).sort((x, y) => x.gun - y.gun);
+    return {
+      id: s.id, sira: sayi(s.sira_no), plaka, sofor: s.sofor_ad || "", tel: String(s.sofor_tel || "").trim(), guzergah: s.guzergah || "", tip: s.arac_tipi || "",
+      sahip: s.arac_sahibi || "", ucret: sayi(s.aylik_ucret), ogrenci: adet.get(plaka.toUpperCase()) || 0, belgeler,
+    };
+  }).sort((a, b) => a.sira - b.sira || sirala(a.plaka, b.plaka));
+}
+
 export function okulToplam(liste, ay = ayAnahtari(bugun())) {
   const t = { ogrenci: liste.length, ucret: 0, odenen: 0, kalan: 0, bekliyor: 0, kismi: 0, odendi: 0, buAy: 0 };
   for (const o of liste) {
@@ -108,13 +138,19 @@ export function aracBelgeleri(a, periyot = {}) {
 
 export function aracKaydi(a, periyot) {
   const belgeler = aracBelgeleri(a, periyot);
-  const kayitlar = [
-    ...(a.bakim_kayitlari || []).map((b) => ({ tur: "Bakım", tarih: tarihCoz(b.tarih), aciklama: b.aciklama || "", tutar: sayi(b.tutar) + sayi(b.iscilik) })),
-    ...(a.harcama_kayitlari || []).map((b) => ({ tur: "Harcama", tarih: tarihCoz(b.tarih), aciklama: b.aciklama || "", tutar: sayi(b.tutar) })),
-  ].sort((x, y) => (y.tarih ? y.tarih.getTime() : 0) - (x.tarih ? x.tarih.getTime() : 0));
+  const yeniden = (x, y) => (y.tarih ? y.tarih.getTime() : 0) - (x.tarih ? x.tarih.getTime() : 0);
+  const bakimKayitlari = (a.bakim_kayitlari || []).map((b) => ({ id: b.id, tur: "Bakım", tarih: tarihCoz(b.tarih), aciklama: b.aciklama || "", tutar: sayi(b.tutar) + sayi(b.iscilik) })).sort(yeniden);
+  const harcamaKayitlari = (a.harcama_kayitlari || []).map((b) => ({ id: b.id, tur: "Harcama", tarih: tarihCoz(b.tarih), aciklama: b.aciklama || "", tutar: sayi(b.tutar) })).sort(yeniden);
+  // Masaüstündeki "Yağ Bakımı" sekmesi: tarih_km alanı "21.04.2026 / 150.000" biçimindedir.
+  const yagKayitlari = (a.yakit_kayitlari || []).map((b) => {
+    const [tarihMetni, ...km] = String(b.tarih_km || "").split("/");
+    return { id: b.id, tur: "Yağ bakımı", tarih: tarihCoz(tarihMetni.trim().split(/\s+/)[0]), km: km.join("/").trim(), yag: b.yag_cinsi || "", litre: b.yag_lt || "", usta: b.usta || "", yaptiran: b.yaptiran || "", not: b.notlar || "",
+      degisenler: [["Hava kompresörü", b.hava_kompresoru], ["Yağ filtresi", b.yag_filtresi], ["Mazot filtresi", b.mazot_filtresi], ["Hava filtresi", b.hava_filtresi]].filter(([, d]) => String(d || "").trim()).map(([ad, d]) => `${ad}: ${d}`) };
+  }).sort(yeniden);
+  const kayitlar = [...bakimKayitlari, ...harcamaKayitlari].sort(yeniden);
   return {
     id: a.id, plaka: a.plaka || "", firma: String(a.firma || "").split(/\s+/).join(" "), marka: a.marka || "", model: a.model || "", yil: String(a.yil || ""),
-    yakit: a.yakit || "", sofor: a.sofor && a.sofor !== "-" ? a.sofor : "", soforTel: String(a.sofor_tel || "").trim(), km: String(a.km || ""), belgeler, kayitlar,
+    yakit: a.yakit || "", sofor: a.sofor && a.sofor !== "-" ? a.sofor : "", soforTel: String(a.sofor_tel || "").trim(), km: String(a.km || ""), belgeler, kayitlar, bakimKayitlari, harcamaKayitlari, yagKayitlari,
     enYakin: belgeler.filter((b) => !b.bakim)[0] || belgeler[0] || null,
   };
 }

@@ -1,12 +1,16 @@
 // Okul: servis kullanan öğrencilerin tahsilat takibi. Telefondan yapılabilen tek yazma işlemi ödeme eklemektir.
-import { h, ikon, kart, satir, bilgiSatiri, cipler, aramaKutusu, sayfalamali, bosDurum, panelAc, detayAc, detayYenile, toast, segment } from "../ui.js";
+import { h, ikon, kart, satir, bilgiSatiri, cipler, aramaKutusu, ayCubugu, sayfalamali, bosDurum, panelAc, detayAc, detayYenile, toast, segment } from "../ui.js";
 import * as veri from "../veri.js";
 import { okulToplam, yontemToplami } from "../hesap.js";
 import { animasyon } from "../lottie.js";
 import { duz, doldur } from "../metin.js";
-import { para, paraKesin, sayi, tarihYaz, eslesir, isoTarih, bugun, telefonTemizle } from "../bicim.js";
+import { para, paraKesin, sayi, tarihYaz, tarihCoz, ayAdi, ayAnahtari, ayEkle, eslesir, sirala, isoTarih, bugun, telefonTemizle } from "../bicim.js";
+import { ekleDugmesi, islemDugmeleri } from "../form.js";
+import * as ed from "../duzenle.js";
+import { aktarDugmesi } from "../rapor.js";
+import { kalanYaz, belgeTonu } from "./filo.js";
 
-export const durum = { arama: "", filtre: "hepsi", yontem: "" };
+export const durum = { arama: "", filtre: "hepsi", yontem: "", kullanmayan: "", servis: "", puantajAy: null, puantaj: "" };
 
 const TON = { bekliyor: "kirmizi", kismi: "kehribar", odendi: "yesil" };
 const YONTEM = { nakit: "Nakit", iban: "IBAN", kart: "Kart" };
@@ -16,7 +20,125 @@ const YONTEM_KARTLARI = [["nakit", "tah_kpi_nakit", "nakit_payment", 0.7], ["iba
 const ilerleme = (oran) => h("div", { class: "ilerleme", role: "progressbar", "aria-valuenow": Math.round(oran * 100), "aria-valuemin": 0, "aria-valuemax": 100 },
   h("span", { style: `width:${Math.min(100, Math.max(0, oran * 100)).toFixed(1)}%` }));
 
-export async function ciz() {
+// Masaüstündeki Okul sekmeleri: Öğrenciler, Servis Kullanmayanlar, Servisler, Tahsilat Raporu.
+export async function ciz(alt = "ogrenciler") {
+  if (alt === "kullanmayan") return h("div", { class: "sayfa" }, await kullanmayanEkrani());
+  if (alt === "servisler") return h("div", { class: "sayfa" }, await servislerEkrani());
+  if (alt === "puantaj") return h("div", { class: "sayfa" }, await puantajEkrani());
+  return ogrencilerEkrani(alt === "tahsilat");
+}
+
+async function kullanmayanEkrani() {
+  const liste = await veri.okulServisKullanmayan();
+  const yeni = veri.yazabilir("okul") && ekleDugmesi("Yeni öğrenci", () => ed.ogrenciFormu(null));
+  if (!liste.length) return h("div", {}, yeni, bosDurum("Servis kullanmayan öğrenci yok."));
+  const sonuc = h("div");
+  const ozet = h("p", { class: "soluk ozet-satir" });
+  function guncelle() {
+    const g = liste.filter((o) => !durum.kullanmayan || eslesir(`${o.ad} ${o.sinif} ${o.veli}`, durum.kullanmayan));
+    ozet.textContent = `${g.length} öğrenci`;
+    sonuc.replaceChildren(g.length ? sayfalamali(g, (o) => satir({ baslik: o.ad, alt: [o.sinif, o.veli].filter(Boolean).join(" · "), sag: o.neden, onclick: () => detayAc(o.ad, () => kullanmayanDetay(o.id)) })) : bosDurum("Öğrenci bulunamadı."));
+  }
+  guncelle();
+  return h("div", {}, yeni, aramaKutusu(durum.kullanmayan, (v) => { durum.kullanmayan = v; guncelle(); }, "Öğrenci, sınıf ya da veli ara"), ozet, sonuc);
+}
+
+async function kullanmayanDetay(id) {
+  const o = (await veri.okulServisKullanmayan()).find((x) => x.id === id);
+  if (!o) return bosDurum("Öğrenci artık bu listede değil.");
+  return h("div", { class: "sayfa" },
+    kart(h("p", { class: "soluk" }, o.sinif), h("p", { class: "kart-etiket" }, "Durum"), h("p", { class: "buyuk-sayi" }, o.neden)),
+    o.telefonlar.length > 0 && kart(h("h3", {}, o.veli ? `Ulaş · ${o.veli}` : "Ulaş"), o.telefonlar.map(([kim, tel]) => telefonSatiri(kim, tel))),
+    veri.yazabilir("okul") && islemDugmeleri({ duzenle: () => ed.ogrenciFormu(id, { detaydan: true }) }));
+}
+
+async function servislerEkrani() {
+  const liste = await veri.okulServisler();
+  const yeni = veri.yazabilir("okul") && ekleDugmesi("Yeni servis", () => ed.servisFormu(null));
+  if (!liste.length) return h("div", {}, yeni, bosDurum("Servis kaydı yok."));
+  const sonuc = h("div");
+  const ozet = h("p", { class: "soluk ozet-satir" });
+  function guncelle() {
+    const g = liste.filter((s) => !durum.servis || eslesir(`${s.plaka} ${s.sofor} ${s.guzergah} ${s.sahip}`, durum.servis));
+    ozet.textContent = `${g.length} servis · ${g.reduce((t, s) => t + s.ogrenci, 0)} öğrenci`;
+    sonuc.replaceChildren(g.length ? sayfalamali(g, (s) => {
+      const b = s.belgeler.find((x) => x.seviye !== "iyi");
+      return satir({
+        baslik: s.plaka, alt: [s.sofor, s.guzergah].filter(Boolean).join(" · "),
+        sag: b ? b.ad : `${s.ogrenci} öğrenci`, sagAlt: b ? kalanYaz(b.gun) : "", ton: b ? belgeTonu(b.seviye) : "",
+        onclick: () => detayAc(s.plaka, () => servisDetay(s.id)),
+      });
+    }) : bosDurum("Servis bulunamadı."));
+  }
+  guncelle();
+  return h("div", {}, yeni, aramaKutusu(durum.servis, (v) => { durum.servis = v; guncelle(); }, "Plaka, şoför ya da güzergah ara"), ozet, sonuc);
+}
+
+async function servisDetay(id) {
+  const s = (await veri.okulServisler()).find((x) => x.id === id);
+  if (!s) return bosDurum("Servis bulunamadı.");
+  const temiz = telefonTemizle(s.tel);
+  return h("div", { class: "sayfa" },
+    kart(h("p", { class: "soluk" }, [s.tip, s.sahip].filter(Boolean).join(" · ")), h("p", { class: "buyuk-sayi baslik" }, s.plaka),
+      h("div", { class: "bilgi-grid" }, bilgiSatiri("Öğrenci", String(s.ogrenci)), bilgiSatiri("Aylık ücret", s.ucret ? para(s.ucret) : ""), bilgiSatiri("Güzergah", s.guzergah))),
+    s.sofor && kart(h("h3", {}, "Şoför"), h("div", { class: "telefon" },
+      h("span", { class: "satir-metin" }, h("span", { class: "satir-baslik" }, s.sofor), h("span", { class: "satir-alt" }, s.tel)),
+      temiz && h("a", { class: "ikon-dugme dolu", href: "tel:" + temiz, "aria-label": "Şoförü ara" }, ikon("telefon", 20)))),
+    kart(h("h3", {}, "Belgeler"), s.belgeler.length
+      ? h("div", { class: "liste" }, s.belgeler.map((b) => satir({ baslik: b.ad, alt: `Bitiş: ${tarihYaz(b.son)}`, sag: kalanYaz(b.gun), ton: belgeTonu(b.seviye) })))
+      : bosDurum("Belge tarihi girilmemiş.")),
+    veri.yazabilir("okul") && islemDugmeleri({ duzenle: () => ed.servisFormu(id, { detaydan: true }) }));
+}
+
+// Servis Puantajları: her servisin ay içinde çalıştığı günler ve servis sahibine ödeme tarihi; dokununca gün izgarası açılır.
+async function puantajEkrani() {
+  const [ham, ayar] = await Promise.all([veri.hamListe("okul_ogrenciler"), veri.ayarlar().catch(() => ({}))]);
+  const gizli = new Set((Array.isArray(ayar.puantaj_gizli_servisler) ? ayar.puantaj_gizli_servisler : []).map(String));
+  const servisler = ham.filter((s) => String(s.id).startsWith("srv_") && !gizli.has(String(s.id)) && !gizli.has(String(s.plaka)))
+    .sort((a, b) => sayi(a.sira_no) - sayi(b.sira_no) || sirala(a.plaka, b.plaka));
+  if (!servisler.length) return bosDurum("Servis kaydı yok.");
+  const baslangic = tarihCoz(ayar.okul_puantaj_donem_baslangic) || new Date(bugun().getFullYear(), 8, 1);
+  const kume = new Set(Array.from({ length: 12 }, (_, i) => ayEkle(ayAnahtari(baslangic), i)));
+  for (const s of servisler) for (const ay of Object.keys(s.puantaj || {})) kume.add(ay);
+  const aylar = [...kume].sort();
+  const verili = aylar.filter((ay) => servisler.some((s) => ((s.puantaj || {})[ay] || []).length));
+  if (!aylar.includes(durum.puantajAy)) durum.puantajAy = aylar.includes(ayAnahtari(bugun())) ? ayAnahtari(bugun()) : verili[verili.length - 1] || aylar[0];
+  const yaz = veri.yazabilir("okul");
+  const etiketler = ayar.okul_puantaj_kademe_etiket || {};
+  const sira = Array.isArray(ayar.okul_puantaj_kategori_sirasi) ? ayar.okul_puantaj_kategori_sirasi.map(String) : [];
+  const sonuc = h("div");
+  const kap = h("div");
+
+  function guncelle() {
+    const ay = durum.puantajAy;
+    const g = servisler.filter((s) => !durum.puantaj || eslesir(`${s.plaka} ${s.guzergah || ""} ${s.sofor_ad || ""} ${s.arac_sahibi || ""}`, durum.puantaj));
+    const gunler = (s) => ((s.puantaj || {})[ay] || []).length;
+    const gruplar = new Map();
+    for (const s of g) { const k = String(s.kademe || ""); (gruplar.get(k) || gruplar.set(k, []).get(k)).push(s); }
+    const kademeler = [...gruplar.keys()].sort((a, b) => (sira.indexOf(a) < 0 ? 99 : sira.indexOf(a)) - (sira.indexOf(b) < 0 ? 99 : sira.indexOf(b)));
+    kap.replaceChildren(
+      ayCubugu(aylar, ay, (a) => { durum.puantajAy = a; guncelle(); }, ayAdi),
+      kart(h("p", { class: "kart-etiket" }, ayAdi(ay)), h("p", { class: "buyuk-sayi" }, `${servisler.reduce((t, s) => t + gunler(s), 0)} gün`),
+        h("p", { class: "soluk" }, `${servisler.filter((s) => gunler(s)).length} / ${servisler.length} serviste puantaj var`)),
+      aramaKutusu(durum.puantaj, (v) => { durum.puantaj = v; guncelle(); }, "Plaka, güzergah ya da şoför ara"),
+      aktarDugmesi(() => [`puantaj-${ay}`, ["Plaka", "Kademe", "Güzergah", "Şoför", "Araç sahibi", "Çalışılan gün", "Günler", "Ödeme tarihi"],
+        servisler.map((s) => [s.plaka, etiketler[s.kademe] || s.kademe || "", s.guzergah || "", s.sofor_ad || "", s.arac_sahibi || "", ((s.puantaj || {})[ay] || []).length, ((s.puantaj || {})[ay] || []).join(" "), ((s.odemeler || {})[ay]) || ""])]),
+      sonuc);
+    sonuc.replaceChildren(...(g.length ? kademeler.map((k) => h("section", { class: "grup" },
+      h("h3", { class: "grup-baslik" }, etiketler[k] || k || "Diğer"),
+      h("div", { class: "liste" }, gruplar.get(k).map((s) => {
+        const odeme = ((s.odemeler || {})[ay]) || "";
+        return satir({
+          baslik: s.plaka, alt: [s.guzergah, s.sofor_ad].filter(Boolean).join(" · "), sag: `${gunler(s)} gün`, sagAlt: odeme ? `Ödeme ${odeme}` : "",
+          onclick: yaz ? () => ed.puantajPaneliAc(s.id, ay) : undefined,
+        });
+      })))) : [bosDurum("Servis bulunamadı.")]));
+  }
+  guncelle();
+  return kap;
+}
+
+async function ogrencilerEkrani(tahsilat) {
   const liste = await veri.okul();
   const t = okulToplam(liste);
   const sonuc = h("div");
@@ -48,7 +170,12 @@ export async function ciz() {
   }));
 
   guncelle();
-  return h("div", { class: "sayfa" }, ozet, yontemKartlari, h("p", { class: "ipucu" }, duz("tah_kpi_not_tekil")), aramaKutusu(durum.arama, (v) => { durum.arama = v; guncelle(); }, "Öğrenci, sınıf ya da plaka ara"), cipAlani, sonuc);
+  const arama = aramaKutusu(durum.arama, (v) => { durum.arama = v; guncelle(); }, "Öğrenci, sınıf ya da plaka ara");
+  const yeni = !tahsilat && veri.yazabilir("okul") && ekleDugmesi("Yeni öğrenci", () => ed.ogrenciFormu(null));
+  if (!tahsilat) return h("div", { class: "sayfa" }, yeni, arama, cipAlani, sonuc);
+  const aktar = aktarDugmesi(() => ["tahsilat", ["Öğrenci", "Sınıf", "Servis", "Ücret", "Ödenen", "Kalan", "Durum"],
+    liste.map((o) => [o.ad, o.sinif, o.plaka, o.ucret, o.odenen, o.kalan, { bekliyor: "Ödemedi", kismi: "Eksik", odendi: "Ödendi" }[o.durum]])]);
+  return h("div", { class: "sayfa" }, ozet, yontemKartlari, aktar, h("p", { class: "ipucu" }, duz("tah_kpi_not_tekil")), arama, cipAlani, sonuc);
 }
 
 function ogrenciSatiri(o) {
@@ -81,8 +208,10 @@ function detay(o) {
     o.telefonlar.length > 0 && kart(h("h3", {}, o.veli ? `Ulaş · ${o.veli}` : "Ulaş"), o.telefonlar.map(([kim, tel]) => telefonSatiri(kim, tel))),
     kart(h("h3", {}, "Ödemeler"),
       o.odemeler.length
-        ? o.odemeler.map((g) => satir({ baslik: para(g.tutar), alt: [tarihYaz(g.tarih), YONTEM[g.yontem] || g.yontem, g.not].filter(Boolean).join(" · "), sagAlt: g.kisi ? `Telefon: ${g.kisi}` : "" }))
-        : bosDurum("Henüz ödeme yok.")));
+        ? o.odemeler.map((g) => satir({ baslik: para(g.tutar), alt: [tarihYaz(g.tarih), YONTEM[g.yontem] || g.yontem, g.not].filter(Boolean).join(" · "), sagAlt: g.kisi ? `Telefon: ${g.kisi}` : "",
+          onclick: yazabilir && g.id ? () => ed.odemeFormu(o.id, g.id) : undefined }))
+        : bosDurum("Henüz ödeme yok.")),
+    yazabilir && islemDugmeleri({ duzenle: () => ed.ogrenciFormu(o.id, { detaydan: true }) }));
 }
 
 function telefonSatiri(kim, tel) {

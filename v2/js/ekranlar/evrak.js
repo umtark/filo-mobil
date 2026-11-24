@@ -4,6 +4,8 @@ import { h, kart, satir, bilgiSatiri, aramaKutusu, sayfalamali, bosDurum, detayA
 import * as veri from "../veri.js";
 import { tarihCoz, tarihYaz, gunFarki, eslesir, sirala } from "../bicim.js";
 import { metin, etiket } from "../metin.js";
+import { islemDugmeleri } from "../form.js";
+import * as duz from "../duzenle.js";
 
 const UYARI_GUN = 30;   // masaüstündeki _SEVRAK_UYARI_GUN ile aynı
 const durum = { arama: "", firma: "", yil: "", arsiv: false };
@@ -53,14 +55,18 @@ function evrakSatiri(r) {
   return satir({
     baslik: r.baslik || r.dosya_adi, alt: [r.firma, r.kategori, r.yil].filter(Boolean).join(" · "),
     sag: r.gecerlilikTarihi ? kalanMetni(r.gun) : "", sagAlt: r.gecerlilikTarihi ? tarihYaz(r.gecerlilikTarihi) : "", ton: ton(r.gun),
-    onclick: () => detayAc(r.baslik || r.dosya_adi, async () => evrakDetay(r)),
+    onclick: () => detayAc(r.baslik || r.dosya_adi, () => evrakDetay(r.id)),
   });
 }
 
-function evrakDetay(r) {
+async function evrakDetay(id) {
+  const bulunan = (await veri.sirketEvraklari()).find((x) => x.id === id);
+  if (!bulunan) return bosDurum("Evrak bulunamadı.");
+  const r = kayit(bulunan);
   return h("div", { class: "sayfa" }, kart(
     bilgiSatiri(etiket("sevrak_firma"), r.firma), bilgiSatiri(etiket("sevrak_kategori"), r.kategori), bilgiSatiri(etiket("sevrak_baslik_lbl"), r.baslik),
     bilgiSatiri(etiket("sevrak_yil"), r.yil), bilgiSatiri(etiket("sevrak_belge_tarihi"), r.belgeTarihi ? tarihYaz(r.belgeTarihi) : ""),
     bilgiSatiri(etiket("sevrak_gecerlilik"), r.gecerlilikTarihi ? `${tarihYaz(r.gecerlilikTarihi)} (${kalanMetni(r.gun)})` : "", ton(r.gun)),
-    bilgiSatiri(etiket("sevrak_etiketler"), r.etiketler), bilgiSatiri(etiket("sevrak_not"), r.not), bilgiSatiri("Dosya", r.dosya_adi)));
+    bilgiSatiri(etiket("sevrak_etiketler"), r.etiketler), bilgiSatiri(etiket("sevrak_not"), r.not), bilgiSatiri("Dosya", r.dosya_adi)),
+    veri.yazabilir("sirket_evrak") && islemDugmeleri({ duzenle: () => duz.evrakFormu(id, { detaydan: true }) }));
 }

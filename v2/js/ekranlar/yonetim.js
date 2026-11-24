@@ -1,4 +1,4 @@
-// Yönetim (yalnızca platform yöneticisi): şirket başvurularını onaylar/reddeder, doğrudan şirket açar, lisans uzatır, şirketi kapatır/açar.
+// Yönetim (yalnızca platform yöneticisi): şirket başvurularını onaylar/reddeder, doğrudan şirket açar, lisans uzatır, şirketi blokeler/açar, tüm şirketleri bakım moduna alır.
 // Yetki sunucuda zorlanır (platform_* fonksiyonları); bu ekran yalnızca yöneticiye gösterilir.
 import * as api from "../api.js";
 import { tarihCoz, tarihYaz } from "../bicim.js";
@@ -133,34 +133,51 @@ function sirketPaneli(s, yenile) {
       yenile();
     });
   };
-  const durumDugmesi = h("button", { class: s.aktif ? "dugme tehlike genis" : "dugme birincil genis", type: "button", disabled: s.benim && s.aktif }, s.aktif ? "Şirketi kapat" : "Şirketi yeniden aç");
+  const durumDugmesi = h("button", { class: s.aktif ? "dugme tehlike genis" : "dugme birincil genis", type: "button", disabled: s.benim && s.aktif }, s.aktif ? "Şirketi blokele" : "Blokeyi kaldır");
   durumDugmesi.onclick = () => yap(durumDugmesi, mesaj, async () => {
     await api.rpc("platform_isletme_aktif", { p_isletme: s.id, p_aktif: !s.aktif });
-    toast(s.aktif ? "Şirket kapatıldı" : "Şirket açıldı");
+    toast(s.aktif ? "Şirket bloke edildi" : "Bloke kaldırıldı");
     panel.kapat();
     yenile();
   });
   const bilgi = (e, d) => h("div", { class: "bilgi" }, h("span", { class: "bilgi-etiket" }, e), h("span", { class: "bilgi-deger" }, d));
   const panel = panelAc(s.ad, h("div", { class: "form" },
-    h("div", { class: "kart" }, bilgi("Şirket kodu", s.kod), bilgi("Durum", s.aktif ? "Açık" : "Kapalı"), bilgi("Lisans", lisansMetni(s)),
+    h("div", { class: "kart" }, bilgi("Şirket kodu", s.kod), bilgi("Durum", s.aktif ? "Açık" : "Bloke"), bilgi("Lisans", lisansMetni(s)),
       bilgi("Kullanıcı", `${s.kullanici_sayisi}${s.kullanici_siniri ? " / " + s.kullanici_siniri : ""}`), bilgi("Bağlantı", baglanti(s.kod))),
     h("div", { class: "alan" }, h("span", {}, "Lisansı uzat"), h("div", { class: "dugme-sirasi" }, uzat(30), uzat(90), uzat(365), uzat(0, true))),
     h("div", { class: "dugme-sirasi" }, ozelGun, ozelDugme),
-    mesaj, durumDugmesi, s.benim && s.aktif && h("p", { class: "soluk" }, "Kendi şirketinizi kapatamazsınız.")));
+    mesaj, durumDugmesi, s.benim && s.aktif && h("p", { class: "soluk" }, "Kendi şirketinizi blokeleyemezsiniz.")));
+}
+
+// Bakım modu: açıkken platform yöneticisi dışındaki herkes (tüm şirketler) Bakım ekranını görür.
+function bakimKarti(durum, yenile) {
+  const mesaj = h("p", { class: "hata-metin", role: "alert", hidden: true });
+  const metin = h("input", { class: "girdi", type: "text", maxlength: "300", placeholder: "Ekranda görünecek mesaj (isteğe bağlı)", "aria-label": "Bakım mesajı", value: (durum && durum.mesaj) || "" });
+  const acik = Boolean(durum && durum.acik);
+  const dugme = h("button", { class: acik ? "dugme birincil genis" : "dugme tehlike genis", type: "button" }, acik ? "Bakım modunu kapat" : "Bakım moduna al");
+  dugme.onclick = () => yap(dugme, mesaj, async () => {
+    await api.rpc("platform_bakim_ayarla", { p_acik: !acik, p_mesaj: metin.value });
+    toast(acik ? "Bakım modu kapatıldı" : "Tüm şirketler bakım modunda");
+    yenile();
+  });
+  if (!durum) return kart(h("h3", {}, "Bakım modu"), h("p", { class: "soluk" }, "Kullanılamıyor: supabase/bakim.sql henüz çalıştırılmamış."));
+  return kart(h("h3", {}, acik ? "Bakım modu: açık" : "Bakım modu: kapalı"),
+    h("p", { class: "soluk" }, "Açıkken sizin dışınızdaki tüm kullanıcılar Bakım ekranını görür."), metin, mesaj, dugme);
 }
 
 export async function ciz({ yenile }) {
-  const [basvurular, sirketler] = await Promise.all([api.rpc("platform_basvurular"), api.rpc("platform_isletmeler")]);
+  const [basvurular, sirketler, bakim] = await Promise.all([api.rpc("platform_basvurular"), api.rpc("platform_isletmeler"), api.rpc("bakim_durumu").catch(() => null)]);
   const bekleyen = basvurular.filter((b) => b.durum === "bekliyor");
   const gecmis = basvurular.filter((b) => b.durum !== "bekliyor");
   const DURUM = { onaylandi: "Onaylandı", reddedildi: "Reddedildi" };
   return h("div", { class: "sayfa" },
+    bakimKarti(bakim, yenile),
     kart(h("button", { class: "dugme birincil genis", onclick: () => yeniSirketPaneli(yenile) }, "Yeni şirket aç")),
     kart(h("h3", {}, `Bekleyen başvurular (${bekleyen.length})`),
       bekleyen.length ? bekleyen.map((b) => satir({ baslik: b.ad, alt: `${b.yetkili} · ${b.kod}`, sag: tarihMetni(b.olusturma), onclick: () => basvuruPaneli(b, yenile) }))
         : bosDurum("Bekleyen başvuru yok.")),
     kart(h("h3", {}, `Şirketler (${sirketler.length})`),
-      sirketler.map((s) => satir({ baslik: s.ad, alt: `${s.kod} · ${s.kullanici_sayisi} kullanıcı`, sag: s.aktif ? "" : "Kapalı", sagAlt: lisansMetni(s),
+      sirketler.map((s) => satir({ baslik: s.ad, alt: `${s.kod} · ${s.kullanici_sayisi} kullanıcı`, sag: s.aktif ? "" : "Bloke", sagAlt: lisansMetni(s),
         ton: !s.aktif || (!s.omur_boyu && new Date(s.lisans_bitis + "T23:59:59") < new Date()) ? "kirmizi" : "", onclick: () => sirketPaneli(s, yenile) }))),
     gecmis.length > 0 && kart(h("h3", {}, "Karara bağlanan başvurular"),
       gecmis.map((b) => satir({ baslik: b.ad, alt: `${b.kod} · ${tarihMetni(b.karar_zamani)}`, sag: DURUM[b.durum] || b.durum, ton: b.durum === "onaylandi" ? "yesil" : "kirmizi" }))));

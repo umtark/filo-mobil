@@ -1,9 +1,9 @@
 // Oturumun bağlamı (işletme, yetkiler, lisans) ve bellek içi veri önbelleği.
 import * as api from "./api.js";
 import { markaUygula } from "./marka.js";
-import { okulListesi, faturaKaydi, esnafKaydi, aracKaydi, akaryakitListesi, icHizmetListesi } from "./hesap.js";
+import { okulListesi, servisKullanmayanListesi, servisListesi, faturaKaydi, esnafKaydi, aracKaydi, akaryakitListesi, icHizmetListesi } from "./hesap.js";
 
-export const baglam = { isletme: null, uye: null, lisans: null, isletmeAdi: "", platform: false };
+export const baglam = { isletme: null, uye: null, lisans: null, isletmeAdi: "", platform: false, bakim: null };
 
 const SURE = 5 * 60 * 1000;
 const onbellek = new Map();   // anahtar -> { t, sonuc: Promise }
@@ -39,6 +39,7 @@ export async function baglamKur() {
   if (u.isletmeler) markaUygula({ ad: u.isletmeler.marka_ad || u.isletmeler.ad, logo: u.isletmeler.logo });
   baglam.lisans = await api.rpc("lisans_durumu", { p_isletme: u.isletme_id }).catch(() => null);
   baglam.platform = (await api.rpc("platform_yoneticisi_mi").catch(() => false)) === true;
+  baglam.bakim = await api.rpc("bakim_durumu").catch(() => null);   // bakim.sql uygulanmamışsa null: bakım yok sayılır
   onbellekTemizle();
   return true;
 }
@@ -57,6 +58,32 @@ export async function yetkiKontrol() {
   return "degisti";
 }
 
+// Çevrimiçi göstergesi: açık uygulama 30 saniyede bir sunucuya "buradayım" der (nabiz.sql uygulanmamışsa sessizce atlanır).
+let sonNabiz = 0;
+export function nabiz() {
+  if (!baglam.isletme || Date.now() - sonNabiz < 30000) return;
+  sonNabiz = Date.now();
+  api.rpc("uye_nabiz", { p_isletme: baglam.isletme }).catch(() => {});
+}
+
+// Tam ekran durum sayfası: "bloke" (şirket platform yöneticisince bloke edildi) | "bakim" (tüm şirketler bakımda) | null. Platform yöneticisi etkilenmez.
+export function durumTuru() {
+  if (baglam.platform) return null;
+  if (baglam.lisans && baglam.lisans.aktif === false) return "bloke";
+  if (baglam.bakim && baglam.bakim.acik === true) return "bakim";
+  return null;
+}
+
+export async function durumTazele() {
+  const [lisans, bakim] = await Promise.all([
+    api.rpc("lisans_durumu", { p_isletme: baglam.isletme }).catch(() => baglam.lisans),
+    api.rpc("bakim_durumu").catch(() => baglam.bakim),
+  ]);
+  baglam.lisans = lisans;
+  baglam.bakim = bakim;
+  return durumTuru();
+}
+
 export const lisansAcik = () => !baglam.lisans || baglam.lisans.acik !== false;
 export const izinVar = (modul) => Boolean(baglam.uye) && lisansAcik() && (["sahip", "yonetici"].includes(baglam.uye.rol) || (baglam.uye.izinler || []).includes(modul));
 export const yazabilir = (modul) => izinVar(modul) && !baglam.uye.salt_okunur;
@@ -69,6 +96,8 @@ export const ayarlar = () => onbellekli("ayarlar", async () => {
 });
 
 export const okul = () => ham("okul_ogrenciler").then(okulListesi);
+export const okulServisKullanmayan = () => ham("okul_ogrenciler").then(servisKullanmayanListesi);
+export const okulServisler = () => ham("okul_ogrenciler").then(servisListesi);
 export const faturalar = () => ham("faturalar").then((l) => l.map(faturaKaydi));
 export const esnaflar = () => ham("esnaflar").then((l) => l.map(esnafKaydi));
 export const akaryakit = async () => {
@@ -77,10 +106,56 @@ export const akaryakit = async () => {
 };
 export const icHizmet = () => ham("ic_hizmetler").then(icHizmetListesi);
 export const sirketEvraklari = () => ham("sirket_evraklari");
+export const icFiyatlar = () => ham("ic_hizmet_fiyatlar");
+export const icYerler = () => ham("ic_gidilen_yerler");
+export const icSoforler = () => ham("ic_soforler");
+export const hamKayit = async (tablo, id) => (await ham(tablo)).find((x) => x.id === id) || null;
+export const hamListe = (tablo) => ham(tablo);
 export const araclar = async () => {
   const [satirlar, ayar] = await Promise.all([ham("araclar"), ayarlar().catch(() => ({}))]);
   return satirlar.map((a) => aracKaydi(a, ayar.bakim_periyodu_gun));
 };
+
+// ── Yazma ───────────────────────────────────────────────────────────────────
+// Kayıtlar masaüstüyle aynı biçimde (data = masaüstü kaydı) yazılır. Düzenleme sunucudaki güncel kaydı okuyup değiştirir ve
+// "surum" denetimiyle geri yazar; başkası arada değiştirmişse sessizce ezmek yerine uyarı verilir. Silme "silindi" işaretidir.
+export const yeniKimlik = (onek = "") => onek + ((crypto.randomUUID && crypto.randomUUID()) || `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`);
+export const tabloTazele = (...tablolar) => { for (const t of tablolar) onbellek.delete("ham:" + t); };
+const kimlikFiltresi = (id) => `isletme_id=eq.${baglam.isletme}&id=eq.${encodeURIComponent(id)}`;
+const CAKISMA = "Bu kayıt başka biri tarafından değiştirilmiş. Yenileyip tekrar deneyin.";
+
+// id verilmezse yeni kayıt: degistir({}) kaydı üretir ("id" alanını kendisi koymazsa atanır).
+export async function kayitKaydet(tablo, id, degistir) {
+  try {
+    if (!id) {
+      const yeni = degistir({});
+      yeni.id = yeni.id || yeniKimlik();
+      const donen = await api.ekle(tablo, { isletme_id: baglam.isletme, id: yeni.id, data: yeni });
+      if (!donen || !donen.length) throw new Error("Kayıt eklenemedi.");
+      return yeni;
+    }
+    const s = await api.sorgu(`${tablo}?select=data,surum&${kimlikFiltresi(id)}&silindi=eq.false`);
+    if (!s.length) throw new Error("Kayıt bulunamadı; başkası silmiş olabilir.");
+    const veri = degistir(JSON.parse(JSON.stringify(s[0].data)));
+    veri.id = id;
+    const donen = await api.guncelle(tablo, `${kimlikFiltresi(id)}&surum=eq.${s[0].surum}`, { data: veri });
+    if (!donen || !donen.length) throw new Error(CAKISMA);
+    return veri;
+  } finally {
+    tabloTazele(tablo);
+  }
+}
+
+export async function kayitSil(tablo, id) {
+  try {
+    const s = await api.sorgu(`${tablo}?select=surum&${kimlikFiltresi(id)}&silindi=eq.false`);
+    if (!s.length) return;
+    const donen = await api.guncelle(tablo, `${kimlikFiltresi(id)}&surum=eq.${s[0].surum}`, { silindi: true });
+    if (!donen || !donen.length) throw new Error(CAKISMA);
+  } finally {
+    tabloTazele(tablo);
+  }
+}
 
 // Ödeme sonrası yalnızca ilgili öğrenciyi sunucudan tazeler; tüm listeyi yeniden indirmez.
 export async function ogrenciTazele(id) {

@@ -39,6 +39,7 @@ const YOLLAR = {
   arti: "M12 5v14M5 12h14",
   tik: "M5 12.5l4.5 4.5L19 7.5",
   cikis: "M9 4H5v16h4M16 8l4 4-4 4M20 12H9",
+  indir: "M12 4v11M7 11l5 5 5-5M5 20h14",
   kapat: "M6 6l12 12M18 6L6 18",
 };
 

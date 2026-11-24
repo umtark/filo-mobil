@@ -1,17 +1,19 @@
-// Uygulama kabuğu: açılış, giriş, alt sekmeler, sekme değişimi.
+// Uygulama kabuğu: açılış, giriş, soldan açılan menü (masaüstündeki yan menü), sekme değişimi.
 import * as api from "./api.js";
 import * as veri from "./veri.js";
 import { marka, markaDinle, markaOnbellektenYukle, sirketBaslangici, sirketBilgisiYukle, sirketKaydet } from "./marka.js";
 import { sirketKodunuNormalle } from "./kimlik.js";
 import { VARSAYILAN_MARKA } from "./marka_normal.js";
-import { h, ikon, toast, yukleniyor, hataGoster, kokYenileyiciAyarla, tumDetaylariKapat, uyariKutusu, panelAc, animOnay, parolaAlani } from "./ui.js";
+import { h, ikon, toast, yukleniyor, hataGoster, kokYenileyiciAyarla, tumDetaylariKapat, uyariKutusu, animOnay, parolaAlani, cipler } from "./ui.js";
 import * as bugun from "./ekranlar/bugun.js";
 import * as okul from "./ekranlar/okul.js";
 import * as muhasebe from "./ekranlar/muhasebe.js";
 import * as filo from "./ekranlar/filo.js";
 import * as hesap from "./ekranlar/hesap.js";
 import * as evrak from "./ekranlar/evrak.js";
+import * as kullanicilar from "./ekranlar/kullanicilar.js";
 import * as yonetim from "./ekranlar/yonetim.js";
+import { durumEkrani } from "./ekranlar/durum.js";
 import { basvuruEkrani } from "./ekranlar/basvuru.js";
 import { MENU, ALT_CUBUK_SIRASI } from "./menu.js";
 import { metin, duz } from "./metin.js";
@@ -27,13 +29,13 @@ const depoYaz = (a, d) => { try { if (d) localStorage.setItem(a, d); else localS
 const EKRANLAR = {
   dashboard: () => bugun.ciz(sekmeyeGit),
   sirket_evrak: () => evrak.ciz(),
-  fatura: () => muhasebe.faturaSayfasi(),
-  arac: () => filo.aracSayfasi(),
+  fatura: (alt) => muhasebe.faturaSayfasi(alt),
+  arac: (alt) => filo.aracSayfasi(alt),
   esnaf: () => muhasebe.esnafSayfasi(),
   petrol: () => muhasebe.akaryakitSayfasi(),
   ic_hizmet: () => filo.icHizmetSayfasi(),
-  okul: () => okul.ciz(),
-  ayarlar: () => hesap.ciz({ cikis, yenile: tazele }),
+  okul: (alt) => okul.ciz(alt),
+  ayarlar: (alt) => (alt === "kullanicilar" ? kullanicilar.ciz() : hesap.ciz({ cikis, yenile: tazele })),
 };
 const SEKMELER = [
   ...MENU.map((m) => ({ ...m, goster: () => m.id === "ayarlar" || veri.izinVar(m.izin), ciz: EKRANLAR[m.id] })),
@@ -42,9 +44,15 @@ const SEKMELER = [
 const simge = (s, boyut) => (s.resim ? h("img", { class: "menu-resim", src: s.resim, alt: "", width: boyut, height: boyut, draggable: "false" }) : ikon(s.ikon, boyut));
 
 let aktif = null;
+const aktifAlt = {};   // modül -> son açık alt başlık (masaüstündeki sekme seçimi gibi hatırlanır)
 let cizimSirasi = 0;
-let icerik, baslik, baslikIkonu, sekmeCubugu, bildirim, gorunenSekmeler = [];
+let icerik, baslik, baslikIkonu, altCubugu, menuDugmesi, bildirim, gorunenSekmeler = [];
 let kabukAcik = false;
+let durumAcik = false;   // bloke / bakım ekranı gösteriliyor
+let cekmece = null;
+const yoneticiMi = () => ["sahip", "yonetici"].includes(veri.baglam.uye && veri.baglam.uye.rol);
+const altlar = (s) => (s.alt || []).filter(([k]) => k !== "kullanicilar" || yoneticiMi());
+const altSecimi = (s) => { const l = altlar(s); return (l.find(([k]) => k === aktifAlt[s.id]) || l[0] || [])[0]; };
 
 // ── Açılış ──────────────────────────────────────────────────────────────────
 async function baslat() {
@@ -61,7 +69,18 @@ async function baslat() {
     if (!api.girisVar() || e.durum === 401) return girisEkrani();
     return hataEkrani(e.message, true);
   }
+  const durum = veri.durumTuru();
+  if (durum) return durumGoster(durum);
   kabuk();
+}
+
+function durumGoster(tur) {
+  cekmeceKapat(false);
+  tumDetaylariKapat();
+  kabukAcik = false;
+  durumAcik = true;
+  aktif = null;
+  kok.replaceChildren(durumEkrani({ tur, mesaj: veri.baglam.bakim && veri.baglam.bakim.mesaj, yenile: baslat, cikis }));
 }
 
 function kurulumEkrani() {
@@ -72,12 +91,14 @@ function kurulumEkrani() {
 
 function hataEkrani(mesaj, tekrar) {
   kabukAcik = false;
+  durumAcik = false;
   kok.replaceChildren(h("main", { class: "tam-ekran giris" }, h("h1", {}, "Açılamadı"), hataGoster({ message: mesaj }, tekrar ? baslat : null),
     h("button", { class: "dugme ikincil", onclick: cikis }, "Çıkış yap")));
 }
 
 function girisEkrani(hata = "") {
   kabukAcik = false;
+  durumAcik = false;
   const sirket = sirketBaslangici();
   const sirketGirdisi = h("input", { class: "girdi", type: "text", inputmode: "numeric", pattern: "[0-9]*", maxlength: "6", autocomplete: "off", spellcheck: "false", required: true,
     "aria-label": "Şirket kodu", placeholder: "Şirket kodu (6 haneli)", value: sirket.kod, readonly: sirket.kilitli });
@@ -141,6 +162,7 @@ function girisEkrani(hata = "") {
 }
 
 function cikis() {
+  cekmeceKapat(false);
   api.cikisYap();
   veri.onbellekTemizle();
   aktif = null;
@@ -149,18 +171,18 @@ function cikis() {
 
 // ── Kabuk ───────────────────────────────────────────────────────────────────
 function kabuk() {
+  cekmeceKapat(false);
   kabukAcik = true;
+  durumAcik = false;
   const sekmeler = SEKMELER.filter((s) => s.goster());
   gorunenSekmeler = sekmeler;
   baslik = h("h1", {});
   baslikIkonu = h("span", { class: "ust-ikon" });
   icerik = h("main", { class: "icerik", id: "icerik" });
   bildirim = h("div");
-  // Alt çubuk: sık kullanılan en çok 3 modül + Menü (masaüstündeki yan menünün tamamı). Seçili modül çubukta yoksa "Menü" seçili görünür.
-  const altCubuk = ALT_CUBUK_SIRASI.map((id) => sekmeler.find((s) => s.id === id)).filter(Boolean).slice(0, 3);
-  sekmeCubugu = h("nav", { class: "sekmeler", "aria-label": "Ana bölümler" },
-    altCubuk.map((s) => h("button", { class: "sekme", id: "sekme-" + s.id, "aria-label": s.ad, onclick: () => sekmeyeGit(s.id) }, simge(s, 28), h("span", {}, s.ad))),
-    h("button", { class: "sekme", id: "sekme-menu", "aria-label": "Menü", "aria-haspopup": "dialog", onclick: menuAc }, ikon("menu", 28), h("span", {}, "Menü")));
+  // Masaüstündeki yan menü soldan açılır; seçili modülün alt başlıkları (masaüstündeki sekmeler) başlığın altında çip olarak durur.
+  altCubugu = h("nav", { class: "alt-cubugu", "aria-label": "Alt başlıklar", hidden: true });
+  menuDugmesi = h("button", { class: "ikon-dugme", "aria-label": "Menü", "aria-haspopup": "dialog", "aria-expanded": "false", onclick: cekmeceAc }, ikon("menu", 26));
   const ustLogo = h("img", { class: "ust-logo", src: marka.logo, alt: marka.ad });
   markaDinle(() => {
     if (!ustLogo.isConnected) return false;   // kabuk yeniden çizildi
@@ -168,29 +190,74 @@ function kabuk() {
     ustLogo.alt = marka.ad;
   });
   kok.replaceChildren(
-    h("header", { class: "ust" }, ustLogo, baslikIkonu, baslik, h("button", { class: "ikon-dugme", "aria-label": "Yenile", onclick: tazele }, ikon("yenile"))),
-    bildirim, icerik, sekmeCubugu);
+    h("header", { class: "ust" }, menuDugmesi, ustLogo, baslikIkonu, baslik, h("button", { class: "ikon-dugme", "aria-label": "Yenile", onclick: tazele }, ikon("yenile"))),
+    altCubugu, bildirim, icerik);
   kokYenileyiciAyarla(() => sekmeCiz(aktif, true));
   if (!veri.lisansAcik()) bildirim.append(uyariKutusu("İşletmenin lisans süresi dolmuş. Veriler gösterilmiyor; lisansı yenileyin."));
-  const istenen = location.hash.slice(1);
+  const [istenen, istenenAlt] = location.hash.slice(1).split("/");
   const ilk = ALT_CUBUK_SIRASI.map((id) => sekmeler.find((s) => s.id === id)).find(Boolean) || sekmeler[0];
-  sekmeyeGit(sekmeler.some((s) => s.id === istenen) ? istenen : ilk.id);
+  sekmeyeGit(sekmeler.some((s) => s.id === istenen) ? istenen : ilk.id, istenenAlt);
 }
 
-// Masaüstündeki yan menü: ikon üstte, başlık altta; altta kullanıcı ve Çıkış Yap.
-function menuAc() {
+// Masaüstündeki yan menünün aynısı: soldan açılır, her modülün altında sekmeleri vardır; altta kullanıcı ve Çıkış Yap.
+function cekmeceAc() {
+  if (cekmece) return cekmeceKapat();
   const kullanici = api.kullanici();
-  const kutu = (s) => h("button", { class: "menu-kutu" + (s.id === aktif ? " secili" : ""), onclick: () => { panel.kapat(); sekmeyeGit(s.id); } }, simge(s, 64), h("span", {}, s.ad));
-  const panel = panelAc("Menü", h("div", { class: "menu-icerik" },
-    h("div", { class: "menu-izgara" }, gorunenSekmeler.map(kutu)),
-    h("div", { class: "menu-kullanici" },
-      h("strong", {}, (kullanici && api.epostadanKullaniciAdi(kullanici.email)) || ""),
-      h("button", { class: "dugme tehlike genis", onclick: () => { panel.kapat(); cikis(); } }, metin("settings_session_logout")))));
+  const ad = (kullanici && api.epostadanKullaniciAdi(kullanici.email)) || "";
+  const rol = { sahip: "Sahip", yonetici: "Yönetici", kullanici: "Kullanıcı" }[veri.baglam.uye && veri.baglam.uye.rol] || "";
+  const acik = new Set(aktif && altlar(gorunenSekmeler.find((s) => s.id === aktif) || {}).length > 1 ? [aktif] : []);
+  const liste = h("nav", { class: "cekmece-liste", "aria-label": "Ana bölümler" });
+
+  function listeCiz() {
+    liste.replaceChildren(...gorunenSekmeler.map((s) => {
+      const alt = altlar(s);
+      const grup = alt.length > 1;
+      const seciliModul = s.id === aktif;
+      const baslikDugmesi = h("button", { class: "cekmece-oge" + (seciliModul ? " secili" : ""), "aria-expanded": grup ? String(acik.has(s.id)) : undefined, "aria-current": seciliModul && !grup ? "page" : undefined,
+        onclick: () => { if (!grup) { cekmeceKapat(false); return sekmeyeGit(s.id); } acik.has(s.id) ? acik.delete(s.id) : acik.add(s.id); listeCiz(); } },
+        simge(s, 28), h("span", { class: "cekmece-ad" }, s.ad), grup && h("span", { class: "cekmece-ok" + (acik.has(s.id) ? " acik" : "") }, ikon("sag", 18)));
+      return h("div", { class: "cekmece-grup" }, baslikDugmesi,
+        grup && acik.has(s.id) && h("div", { class: "cekmece-alt" }, alt.map(([k, adi]) =>
+          h("button", { class: "cekmece-altoge" + (seciliModul && k === altSecimi(s) ? " secili" : ""), onclick: () => { cekmeceKapat(false); sekmeyeGit(s.id, k); } }, adi))));
+    }));
+  }
+  listeCiz();
+
+  const logo = h("img", { class: "cekmece-logo", src: marka.logo, alt: "" });
+  const panel = h("aside", { class: "cekmece", role: "dialog", "aria-modal": "true", "aria-label": "Menü" },
+    h("div", { class: "cekmece-ust" }, logo, h("span", { class: "cekmece-sirket" }, veri.baglam.isletmeAdi || marka.ad),
+      h("button", { class: "ikon-dugme", "aria-label": "Kapat", onclick: () => cekmeceKapat() }, ikon("kapat"))),
+    liste,
+    h("div", { class: "cekmece-alt-kisim" },
+      h("div", { class: "cekmece-kullanici" }, h("span", { class: "avatar", "aria-hidden": "true" }, (ad[0] || "?").toLocaleUpperCase("tr")),
+        h("span", { class: "satir-metin" }, h("span", { class: "satir-baslik" }, ad), h("span", { class: "satir-alt" }, rol))),
+      h("button", { class: "dugme tehlike genis", onclick: cikis }, metin("settings_session_logout"))));
+  const arka = h("div", { class: "cekmece-arka", onclick: (e) => { if (e.target === arka) cekmeceKapat(); } }, panel);
+  const tus = (e) => { if (e.key === "Escape") cekmeceKapat(); };
+  let baslangicX = null;
+  panel.addEventListener("touchstart", (e) => { baslangicX = e.touches[0].clientX; }, { passive: true });
+  panel.addEventListener("touchend", (e) => { if (baslangicX !== null && e.changedTouches[0].clientX - baslangicX < -60) cekmeceKapat(); baslangicX = null; }, { passive: true });
+  document.addEventListener("keydown", tus);
+  document.body.append(arka);
+  menuDugmesi.setAttribute("aria-expanded", "true");
+  cekmece = { arka, tus };
+  (panel.querySelector(".cekmece-oge.secili") || panel.querySelector(".cekmece-oge")).focus();
 }
 
-export function sekmeyeGit(id) {
+function cekmeceKapat(odak = true) {
+  if (!cekmece) return;
+  const { arka, tus } = cekmece;
+  cekmece = null;
+  arka.remove();
+  document.removeEventListener("keydown", tus);
+  if (menuDugmesi) { menuDugmesi.setAttribute("aria-expanded", "false"); if (odak) menuDugmesi.focus(); }
+}
+
+export function sekmeyeGit(id, alt) {
   tumDetaylariKapat();
-  history.replaceState(null, "", "#" + id);
+  if (alt) aktifAlt[id] = alt;
+  const secili = aktifAlt[id];
+  history.replaceState(null, "", "#" + id + (secili ? "/" + secili : ""));
   return sekmeCiz(id);
 }
 
@@ -209,15 +276,13 @@ async function sekmeCiz(id, kaydirmayiKoru = false) {
   aktif = id;
   baslik.textContent = sekme.ad;
   baslikIkonu.replaceChildren(simge(sekme, 30));
-  const altta = sekmeCubugu.querySelector("#sekme-" + id);
-  for (const d of sekmeCubugu.children) {
-    const secili = altta ? d === altta : d.id === "sekme-menu";   // çubukta olmayan modülde "Menü" seçili görünür
-    d.classList.toggle("secili", secili);
-    d.toggleAttribute("aria-current", secili);
-  }
+  const altListe = altlar(sekme);
+  const alt = altSecimi(sekme);
+  altCubugu.hidden = altListe.length < 2;
+  altCubugu.replaceChildren(...(altListe.length > 1 ? [cipler(altListe, alt, (k) => sekmeyeGit(id, k))] : []));
   if (!kaydirmayiKoru) icerik.replaceChildren(yukleniyor());
   try {
-    const dugum = await sekme.ciz();
+    const dugum = await sekme.ciz(alt);
     if (sira !== cizimSirasi) return;
     icerik.replaceChildren(dugum);
     icerik.scrollTop = eski;
@@ -232,11 +297,18 @@ async function sekmeCiz(id, kaydirmayiKoru = false) {
 // Yönetici yetkiyi değiştirince ya da hesabı kaldırınca açık oturum yeniden giriş beklemeden güncellenir.
 let yetkiKontrolSuruyor = false;
 async function yetkiIzle() {
-  if (!kabukAcik || yetkiKontrolSuruyor || document.hidden) return;
+  if ((!kabukAcik && !durumAcik) || yetkiKontrolSuruyor || document.hidden) return;
   yetkiKontrolSuruyor = true;
   try {
+    if (durumAcik) {   // bloke kalkınca ya da bakım bitince ekran kendiliğinden açılır
+      if (!(await veri.durumTazele())) baslat();
+      return;
+    }
+    veri.nabiz();
     const durum = await veri.yetkiKontrol();
     if (!kabukAcik) return;
+    const yeniDurum = await veri.durumTazele();
+    if (yeniDurum) return durumGoster(yeniDurum);
     if (durum === "kaldirildi") {
       api.cikisYap(); veri.onbellekTemizle(); aktif = null; tumDetaylariKapat();
       return girisEkrani("Hesabınızın bu işletmeye erişimi kaldırıldı.");

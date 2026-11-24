@@ -89,6 +89,9 @@ export function cikisYap() { oturumKaydet(null); }
 
 export const sorgu = (yol) => cagir("/rest/v1/" + yol);
 export const rpc = (ad, govde) => cagir("/rest/v1/rpc/" + ad, { yontem: "POST", govde });
+const DONUS = { Prefer: "return=representation" };
+export const ekle = (tablo, satir) => cagir("/rest/v1/" + tablo, { yontem: "POST", govde: satir, ust: DONUS });
+export const guncelle = (tablo, filtre, govde) => cagir(`/rest/v1/${tablo}?${filtre}`, { yontem: "PATCH", govde, ust: DONUS });
 
 // PostgREST bir istekte en çok 1000 satır döndürür; sayfa sayfa hepsini alır.
 export async function hepsi(tablo, isletme) {
