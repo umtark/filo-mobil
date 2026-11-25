@@ -10,28 +10,6 @@ import { tarihCoz, tarihYaz } from "../bicim.js";
 const ROL = { sahip: "Sahip", yonetici: "Yönetici", kullanici: "Kullanıcı" };
 const MODUL = { okul: "Okul", sirket_evrak: "Şirket evrakları", fatura: "Faturalar", arac: "Araçlar", esnaf: "Esnaf", petrol: "Akaryakıt", ic_hizmet: "İç hizmet" };
 
-function fotoBolumu(ad) {
-  const av = h("span", { class: "avatar avatar-buyuk", "aria-hidden": "true" }, (ad[0] || "?").toLocaleUpperCase("tr"));
-  const girdi = h("input", { type: "file", accept: "image/*", hidden: true, "aria-label": "Profil fotoğrafı seç" });
-  const kaldir = h("button", { class: "dugme ikincil", type: "button", hidden: true }, "Fotoğrafı kaldır");
-  const uygula = (url) => {
-    av.style.backgroundImage = url ? `url("${url}")` : "";
-    av.classList.toggle("foto", Boolean(url));
-    kaldir.hidden = !url;
-  };
-  profil.fotoUrl().then(uygula);
-  girdi.addEventListener("change", async () => {
-    const dosya = girdi.files[0];
-    girdi.value = "";
-    if (!dosya) return;
-    try { uygula(await profil.fotoYukle(dosya)); toast("Fotoğraf kaydedildi", "basari"); } catch (e) { toast(e.message || "Fotoğraf yüklenemedi", "hata"); }
-  });
-  kaldir.onclick = async () => {
-    try { await profil.fotoSil(); uygula(null); toast("Fotoğraf kaldırıldı", "basari"); } catch (e) { toast(e.message || "Fotoğraf kaldırılamadı", "hata"); }
-  };
-  return h("div", { class: "profil-foto" }, h("button", { class: "avatar-dugme", type: "button", "aria-label": "Profil fotoğrafı", onclick: () => girdi.click() }, av), girdi, kaldir);
-}
-
 export async function ciz({ cikis, yenile }) {
   const u = veri.baglam.uye;
   const l = veri.baglam.lisans;
@@ -44,7 +22,7 @@ export async function ciz({ cikis, yenile }) {
   }
   const yetkiler = ["sahip", "yonetici"].includes(u.rol) ? "Tümü" : (u.izinler || []).map((m) => MODUL[m] || m).join(", ") || "Yok";
   return h("div", { class: "sayfa" },
-    kart(h("h3", {}, "Hesap"), fotoBolumu((kullanici && api.epostadanKullaniciAdi(kullanici.email)) || ""), bilgiSatiri("Kullanıcı", kullanici && api.epostadanKullaniciAdi(kullanici.email)), bilgiSatiri("İşletme", veri.baglam.isletmeAdi),
+    kart(h("h3", {}, "Hesap"), profil.fotoBolumu(profil.gorunenAd()), bilgiSatiri("Kullanıcı", profil.gorunenAd()), bilgiSatiri("İşletme", veri.baglam.isletmeAdi),
       bilgiSatiri("Rol", ROL[u.rol] || u.rol), bilgiSatiri("Yetkiler", yetkiler), bilgiSatiri("Erişim", u.salt_okunur ? "Yalnızca görüntüleme" : "Görüntüleme ve ödeme girişi"),
       bilgiSatiri("Lisans", lisansMetni, lisansTon)),
     ["sahip", "yonetici"].includes(u.rol) && kart(satir({ baslik: "Kullanıcılar", onclick: () => detayAc("Kullanıcılar", () => kullanicilar.ciz()) })),

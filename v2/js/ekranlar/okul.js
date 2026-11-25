@@ -1,5 +1,5 @@
 // Okul: servis kullanan öğrencilerin tahsilat takibi. Telefondan yapılabilen tek yazma işlemi ödeme eklemektir.
-import { h, ikon, kart, satir, bilgiSatiri, cipler, aramaKutusu, ayCubugu, sayfalamali, bosDurum, panelAc, detayAc, detayYenile, toast, segment } from "../ui.js";
+import { h, ikon, havuz, kart, satir, bilgiSatiri, cipler, aramaKutusu, ayCubugu, sayfalamali, bosDurum, panelAc, detayAc, detayYenile, toast, segment } from "../ui.js";
 import * as veri from "../veri.js";
 import * as api from "../api.js";
 import { goruntule, indir } from "../dosya.js";
@@ -20,9 +20,6 @@ const TON = { bekliyor: "kirmizi", kismi: "kehribar", odendi: "yesil" };
 const YONTEM = { nakit: "Nakit", iban: "IBAN", kart: "Kart" };
 // Masaüstündeki tahsilat kartları: aynı ad, aynı Lottie ikonu, dokununca o yöntemle ödeyenleri süzer (tekrar dokununca kalkar).
 const YONTEM_KARTLARI = [["nakit", "tah_kpi_nakit", "nakit_payment", 0.7], ["iban", "tah_kpi_iban", "iban_payment", 0.5], ["kart", "tah_kpi_kart", "Card_payment", 0.5]];
-
-const ilerleme = (oran) => h("div", { class: "ilerleme", role: "progressbar", "aria-valuenow": Math.round(oran * 100), "aria-valuemin": 0, "aria-valuemax": 100 },
-  h("span", { style: `width:${Math.min(100, Math.max(0, oran * 100)).toFixed(1)}%` }));
 
 const okulHam = () => veri.hamListe("okul_ogrenciler");
 
@@ -172,9 +169,9 @@ async function ogrencilerEkrani(tahsilat) {
 
   const ozet = kart(
     h("p", { class: "kart-etiket" }, "Kalan tahsilat"),
-    h("p", { class: "buyuk-sayi" }, para(t.kalan)),
-    ilerleme(t.ucret ? t.odenen / t.ucret : 0),
-    h("p", { class: "soluk" }, `${para(t.odenen)} tahsil edildi, toplam ${para(t.ucret)} · ${t.ogrenci} öğrenci`));
+    h("div", { class: "havuz-satir" },
+      h("div", {}, h("p", { class: "buyuk-sayi" }, para(t.kalan)), h("p", { class: "soluk" }, `${para(t.odenen)} tahsil edildi, toplam ${para(t.ucret)} · ${t.ogrenci} öğrenci`)),
+      t.ucret > 0 && havuz(t.odenen / t.ucret, { boyut: 96 })));
 
   const yt = yontemToplami(liste);
   const yontemKartlari = h("div", { class: "yontem-izgara" }, YONTEM_KARTLARI.map(([k, ad, anim, durak]) => {
@@ -220,7 +217,7 @@ function detay(o) {
       h("p", { class: "soluk" }, [o.sinif, o.plaka].filter(Boolean).join(" · ")),
       h("p", { class: "kart-etiket" }, ucretYok || o.durum === "odendi" ? "Durum" : "Kalan"),
       h("p", { class: "buyuk-sayi " + (ucretYok ? "" : TON[o.durum]) }, ucretYok ? "Ücret girilmemiş" : o.durum === "odendi" ? "Ödendi" : para(o.kalan)),
-      ilerleme(o.ucret ? o.odenen / o.ucret : 0),
+      !ucretYok && h("div", { class: "havuz-ortala" }, havuz(o.odenen / o.ucret, { boyut: 144, ton: TON[o.durum] })),
       h("div", { class: "bilgi-grid" }, bilgiSatiri("Ücret", para(o.ucret)), bilgiSatiri("Ödenen", para(o.odenen))),
       yazabilir && h("button", { class: "dugme birincil genis", onclick: () => odemePaneli(o) }, ikon("arti", 18), "Ödeme ekle")),
     o.telefonlar.length > 0 && kart(h("h3", {}, o.veli ? `Ulaş · ${o.veli}` : "Ulaş"), o.telefonlar.map(([kim, tel]) => telefonSatiri(kim, tel))),
