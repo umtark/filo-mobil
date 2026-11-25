@@ -63,7 +63,7 @@ let sayi = 0;
 export function trendGrafigi(seri) {
   const n = seri.length;
   // Y ekseni yazısı yok (shadcn'in gizli YAxis'i gibi): tutarlar sütun üstünde ve dokununca okunur; kaydırmada yarım kalan etiket görünmez
-  const KOL = 46, G = Math.max(340, n * KOL + 20), Y = 264, SOL = 6, SAG = 6, UST = 62, ALT = 38;
+  const KOL = 46, G = Math.max(340, n * KOL + 20), Y = 276, SOL = 6, SAG = 6, UST = 74, ALT = 38;
   const enBuyuk = Math.max(1, ...seri.flatMap((x) => [x.gelir, x.gider]));
   const enKucuk = Math.min(0, ...seri.map((x) => x.net));
   const adim = guzelAdim((enBuyuk - enKucuk) / 3);
@@ -85,7 +85,7 @@ export function trendGrafigi(seri) {
     const r = Math.min(4, bw / 2, yuk);
     const yol = `M${x0},${y(0)} V${ust0 + r} Q${x0},${ust0} ${x0 + r},${ust0} H${x0 + bw - r} Q${x0 + bw},${ust0} ${x0 + bw},${ust0 + r} V${y(0)} Z`;
     return s("g", {}, s("path", { class: `g-cubuk ${sinif}`, d: yol, style: `--i:${i}` }),
-      s("text", { class: "g-deger", transform: `rotate(-90 ${x0 + bw / 2 + 3.2} ${ust0 - 5})`, x: x0 + bw / 2 + 3.2, y: ust0 - 5 }, tamYaz(deger)));
+      s("text", { class: "g-deger", transform: `rotate(-90 ${x0 + bw / 2 + 3.2} ${ust0 - 5})`, x: x0 + bw / 2 + 3.2, y: ust0 - 5 }, `${tamYaz(deger)}\u00a0₺`));
   };
   const kolonlar = seri.map((x, i) => {
     const yil = i === 0 || x.ay.endsWith("-01") ? `'${x.ay.slice(2, 4)}` : null;
