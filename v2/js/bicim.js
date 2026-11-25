@@ -50,7 +50,18 @@ export const isoTarih = (d) => gunAnahtari(d);
 // Türkçe duyarlı küçük harf / arama normalizasyonu
 export const kucuk = (s) => String(s ?? "").toLocaleLowerCase("tr");
 export const eslesir = (metin, aranan) => kucuk(metin).includes(kucuk(aranan).trim());
-export const sirala = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "tr", { sensitivity: "base" });
+// Masaüstündeki arama kuralı (_arama_norm / _arama_eslesir): büyük-küçük harf, Türkçe karakter ve noktalama farkı yok sayılır; yazılan her kelime kaydın herhangi bir yerinde geçmelidir.
+// Telefon numaraları ayrıca yalnızca rakamlarla karşılaştırılır (başta 0 olsa da olmasa da, boşluk ve tireye bakmadan).
+const TR_ARAMA = { "ç": "c", "Ç": "c", "ğ": "g", "Ğ": "g", "ı": "i", "I": "i", "İ": "i", "ö": "o", "Ö": "o", "ş": "s", "Ş": "s", "ü": "u", "Ü": "u" };
+export const aramaNorm = (s) => String(s ?? "").replace(/[çÇğĞıIİöÖşŞüÜ]/g, (c) => TR_ARAMA[c]).toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^0-9a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+export const aramaHazirla = (alanlar, telefonlar = []) => ({ norm: aramaNorm(alanlar.join(" ")), tel: telefonlar.join(" ").replace(/\D/g, "") });
+export function aramaEslesir(kayit, aranan) {
+  const parcalar = aramaNorm(aranan).split(" ").filter(Boolean);
+  if (!parcalar.length) return true;
+  if (parcalar.every((p) => kayit.norm.includes(p))) return true;
+  const rakam = String(aranan ?? "").replace(/\D/g, "");
+  return Boolean(rakam) && (kayit.tel.includes(rakam) || (rakam.startsWith("0") && kayit.tel.includes(rakam.slice(1))));
+}export const sirala = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "tr", { sensitivity: "base" });
 
 export const ayEkle = (ay, n) => {
   const t = Number(ay.slice(0, 4)) * 12 + Number(ay.slice(5, 7)) - 1 + n;

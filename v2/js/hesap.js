@@ -1,7 +1,7 @@
 // İş kuralları: ham kayıtlardan (masaüstündeki alan adlarıyla) ekranların ihtiyaç duyduğu özetleri üretir. Saf fonksiyonlar.
 // Kurallar masaüstü ve eski telefon köprüsüyle (mobil_koprusu.py) birebir aynıdır.
 import { etiket } from "./metin.js";
-import { sayi, tarihCoz, ayAnahtari, bugun, gunFarki, kucuk, sirala } from "./bicim.js";
+import { sayi, tarihCoz, ayAnahtari, bugun, gunFarki, kucuk, sirala, aramaHazirla } from "./bicim.js";
 
 const AY_RX = /^\d{4}-\d{2}$/;
 const al = (r, ...anahtarlar) => {
@@ -11,6 +11,9 @@ const al = (r, ...anahtarlar) => {
 
 // ── Okul ────────────────────────────────────────────────────────────────────
 // Tahsilat listesi: servis kullanan ve bir araca atanmış öğrenciler. Ücret dönemin toplamıdır; kalan = ücret - yapılan ödemelerin toplamı.
+// Masaüstündeki öğrenci aramasıyla aynı alanlar: ad, T.C., veli adı, tüm telefonlar, sınıf, servis plakası (boşluklu ve boşluksuz), adres.
+const ogrenciArama = (o) => { const plaka = String(o.servis_plaka || ""); return aramaHazirla([o.ad_soyad, o.tc_kimlik, o.veli_adi, o.sinif, plaka, plaka.replace(/\s+/g, ""), o.adres, o.ogrenci_tel, o.veli_tel, o.anne_tel, o.baba_tel], [o.ogrenci_tel, o.veli_tel, o.baba_tel, o.anne_tel]); };
+
 export function ogrenciKaydi(o) {
   const ucret = sayi(o.aylik_odeme);
   const odemeler = (Array.isArray(o.odeme_gecmisi) ? o.odeme_gecmisi : []).map((g) => {
@@ -27,6 +30,7 @@ export function ogrenciKaydi(o) {
     ucret, odenen, kalan, durum, odemeler, tel: String(tel).trim(), veli: o.veli_adi || "",
     telefonlar: [[etiket("okul_col_veli_tel"), o.veli_tel], [etiket("okul_col_anne_tel"), o.anne_tel], [etiket("okul_col_baba_tel"), o.baba_tel], [etiket("okul_col_ogrenci_tel"), o.ogrenci_tel]].filter(([, t]) => String(t || "").trim()),
     servisVar: !o.servis_kullanmiyor && Boolean((o.servis_plaka || "").trim()),
+    arama: ogrenciArama(o),
   };
 }
 
@@ -44,7 +48,7 @@ export function servisKullanmayanListesi(satirlar) {
     .filter((o) => !String(o.id).startsWith("srv_") && !ogrenciKaydi(o).servisVar)
     .map((o) => {
       const k = ogrenciKaydi(o);
-      return { id: o.id, ad: k.ad, sinif: k.sinif, veli: k.veli, tel: k.tel, telefonlar: k.telefonlar, neden: o.servis_kullanmiyor ? "Servis kullanmıyor" : "Servise atanmamış" };
+      return { id: o.id, ad: k.ad, sinif: k.sinif, veli: k.veli, tel: k.tel, telefonlar: k.telefonlar, arama: k.arama, neden: o.servis_kullanmiyor ? "Servis kullanmıyor" : "Servise atanmamış" };
     })
     .sort((a, b) => sirala(a.ad, b.ad));
 }
@@ -64,6 +68,7 @@ export function servisListesi(satirlar) {
     return {
       id: s.id, sira: sayi(s.sira_no), plaka, sofor: s.sofor_ad || "", tel: String(s.sofor_tel || "").trim(), guzergah: s.guzergah || "", tip: s.arac_tipi || "",
       sahip: s.arac_sahibi || "", ucret: sayi(s.aylik_ucret), ogrenci: adet.get(plaka.toUpperCase()) || 0, belgeler,
+      arama: aramaHazirla([plaka, plaka.replace(/\s+/g, ""), s.sofor_ad, s.sofor_tel, s.guzergah, s.arac_tipi, s.arac_sahibi], [s.sofor_tel]),
     };
   }).sort((a, b) => a.sira - b.sira || sirala(a.plaka, b.plaka));
 }

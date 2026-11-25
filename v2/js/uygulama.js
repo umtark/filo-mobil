@@ -218,7 +218,7 @@ function cekmeceAc() {
   const kullanici = api.kullanici();
   const ad = profil.gorunenAd();
   const rol = { sahip: "Sahip", yonetici: "Yönetici", kullanici: "Kullanıcı" }[veri.baglam.uye && veri.baglam.uye.rol] || "";
-  const acik = new Set(aktif && altlar(gorunenSekmeler.find((s) => s.id === aktif) || {}).length > 1 ? [aktif] : []);
+  const acik = new Set();   // alt başlıklar yalnızca oka dokununca açılır; menü her seferinde kapalı gelir
   const liste = h("nav", { class: "cekmece-liste", "aria-label": "Ana bölümler" });
 
   function listeCiz() {

@@ -97,6 +97,11 @@ const METIN = {
   "puantaj_col_odenecek": "Ödenecek",
   "okul_kalan_lbl": "KALAN",
   "okul_donem_tutar_lbl": "Dönem Tutarı:",
+  "tah_ozet_hic_odemeyen": "Hiç Ödemeyen",
+  "tah_ozet_kismi_odeyen": "Kısmi Ödeyen",
+  "dash_alerts": "Acil Durumlar ve Yaklaşan Bakımlar",
+  "dash_income_label": "Gelir",
+  "dash_expense_label": "Gider",
 };
 
 // Masaüstü metinlerinde satır sonu ve sondaki ':' olabilir; başlık ve etiket olarak kullanılırken sadeleştirilir.
