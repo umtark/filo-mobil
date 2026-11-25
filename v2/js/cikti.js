@@ -9,6 +9,7 @@ import { baglam } from "./veri.js";
 import { ayAnahtari, bugun } from "./bicim.js";
 import { sayiTr, tl, gg, ggSaat, donemCoz } from "./cikti_yardim.js";
 import { goruntuleyiciAc } from "./goruntuleyici.js";
+import { duz } from "./metin.js";
 
 const AYAR_ANAHTARI = "filo2.cikti";
 const p2 = (n) => String(n).padStart(2, "0");
@@ -148,7 +149,7 @@ export function ciktiDugmeleri({ dosya, donem = false, varsayilanAy = null, pdf 
     d.onclick = () => calistir(tur, tanim, d);
     return d;
   };
-  if (pdf) kap.append(dugme("pdf", pdf.ad || "PDF", pdf));
-  if (xlsx) kap.append(dugme("xlsx", xlsx.ad || "Excel", xlsx));
+  if (pdf) kap.append(dugme("pdf", pdf.ad || duz("pdf_aktar"), pdf));
+  if (xlsx) kap.append(dugme("xlsx", xlsx.ad || duz("tah_excel_btn"), xlsx));
   return kap;
 }

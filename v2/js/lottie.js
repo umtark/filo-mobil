@@ -13,20 +13,35 @@ const yukle = () => (kutuphane = kutuphane || new Promise((coz, red) => {
 const azalt = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // dinlenme: animasyonun hangi noktasında (0-1) ikonun tam göründüğü; sonu bu üç ikonda boş/koyu kalıyor, bu yüzden orada durulur.
+// Ekranda göründüğü sürece kısa aralıklarla sürekli oynar; ekrandan çıkınca durur, hareket azaltma açıksa son karede durur. Dokununca hemen oynar.
+const ARA_MS = 1200;
 export function animasyon(ad, boyut = 44, dinlenme = 0.6) {
   const kap = h("span", { class: "anim", "aria-hidden": "true", style: `width:${boyut}px;height:${boyut}px` });
   Promise.all([yukle(), fetch(`anim/${ad}.json`).then((r) => r.json())]).then(([lottie, veri]) => {
     const an = lottie.loadAnimation({ container: kap, renderer: "svg", loop: false, autoplay: false, animationData: veri });
     const durak = Math.floor(veri.op * dinlenme);
-    const oynat = () => (azalt() ? an.goToAndStop(durak, true) : an.playSegments([0, durak], true));
+    let gorunur = false, caliyor = false, zaman = null;
+    const oynat = () => {
+      clearTimeout(zaman);
+      if (azalt()) return an.goToAndStop(durak, true);
+      caliyor = true;
+      an.playSegments([0, durak], true);
+    };
+    an.addEventListener("complete", () => {
+      caliyor = false;
+      clearTimeout(zaman);
+      if (gorunur && kap.isConnected && !azalt()) zaman = setTimeout(oynat, ARA_MS);
+    });
     an.addEventListener("DOMLoaded", () => {
       an.goToAndStop(durak, true);   // oynamadan önce de tam ikon görünür
       const gozcu = new IntersectionObserver((kayitlar) => {
-        if (!kap.isConnected) { an.destroy(); gozcu.disconnect(); return; }
-        if (kayitlar.some((k) => k.isIntersecting) && !kap.dataset.oynadi) { kap.dataset.oynadi = "1"; oynat(); }
+        if (!kap.isConnected) { clearTimeout(zaman); an.destroy(); gozcu.disconnect(); return; }
+        gorunur = kayitlar.some((k) => k.isIntersecting);
+        if (gorunur && !caliyor) oynat();
+        if (!gorunur) { clearTimeout(zaman); }
       });
       gozcu.observe(kap);
-      kap.parentElement && kap.parentElement.addEventListener("click", () => oynat());
+      kap.parentElement && kap.parentElement.addEventListener("click", () => { if (!caliyor) oynat(); });
     });
   }).catch(() => { /* ağ yoksa ikon boş kalır; kart yine okunur */ });
   return kap;

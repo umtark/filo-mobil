@@ -5,6 +5,7 @@ import * as veri from "./veri.js";
 import { formAc, onayAc, trTarih, trdenIso, isodanTr, yuvarla } from "./form.js";
 import { sayi, tarihCoz, sirala, ayAdi } from "./bicim.js";
 import * as api from "./api.js";
+import { baslik as mb, etiket as me, duz as md } from "./metin.js";
 
 // Kayıt kaydedilince listeyi (ve açık detayı) yeniler; detaydan silinince önce bir adım geri dönülür.
 export async function sonra(detaydan = false) {
@@ -354,7 +355,7 @@ export async function odemeFormu(ogrenciId, odemeId, { detaydan = false } = {}) 
     alanlar: [
       { ad: "tutar", etiket: "Tutar", tur: "para", zorunlu: true, zorunluPozitif: true },
       { ad: "tarih", etiket: "Tarih", tur: "tarih", zorunlu: true },
-      { ad: "yontem", etiket: "Yöntem", tur: "segment", secenekler: [["nakit", "Nakit"], ["iban", "IBAN"], ["kart", "Kart"]] },
+      { ad: "yontem", etiket: "Yöntem", tur: "segment", secenekler: [["nakit", mb("tah_yontem_nakit")], ["iban", mb("tah_yontem_iban")], ["kart", mb("tah_yontem_kart")]] },
       { ad: "not", etiket: "Not" },
     ],
     kaydet: async (g) => {
@@ -387,19 +388,19 @@ export async function ogrenciFormu(id, { detaydan = false } = {}) {
   const k = id ? await veri.hamKayit("okul_ogrenciler", id) : null;
   const [servisler, tumu] = await Promise.all([veri.okulServisler(), veri.hamListe("okul_ogrenciler")]);
   formAc({
-    baslik: k ? "Öğrenciyi düzenle" : "Yeni öğrenci", deger: k || {},
+    baslik: k ? mb("okul_duzenle_ogrenci") : md("okul_yeni_ogrenci"), deger: k || {},
     alanlar: [
-      { ad: "ad_soyad", etiket: "Ad soyad", zorunlu: true, buyuk: true },
-      { yan: [{ ad: "sinif", etiket: "Sınıf" }, { ad: "tc_kimlik", etiket: "T.C. kimlik", uzunluk: 11 }] },
-      { ad: "veli_adi", etiket: "Veli adı" },
-      { ad: "veli_tel", etiket: "Veli telefonu", tur: "tel" },
-      { yan: [{ ad: "anne_tel", etiket: "Anne telefonu", tur: "tel" }, { ad: "baba_tel", etiket: "Baba telefonu", tur: "tel" }] },
-      { ad: "ogrenci_tel", etiket: "Öğrenci telefonu", tur: "tel" },
-      { ad: "adres", etiket: "Adres", tur: "uzun" },
-      { yan: [{ ad: "aylik_odeme", etiket: "Dönem ücreti", tur: "para" }, { ad: "liste_ucreti", etiket: "Liste ücreti", tur: "para" }] },
-      { ad: "servis_plaka", etiket: "Servis", tur: "secim", secenekler: servisler.map((s) => [s.plaka, `${s.plaka}${s.sofor ? " · " + s.sofor : ""}`]) },
-      { ad: "servis_kullanmiyor", etiket: "Servis kullanmıyor", tur: "onay" },
-      { ad: "notlar", etiket: "Not", tur: "uzun" },
+      { ad: "ad_soyad", etiket: me("okul_col_adsoyad"), zorunlu: true, buyuk: true },
+      { yan: [{ ad: "sinif", etiket: me("okul_col_sinif") }, { ad: "tc_kimlik", etiket: me("okul_col_tc"), uzunluk: 11 }] },
+      { ad: "veli_adi", etiket: me("okul_col_veli_adi") },
+      { ad: "veli_tel", etiket: me("okul_col_veli_tel"), tur: "tel" },
+      { yan: [{ ad: "anne_tel", etiket: me("okul_col_anne_tel"), tur: "tel" }, { ad: "baba_tel", etiket: me("okul_col_baba_tel"), tur: "tel" }] },
+      { ad: "ogrenci_tel", etiket: me("okul_col_ogrenci_tel"), tur: "tel" },
+      { ad: "adres", etiket: me("okul_col_adres"), tur: "uzun" },
+      { yan: [{ ad: "aylik_odeme", etiket: me("tah_col_donem"), tur: "para" }, { ad: "liste_ucreti", etiket: "Liste ücreti", tur: "para" }] },
+      { ad: "servis_plaka", etiket: me("okul_col_servis"), tur: "secim", secenekler: servisler.map((s) => [s.plaka, `${s.plaka}${s.sofor ? " · " + s.sofor : ""}`]) },
+      { ad: "servis_kullanmiyor", etiket: me("okul_servis_kullanmiyor_rozet"), tur: "onay" },
+      { ad: "notlar", etiket: me("okul_col_notlar"), tur: "uzun" },
     ],
     kaydet: async (g) => {
       const sira = tumu.filter((x) => !String(x.id).startsWith("srv_")).reduce((m, x) => Math.max(m, sayi(x.sira_no)), 0);
@@ -425,17 +426,17 @@ export async function servisFormu(id, { detaydan = false } = {}) {
   const tumu = await veri.okulServisler();
   const belge = (ad, etiket) => ({ ad, etiket, tur: "tarih", bosDeger: "" });
   formAc({
-    baslik: k ? "Servisi düzenle" : "Yeni servis", deger: k || {},
+    baslik: md("servis_araci_ekle_duzenle"), deger: k || {},
     alanlar: [
-      { ad: "plaka", etiket: "Plaka", zorunlu: true, buyuk: true },
-      { yan: [{ ad: "arac_no", etiket: "Araç no" }, { ad: "arac_tipi", etiket: "Araç tipi", yerTutucu: "29+1" }] },
+      { ad: "plaka", etiket: me("okul_srv_col_plaka"), zorunlu: true, buyuk: true },
+      { yan: [{ ad: "arac_no", etiket: "Araç no" }, { ad: "arac_tipi", etiket: me("okul_srv_col_tip"), yerTutucu: "29+1" }] },
       { ad: "kademe", etiket: "Kademe", tur: "secim", secenekler: kademeler },
-      { ad: "guzergah", etiket: "Güzergah" },
-      { ad: "sofor_ad", etiket: "Şoför", buyuk: true },
-      { ad: "sofor_tel", etiket: "Şoför telefonu", tur: "tel" },
-      { ad: "arac_sahibi", etiket: "Araç sahibi", buyuk: true },
-      { ad: "aylik_ucret", etiket: "Aylık ücret", tur: "para" },
-      belge("sigorta_bitis", "Sigorta bitişi"), belge("muayene_bitis", "Muayene bitişi"), belge("koltuk_bitis", "Koltuk sigortası bitişi"),
+      { ad: "guzergah", etiket: me("okul_srv_col_guzergah") },
+      { ad: "sofor_ad", etiket: me("okul_srv_col_sofor"), buyuk: true },
+      { ad: "sofor_tel", etiket: me("okul_srv_col_tel"), tur: "tel" },
+      { ad: "arac_sahibi", etiket: me("okul_srv_col_sahip"), buyuk: true },
+      { ad: "aylik_ucret", etiket: me("okul_srv_col_ucret"), tur: "para" },
+      belge("sigorta_bitis", me("okul_srv_col_sigorta")), belge("muayene_bitis", me("okul_srv_col_muayene")), belge("koltuk_bitis", me("okul_srv_col_koltuk")),
     ],
     kaydet: async (g) => {
       if (tumu.some((s) => s.id !== id && s.plaka.replace(/\s+/g, "") === g.plaka.replace(/\s+/g, ""))) throw new Error("Bu plakayla başka bir servis kayıtlı.");

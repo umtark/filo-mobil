@@ -191,6 +191,7 @@ function kabuk() {
   baslik = h("h1", {});
   baslikIkonu = h("span", { class: "ust-ikon" });
   icerik = h("main", { class: "icerik", id: "icerik" });
+  const cekGosterge = h("div", { class: "cek-gosterge", "aria-hidden": "true" }, ikon("yenile", 22));
   bildirim = h("div");
   // Masaüstündeki yan menü soldan açılır; seçili modülün alt başlıkları (masaüstündeki sekmeler) başlığın altında çip olarak durur.
   altCubugu = h("nav", { class: "alt-cubugu", "aria-label": "Alt başlıklar", hidden: true });
@@ -201,8 +202,9 @@ function kabuk() {
     ustLogo.src = marka.logo;
   });
   kok.replaceChildren(
-    h("header", { class: "ust" }, menuDugmesi, h("button", { class: "ust-logo-dugme", type: "button", "aria-label": `${marka.ad} - ana sayfa`, onclick: anaSayfa }, ustLogo), baslikIkonu, baslik, h("button", { class: "ikon-dugme", "aria-label": "Yenile", onclick: tazele }, ikon("yenile"))),
-    altCubugu, bildirim, icerik);
+    h("header", { class: "ust" }, menuDugmesi, h("button", { class: "ust-logo-dugme", type: "button", "aria-label": `${marka.ad} - ana sayfa`, onclick: anaSayfa }, ustLogo), baslikIkonu, baslik),
+    altCubugu, bildirim, icerik, cekGosterge);
+  asagiCekYenile(icerik, cekGosterge);
   kokYenileyiciAyarla(() => sekmeCiz(aktif, true));
   if (!veri.lisansAcik()) bildirim.append(uyariKutusu("İşletmenin lisans süresi dolmuş. Veriler gösterilmiyor; lisansı yenileyin."));
   const [istenen, istenenAlt] = location.hash.slice(1).split("/");
@@ -284,6 +286,41 @@ export function sekmeyeGit(id, alt) {
 
 const yeniden = () => sekmeCiz(aktif, true);
 
+// Yenile düğmesi yerine: sayfa başındayken aşağı çekip bırakınca veriler yeniden okunur; uygulamaya 1 dakikadan uzun süre sonra dönülünce de kendiliğinden tazelenir.
+function asagiCekYenile(alan, gosterge) {
+  const ESIK = 64;
+  let y0 = null, cekilen = 0, yenileniyor = false;
+  const ciz = (px, donuyor = false) => {
+    gosterge.style.opacity = px > 6 || donuyor ? "1" : "0";
+    gosterge.style.transform = `translate(-50%, ${px}px) rotate(${donuyor ? 0 : px * 4}deg)`;
+    gosterge.classList.toggle("doner", donuyor);
+  };
+  alan.addEventListener("touchstart", (e) => { y0 = alan.scrollTop <= 0 && !yenileniyor && e.touches.length === 1 ? e.touches[0].clientY : null; cekilen = 0; }, { passive: true });
+  alan.addEventListener("touchmove", (e) => {
+    if (y0 === null) return;
+    const dy = e.touches[0].clientY - y0;
+    if (dy <= 0 || alan.scrollTop > 0) { y0 = null; ciz(0); return; }
+    cekilen = Math.min(dy * 0.5, ESIK + 24);
+    ciz(cekilen);
+  }, { passive: true });
+  alan.addEventListener("touchend", async () => {
+    if (y0 === null) return;
+    y0 = null;
+    if (cekilen < ESIK) return ciz(0);
+    yenileniyor = true;
+    ciz(ESIK / 2, true);
+    try { await tazele(); } finally { yenileniyor = false; ciz(0); }
+  });
+}
+
+let gizlendi = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { gizlendi = Date.now(); return; }
+  if (!gizlendi || Date.now() - gizlendi < 60000 || !kabukAcik) return;
+  gizlendi = 0;
+  if (document.body.classList.contains("detay-acik")) veri.onbellekTemizle();   // açık ekran bozulmasın; sonraki açılışlar güncel gelir
+  else tazele();
+});
 function tazele() {
   veri.onbellekTemizle();
   return sekmeCiz(aktif);

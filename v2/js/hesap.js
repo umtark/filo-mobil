@@ -1,5 +1,6 @@
 // İş kuralları: ham kayıtlardan (masaüstündeki alan adlarıyla) ekranların ihtiyaç duyduğu özetleri üretir. Saf fonksiyonlar.
 // Kurallar masaüstü ve eski telefon köprüsüyle (mobil_koprusu.py) birebir aynıdır.
+import { etiket } from "./metin.js";
 import { sayi, tarihCoz, ayAnahtari, bugun, gunFarki, kucuk, sirala } from "./bicim.js";
 
 const AY_RX = /^\d{4}-\d{2}$/;
@@ -24,7 +25,7 @@ export function ogrenciKaydi(o) {
   return {
     id: o.id, ad: o.ad_soyad || "", sinif: o.sinif || "", plaka: (o.servis_plaka || "").trim(), sira: sayi(o.sira_no),
     ucret, odenen, kalan, durum, odemeler, tel: String(tel).trim(), veli: o.veli_adi || "",
-    telefonlar: [["Veli", o.veli_tel], ["Anne", o.anne_tel], ["Baba", o.baba_tel], ["Öğrenci", o.ogrenci_tel]].filter(([, t]) => String(t || "").trim()),
+    telefonlar: [[etiket("okul_col_veli_tel"), o.veli_tel], [etiket("okul_col_anne_tel"), o.anne_tel], [etiket("okul_col_baba_tel"), o.baba_tel], [etiket("okul_col_ogrenci_tel"), o.ogrenci_tel]].filter(([, t]) => String(t || "").trim()),
     servisVar: !o.servis_kullanmiyor && Boolean((o.servis_plaka || "").trim()),
   };
 }
