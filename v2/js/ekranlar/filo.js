@@ -6,6 +6,7 @@ import { ekleDugmesi, islemDugmeleri } from "../form.js";
 import * as duz from "../duzenle.js";
 import { ciktiDugmeleri } from "../cikti.js";
 import { aracPdf, aracXlsx, icHizmetPdf, icHizmetXlsx } from "../cikti_filo.js";
+import { baslik as mb, etiket as me, duz as md } from "../metin.js";
 import { para, sayiYaz, tarihYaz, tarihKisa, ayAdi, ayAnahtari, bugun, eslesir, sirala, telefonTemizle } from "../bicim.js";
 
 const durum = { arac: { arama: "", filtre: "hepsi" }, ic: { arama: "", ay: null }, kayit: { arama: "" } };
@@ -17,7 +18,7 @@ export const aracSayfasi = async (alt = "liste") => h("div", { class: "sayfa" },
 export const icHizmetSayfasi = async () => h("div", { class: "sayfa" }, await icHizmetEkrani());
 
 // ── Araçlar ─────────────────────────────────────────────────────────────────
-const ARAC_SECENEK = [{ k: "bakim", ad: "Yağ, bakım ve harcama kayıtlarını ekle", v: false }];
+const ARAC_SECENEK = [{ k: "bakim", ad: mb("export_include_bakim_harcama"), v: false }];
 
 async function aracEkrani() {
   const liste = (await veri.araclar()).slice().sort((a, b) => sirala(a.plaka, b.plaka));
@@ -27,13 +28,13 @@ async function aracEkrani() {
   const cipAlani = h("div");
 
   function guncelle() {
-    cipAlani.replaceChildren(cipler([["hepsi", "Hepsi", liste.length], ["sorunlu", "Süresi yaklaşan", liste.filter(sorunlu).length]], d.filtre, (k) => { d.filtre = k; guncelle(); }));
-    const g = liste.filter((a) => (d.filtre === "hepsi" || sorunlu(a)) && (!d.arama || eslesir(`${a.plaka} ${a.firma} ${a.sofor} ${a.marka} ${a.model}`, d.arama)));
+    cipAlani.replaceChildren(cipler([["hepsi", mb("flt_tip_tumu"), liste.length], ["sorunlu", "Süresi yaklaşan", liste.filter(sorunlu).length]], d.filtre, (k) => { d.filtre = k; guncelle(); }));
+    const g = liste.filter((a) => (d.filtre === "hepsi" || sorunlu(a)) && (!d.arama || eslesir(`${a.plaka} ${a.firma} ${a.sofor} ${a.marka} ${a.model} ${a.kurum || ""}`, d.arama)));
     sonuc.replaceChildren(g.length ? sayfalamali(g, aracSatiri) : bosDurum("Araç bulunamadı."));
   }
   guncelle();
-  return h("div", {}, veri.yazabilir("arac") && ekleDugmesi("Yeni araç", () => duz.aracFormu(null)),
-    aramaKutusu(d.arama, (v) => { d.arama = v; guncelle(); }, "Plaka, firma ya da şoför ara"),
+  return h("div", {}, veri.yazabilir("arac") && ekleDugmesi(md("qpushbutton__yeni_arac_ekle"), () => duz.aracFormu(null)),
+    aramaKutusu(d.arama, (v) => { d.arama = v; guncelle(); }, mb("arac_carsaf_ara_placeholder")),
     ciktiDugmeleri({ dosya: "arac_kayitlari",
       pdf: { yatay: true, altSol: "Araç Kayıtları Analiz Raporu", secenekler: ARAC_SECENEK, uret: async (c) => aracPdf(c, await veri.hamListe("araclar")) },
       xlsx: { secenekler: ARAC_SECENEK, uret: async (c) => aracXlsx(c, await veri.hamListe("araclar")) } }),
@@ -98,18 +99,18 @@ function aracDetay(a) {
   const duzenleKayit = (tur, k) => (yaz ? () => duz.aracKayitFormu(a.id, tur, k.id) : undefined);
   return h("div", { class: "sayfa" },
     kart(h("p", { class: "soluk" }, a.firma), h("p", { class: "buyuk-sayi baslik" }, `${a.marka} ${a.model}`.trim() || a.plaka),
-      h("div", { class: "bilgi-grid" }, bilgiSatiri("Yıl", a.yil), bilgiSatiri("Yakıt", a.yakit), bilgiSatiri("Kilometre", a.km))),
-    a.sofor && kart(h("h3", {}, "Şoför"), h("div", { class: "telefon" },
+      h("div", { class: "bilgi-grid" }, bilgiSatiri(me("model_yili_lbl"), a.yil), bilgiSatiri(mb("hr_yakit"), a.yakit), bilgiSatiri(mb("hr_km"), a.km))),
+    a.sofor && kart(h("h3", {}, mb("hr_sofor")), h("div", { class: "telefon" },
       h("span", { class: "satir-metin" }, h("span", { class: "satir-baslik" }, a.sofor), h("span", { class: "satir-alt" }, a.soforTel)),
       tel && h("a", { class: "ikon-dugme dolu", href: "tel:" + tel, "aria-label": "Şoförü ara" }, ikon("telefon", 20)))),
-    kart(h("h3", {}, "Belgeler"), a.belgeler.length
+    kart(h("h3", {}, mb("tab_muayene__sigor")), a.belgeler.length
       ? h("div", { class: "liste" }, a.belgeler.map((b) => satir({ baslik: b.ad, alt: `${b.bakim ? "Sonraki: " : "Bitiş: "}${tarihYaz(b.son)}`, sag: kalanYaz(b.gun), ton: belgeTonu(b.seviye) })))
       : bosDurum("Belge tarihi girilmemiş.")),
-    (yaz || a.yagKayitlari.length > 0) && kart(kartBasligi("Yağ bakımı", yaz && (() => duz.aracKayitFormu(a.id, "yag", null))),
+    (yaz || a.yagKayitlari.length > 0) && kart(kartBasligi(mb("tab_yakt_kaytlar"), yaz && (() => duz.aracKayitFormu(a.id, "yag", null))),
       a.yagKayitlari.length ? h("div", { class: "liste" }, a.yagKayitlari.slice(0, 30).map((k) => satir({ baslik: [k.yag, k.litre && `${k.litre} lt`].filter(Boolean).join(" · ") || "Yağ bakımı", alt: [tarihYaz(k.tarih), k.km && `${k.km} km`, ...k.degisenler].filter(Boolean).join(" · "), sagAlt: k.usta, onclick: duzenleKayit("yag", k) }))) : bosDurum("Yağ bakımı kaydı yok.")),
-    (yaz || a.bakimKayitlari.length > 0) && kart(kartBasligi("Tamir-bakım", yaz && (() => duz.aracKayitFormu(a.id, "bakim", null))),
+    (yaz || a.bakimKayitlari.length > 0) && kart(kartBasligi(mb("tab_bakm__servis"), yaz && (() => duz.aracKayitFormu(a.id, "bakim", null))),
       a.bakimKayitlari.length ? h("div", { class: "liste" }, a.bakimKayitlari.slice(0, 30).map((k) => satir({ baslik: k.aciklama || k.tur, alt: tarihYaz(k.tarih), sag: k.tutar ? para(k.tutar) : "", onclick: duzenleKayit("bakim", k) }))) : bosDurum("Tamir-bakım kaydı yok.")),
-    (yaz || a.harcamaKayitlari.length > 0) && kart(kartBasligi("Harcamalar", yaz && (() => duz.aracKayitFormu(a.id, "harcama", null))),
+    (yaz || a.harcamaKayitlari.length > 0) && kart(kartBasligi(mb("tab_harcamalar"), yaz && (() => duz.aracKayitFormu(a.id, "harcama", null))),
       a.harcamaKayitlari.length ? h("div", { class: "liste" }, a.harcamaKayitlari.slice(0, 30).map((k) => satir({ baslik: k.aciklama || k.tur, alt: tarihYaz(k.tarih), sag: k.tutar ? para(k.tutar) : "", onclick: duzenleKayit("harcama", k) }))) : bosDurum("Harcama kaydı yok.")),
     yaz && islemDugmeleri({ duzenle: () => duz.aracFormu(a.id, { detaydan: true }) }));
 }
@@ -120,7 +121,7 @@ async function icHizmetEkrani() {
   const aylar = aylaraGore(liste);
   const sirali = [...aylar.keys()].sort().reverse();
   const d = durum.ic;
-  const yeni = veri.yazabilir("ic_hizmet") && ekleDugmesi("Yeni sefer", () => duz.icHizmetFormu(null));
+  const yeni = veri.yazabilir("ic_hizmet") && ekleDugmesi(md("ic_yeni_sefer"), () => duz.icHizmetFormu(null));
   if (!sirali.length) return h("div", {}, yeni, bosDurum("İç hizmet kaydı yok."));
   const bu = ayAnahtari(bugun());
   if (!sirali.includes(d.ay)) d.ay = sirali.includes(bu) ? bu : sirali[0];
@@ -156,8 +157,8 @@ async function seferDetay(id) {
   const s = (await veri.icHizmet()).find((x) => x.id === id);
   if (!s) return bosDurum("Sefer bulunamadı.");
   return h("div", { class: "sayfa" }, kart(
-    h("p", { class: "kart-etiket" }, "Tutar"), h("p", { class: "buyuk-sayi" }, para(s.tutar)),
-    bilgiSatiri("Tarih", `${tarihYaz(s.tarih)} ${s.saat}`.trim()), bilgiSatiri("Plaka", s.plaka), bilgiSatiri("Şoför", s.sofor), bilgiSatiri("Güzergah", s.guzergah),
+    h("p", { class: "kart-etiket" }, mb("ic_col_sefer")), h("p", { class: "buyuk-sayi" }, para(s.tutar)),
+    bilgiSatiri(mb("hr_tarih"), `${tarihYaz(s.tarih)} ${s.saat}`.trim()), bilgiSatiri(mb("hr_plaka"), s.plaka), bilgiSatiri(mb("hr_sofor"), s.sofor), bilgiSatiri(me("ic_guzergah"), s.guzergah),
     bilgiSatiri("Gidilen yer", s.yer), bilgiSatiri("Kişi sayısı", s.kisi ? String(s.kisi) : ""), bilgiSatiri("Personel", s.personel),
     bilgiSatiri("Fiş no", s.fis), bilgiSatiri("Açıklama", s.aciklama)),
     veri.yazabilir("ic_hizmet") && islemDugmeleri({ duzenle: () => duz.icHizmetFormu(id, { detaydan: true }) }));

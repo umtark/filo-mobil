@@ -6,6 +6,7 @@ import { ekleDugmesi, islemDugmeleri } from "../form.js";
 import * as duz from "../duzenle.js";
 import { ciktiDugmeleri } from "../cikti.js";
 import { faturaPdf, faturaXlsx, esnafPdf, esnafXlsx, esnaflarPdf, esnaflarXlsx, petrolPdf, petrolXlsx } from "../cikti_muhasebe.js";
+import { baslik as mb, etiket as me, duz as md } from "../metin.js";
 import { para, paraKesin, sayiYaz, tarihYaz, tarihKisa, ayAdi, ayAnahtari, bugun, eslesir, sirala } from "../bicim.js";
 
 const durum = { fatura: { arama: "", tip: "hepsi" }, esnaf: { arama: "" }, petrol: { arama: "", ay: null } };
@@ -32,8 +33,8 @@ async function faturaEkrani(alt = "tum") {
     sonuc.replaceChildren(g.length ? sayfalamali(g, faturaSatiri) : bosDurum("Fatura bulunamadı."));
   }
   guncelle();
-  return h("div", {}, veri.yazabilir("fatura") && ekleDugmesi("Yeni fatura", () => duz.faturaFormu(null)),
-    aramaKutusu(d.arama, (v) => { d.arama = v; guncelle(); }, "Firma, fatura no ya da açıklama ara"), h("div", { class: "ozet-sira" }, ozet, aktar), sonuc);
+  return h("div", {}, veri.yazabilir("fatura") && ekleDugmesi(md("yeni_fatura_ekle"), () => duz.faturaFormu(null)),
+    aramaKutusu(d.arama, (v) => { d.arama = v; guncelle(); }, mb("flt_arama_placeholder")), h("div", { class: "ozet-sira" }, ozet, aktar), sonuc);
 }
 
 // Aylık Özet: ayın gelen / giden toplamları ve KDV farkı (giden KDV - gelen KDV).
@@ -58,15 +59,15 @@ async function faturaOzeti() {
   return h("div", {},
     faturaCiktisi(tumFaturalar),
     satirlar.map(([a, t]) => kart(h("h3", {}, ayAdi(a)), h("p", { class: "soluk" }, `${t.adet} fatura`),
-      h("div", { class: "bilgi-grid" }, bilgiSatiri("Gelen", para(t.gelen)), bilgiSatiri("Giden", para(t.giden)),
-        bilgiSatiri("Gelen KDV", para(t.gelenKdv)), bilgiSatiri("Giden KDV", para(t.gidenKdv)),
-        bilgiSatiri("KDV farkı", para(t.gidenKdv - t.gelenKdv), t.gidenKdv - t.gelenKdv > 0 ? "kirmizi" : "yesil"), bilgiSatiri("Tevkifat", para(t.tev))))));
+      h("div", { class: "bilgi-grid" }, bilgiSatiri(mb("tip_gelen"), para(t.gelen)), bilgiSatiri(mb("tip_giden"), para(t.giden)),
+        bilgiSatiri(`${mb("tip_gelen")} ${me("kdv_lbl")}`, para(t.gelenKdv)), bilgiSatiri(`${mb("tip_giden")} ${me("kdv_lbl")}`, para(t.gidenKdv)),
+        bilgiSatiri(me("fatura_form_toplam_kdv_net_lbl"), para(t.gidenKdv - t.gelenKdv), t.gidenKdv - t.gelenKdv > 0 ? "kirmizi" : "yesil"), bilgiSatiri(mb("tevkifat_hdr"), para(t.tev))))));
 }
 
 function faturaSatiri(f) {
   return satir({
-    baslik: f.firma || "Firma yok", alt: [tarihYaz(f.tarih), f.no].filter(Boolean).join(" · "),
-    sag: para(f.toplam), sagAlt: f.giden ? "Giden" : "Gelen", ton: f.giden ? "yesil" : "", onclick: () => detayAc(f.firma || "Fatura", () => faturaDetay(f.id)),
+    baslik: f.firma || mb("firma_hdr"), alt: [tarihYaz(f.tarih), f.no].filter(Boolean).join(" · "),
+    sag: para(f.toplam), sagAlt: f.giden ? mb("tip_giden") : mb("tip_gelen"), ton: f.giden ? "yesil" : "", onclick: () => detayAc(f.firma || "Fatura", () => faturaDetay(f.id)),
   });
 }
 
@@ -75,11 +76,11 @@ async function faturaDetay(id) {
   if (!f) return bosDurum("Fatura bulunamadı.");
   const yaz = veri.yazabilir("fatura");
   return h("div", { class: "sayfa" }, kart(
-    h("p", { class: "kart-etiket" }, f.giden ? "Giden fatura" : "Gelen fatura"),
+    h("p", { class: "kart-etiket" }, `${me("qlabel_fatura_tipi")}: ${f.giden ? mb("tip_giden") : mb("tip_gelen")}`),
     h("p", { class: "buyuk-sayi " + (f.giden ? "yesil" : "") }, paraKesin(f.toplam)),
-    bilgiSatiri("Tarih", tarihYaz(f.tarih)), bilgiSatiri("Fatura no", f.no), bilgiSatiri("Firma", f.firma), bilgiSatiri("Açıklama", f.aciklama),
-    bilgiSatiri("Matrah", paraKesin(f.matrah)), bilgiSatiri("KDV", `${f.kdvOrani ? f.kdvOrani + " · " : ""}${paraKesin(f.kdv)}`),
-    !f.tevkifat.startsWith("Yok") && bilgiSatiri("Tevkifat", `${f.tevkifat} · ${paraKesin(f.tevTutar)}`)),
+    bilgiSatiri(me("qlabel_tarih"), tarihYaz(f.tarih)), bilgiSatiri(me("qlabel_fatura_no"), f.no), bilgiSatiri(me("qlabel_firma"), f.firma), bilgiSatiri(me("qlabel_aciklama"), f.aciklama),
+    bilgiSatiri(me("qlabel_matrah"), paraKesin(f.matrah)), bilgiSatiri(me("kdv_lbl"), `${f.kdvOrani ? f.kdvOrani + " · " : ""}${paraKesin(f.kdv)}`),
+    !f.tevkifat.startsWith("Yok") && bilgiSatiri(mb("tevkifat_hdr"), `${f.tevkifat} · ${paraKesin(f.tevTutar)}`)),
     yaz && islemDugmeleri({ duzenle: () => duz.faturaFormu(id, { detaydan: true }) }));
 }
 
@@ -96,9 +97,9 @@ async function esnafEkrani() {
   }
   guncelle();
   return h("div", {},
-    kart(h("p", { class: "kart-etiket" }, "Toplam borç"), h("p", { class: "buyuk-sayi" }, para(borc)), h("p", { class: "soluk" }, `${liste.filter((e) => e.bakiye > 0.01).length} esnafa borç var`)),
-    veri.yazabilir("esnaf") && ekleDugmesi("Yeni esnaf", () => duz.esnafFormu(null)),
-    aramaKutusu(d.arama, (v) => { d.arama = v; guncelle(); }, "Esnaf ara"),
+    kart(h("p", { class: "kart-etiket" }, me("esnaf_bakiye_lbl_borc")), h("p", { class: "buyuk-sayi" }, para(borc)), h("p", { class: "soluk" }, `${liste.filter((e) => e.bakiye > 0.01).length} esnafa borç var`)),
+    veri.yazabilir("esnaf") && ekleDugmesi(mb("esnaf_yeni_ekle"), () => duz.esnafFormu(null)),
+    aramaKutusu(d.arama, (v) => { d.arama = v; guncelle(); }, mb("esnaf_ara_placeholder")),
     ciktiDugmeleri({ dosya: "esnaf_raporu", donem: true,
       pdf: { yatay: true, altSol: "Esnaf Hesap Raporu", uret: (c) => esnaflarPdf(c, liste) },
       xlsx: { uret: (c) => esnaflarXlsx(c, liste) } }), sonuc);
@@ -106,7 +107,7 @@ async function esnafEkrani() {
 
 function esnafSatiri(e) {
   const borcVar = e.bakiye > 0.01;
-  return satir({ baslik: e.isim, alt: `${e.islemler.length} işlem`, sag: borcVar ? para(e.bakiye) : "Borç yok", ton: borcVar ? "kirmizi" : "yesil", onclick: () => detayAc(e.isim, () => esnafDetay(e.id)) });
+  return satir({ baslik: e.isim, alt: `${e.islemler.length} işlem`, sag: borcVar ? para(e.bakiye) : mb("cari_status_settled"), ton: borcVar ? "kirmizi" : "yesil", onclick: () => detayAc(e.isim, () => esnafDetay(e.id)) });
 }
 
 async function esnafDetay(id) {
@@ -114,17 +115,17 @@ async function esnafDetay(id) {
   if (!e) return bosDurum("Esnaf bulunamadı.");
   const yaz = veri.yazabilir("esnaf");
   return h("div", { class: "sayfa" },
-    kart(h("p", { class: "kart-etiket" }, "Kalan borç"), h("p", { class: "buyuk-sayi " + (e.bakiye > 0.01 ? "kirmizi" : "yesil") }, para(Math.max(0, e.bakiye))),
-      h("div", { class: "bilgi-grid" }, bilgiSatiri("Toplam işlem", para(e.borc)), bilgiSatiri("Ödenen", para(e.odenen)))),
+    kart(h("p", { class: "kart-etiket" }, mb("hr_kalan_borc")), h("p", { class: "buyuk-sayi " + (e.bakiye > 0.01 ? "kirmizi" : "yesil") }, para(Math.max(0, e.bakiye))),
+      h("div", { class: "bilgi-grid" }, bilgiSatiri(mb("esnaf_dash_toplam_islem"), para(e.borc)), bilgiSatiri(mb("esnaf_dash_toplam_odeme"), para(e.odenen)))),
     ciktiDugmeleri({ dosya: "esnaf_hesap", donem: true,
       pdf: { yatay: true, altSol: e.isim, uret: (c) => esnafPdf(c, e) },
       xlsx: { uret: (c) => esnafXlsx(c, e) } }),
     yaz && h("div", { class: "iki-sutun" },
-      h("button", { class: "dugme birincil", type: "button", onclick: () => duz.esnafIslemFormu(id, null) }, "İşlem ekle"),
-      h("button", { class: "dugme birincil", type: "button", onclick: () => duz.esnafIslemFormu(id, null, { odeme: true }) }, "Ödeme ekle")),
-    kart(h("h3", {}, "İşlemler"), e.islemler.length
+      h("button", { class: "dugme birincil", type: "button", onclick: () => duz.esnafIslemFormu(id, null) }, mb("esnaf_islem_ekle")),
+      h("button", { class: "dugme birincil", type: "button", onclick: () => duz.esnafIslemFormu(id, null, { odeme: true }) }, mb("esnaf_odeme_yap"))),
+    kart(h("h3", {}, mb("islemler_hdr")), e.islemler.length
       ? h("div", { class: "liste" }, e.islemler.slice(0, 100).map((i) => satir({
-        baslik: i.odeme ? "Ödeme" : i.aciklama || "İşlem", alt: [tarihYaz(i.tarih), i.plaka].filter(Boolean).join(" · "),
+        baslik: i.odeme ? mb("hr_odeme") : i.aciklama || mb("hr_islem_sayisi").replace(/ Sayısı$/, ""), alt: [tarihYaz(i.tarih), i.plaka].filter(Boolean).join(" · "),
         sag: para(i.toplam), ton: i.odeme ? "yesil" : "", onclick: yaz ? () => duz.esnafIslemFormu(id, i.id) : undefined })))
       : bosDurum("İşlem yok.")),
     yaz && islemDugmeleri({ duzenle: () => duz.esnafFormu(id, { detaydan: true }) }));
@@ -137,7 +138,7 @@ async function akaryakitEkrani() {
   const sirali = [...aylar.keys()].sort().reverse();
   const d = durum.petrol;
   const bu = ayAnahtari(bugun());
-  const yeni = veri.yazabilir("petrol") && ekleDugmesi("Yeni akaryakıt kaydı", () => duz.akaryakitFormu(null));
+  const yeni = veri.yazabilir("petrol") && ekleDugmesi(mb("petrol_yeni_alim_ekle"), () => duz.akaryakitFormu(null));
   if (!sirali.length) return h("div", {}, yeni, bosDurum("Akaryakıt kaydı yok."));
   if (!sirali.includes(d.ay)) d.ay = sirali.includes(bu) ? bu : sirali[0];
 
@@ -150,8 +151,8 @@ async function akaryakitEkrani() {
     kap.replaceChildren(
       yeni,
       ayCubugu(sirali, d.ay, (a) => { d.ay = a; guncelle(); }, ayAdi),
-      kart(h("p", { class: "kart-etiket" }, "Yakıt alımı"), h("p", { class: "buyuk-sayi" }, para(tutar)), h("p", { class: "soluk" }, `${alim.length} alım${litre ? ` · ${sayiYaz(litre)} lt` : ""}`)),
-      aramaKutusu(d.arama, (v) => { d.arama = v; ara(); }, "Plaka ya da istasyon ara"),
+      kart(h("p", { class: "kart-etiket" }, me("petrol_toplam_borc")), h("p", { class: "buyuk-sayi" }, para(tutar)), h("p", { class: "soluk" }, `${alim.length} alım${litre ? ` · ${sayiYaz(litre)} lt` : ""}`)),
+      aramaKutusu(d.arama, (v) => { d.arama = v; ara(); }, mb("ara_istasyon")),
       ciktiDugmeleri({ dosya: "akaryakit_ekstre", donem: true, varsayilanAy: () => d.ay,
         pdf: { yatay: false, altSol: "Akaryakıt Hesap Ekstresi", uret: (c) => petrolPdf(c, liste.filter((r) => !d.arama || eslesir(`${r.plaka} ${r.istasyon}`, d.arama))) },
         xlsx: { uret: (c) => petrolXlsx(c, liste.filter((r) => !d.arama || eslesir(`${r.plaka} ${r.istasyon}`, d.arama))) } }),
@@ -163,8 +164,8 @@ async function akaryakitEkrani() {
     const g = ay.filter((r) => !d.arama || eslesir(`${r.plaka} ${r.istasyon}`, d.arama));
     const alan = kap.querySelector("#yakit-liste");
     alan.replaceChildren(g.length ? sayfalamali(g, (r) => satir({
-      baslik: r.plaka || "Plaka yok", alt: [tarihKisa(r.tarih), r.istasyon, r.litre ? `${sayiYaz(r.litre)} lt` : ""].filter(Boolean).join(" · "),
-      sag: para(r.tutar), sagAlt: r.odeme ? "İstasyona ödeme" : "", ton: r.odeme ? "yesil" : "",
+      baslik: r.plaka || mb("plaka"), alt: [tarihKisa(r.tarih), r.istasyon, r.litre ? `${sayiYaz(r.litre)} lt` : ""].filter(Boolean).join(" · "),
+      sag: para(r.tutar), sagAlt: r.odeme ? mb("hr_odeme") : "", ton: r.odeme ? "yesil" : "",
       onclick: veri.yazabilir("petrol") ? () => duz.akaryakitFormu(r.id) : undefined })) : bosDurum("Kayıt bulunamadı."));
   }
   guncelle();
