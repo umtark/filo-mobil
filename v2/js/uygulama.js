@@ -224,10 +224,13 @@ function cekmeceAc() {
       const alt = altlar(s);
       const grup = alt.length > 1;
       const seciliModul = s.id === aktif;
-      const baslikDugmesi = h("button", { class: "cekmece-oge" + (seciliModul ? " secili" : ""), "aria-expanded": grup ? String(acik.has(s.id)) : undefined, "aria-current": seciliModul && !grup ? "page" : undefined,
-        onclick: () => { if (!grup) { cekmeceKapat(false); return sekmeyeGit(s.id); } acik.has(s.id) ? acik.delete(s.id) : acik.add(s.id); listeCiz(); } },
-        simge(s, 28), h("span", { class: "cekmece-ad" }, s.ad), grup && h("span", { class: "cekmece-ok" + (acik.has(s.id) ? " acik" : "") }, ikon("sag", 18)));
-      return h("div", { class: "cekmece-grup" }, baslikDugmesi,
+      const baslikDugmesi = h("button", { class: "cekmece-oge" + (seciliModul ? " secili" : ""), "aria-current": seciliModul && !grup ? "page" : undefined,
+        onclick: () => { cekmeceKapat(false); sekmeyeGit(s.id); } },
+        simge(s, 28), h("span", { class: "cekmece-ad" }, s.ad));
+      // Alt sekmesi olan modüllerde ad dokununca modüle gider; ok yalnızca alt sekmeleri açıp kapatır.
+      const ok = grup && h("button", { class: "cekmece-ok-dugme" + (acik.has(s.id) ? " acik" : ""), type: "button", "aria-expanded": String(acik.has(s.id)), "aria-label": `${s.ad} alt başlıkları`,
+        onclick: () => { acik.has(s.id) ? acik.delete(s.id) : acik.add(s.id); listeCiz(); } }, ikon("sag", 18));
+      return h("div", { class: "cekmece-grup" }, h("div", { class: "cekmece-satir" }, baslikDugmesi, ok),
         grup && acik.has(s.id) && h("div", { class: "cekmece-alt" }, alt.map(([k, adi]) =>
           h("button", { class: "cekmece-altoge" + (seciliModul && k === altSecimi(s) ? " secili" : ""), onclick: () => { cekmeceKapat(false); sekmeyeGit(s.id, k); } }, adi))));
     }));
