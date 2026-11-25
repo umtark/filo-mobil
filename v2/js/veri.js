@@ -78,7 +78,7 @@ export function erisimYok() {
 // Tam ekran durum sayfası: "bloke" (şirket platform yöneticisince bloke edildi) | "bakim" (tüm şirketler bakımda) | "erisim" (hiçbir sekmeye izin yok) | null. Platform yöneticisi etkilenmez.
 export function durumTuru() {
   if (baglam.platform) return null;
-  if (baglam.lisans && baglam.lisans.aktif === false) return "bloke";
+  if (baglam.lisans && (baglam.lisans.aktif === false || baglam.lisans.uye_bitti === true)) return "bloke";
   if (baglam.bakim && baglam.bakim.acik === true) return "bakim";
   if (erisimYok()) return "erisim";
   return null;

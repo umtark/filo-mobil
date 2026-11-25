@@ -8,6 +8,7 @@ import { VARSAYILAN_MARKA } from "./marka_normal.js";
 import { baglam } from "./veri.js";
 import { ayAnahtari, bugun } from "./bicim.js";
 import { sayiTr, tl, gg, ggSaat, donemCoz } from "./cikti_yardim.js";
+import { sekmeAc, sekmedeGoster, sekmeKapat } from "./dosya.js";
 
 const AYAR_ANAHTARI = "filo2.cikti";
 const p2 = (n) => String(n).padStart(2, "0");
@@ -55,7 +56,7 @@ function ayarYaz(a) {
   try { localStorage.setItem(AYAR_ANAHTARI, JSON.stringify(a)); } catch { /* depolama kapalı */ }
 }
 
-function ayarPaneli({ donem, baslik, onay, secenekler = [], varsayilanAy = "" }, devam) {
+function ayarPaneli({ donem, baslik, onay, secenekler = [], varsayilanAy = "", goster = false }, devam) {
   const kayit = ayarOku();
   const durum = {
     tur: donem ? (varsayilanAy ? "ay" : kayit.donemTur || "tumu") : "tumu", ay: varsayilanAy || kayit.donemAy || ayAnahtari(bugun()),
@@ -74,12 +75,14 @@ function ayarPaneli({ donem, baslik, onay, secenekler = [], varsayilanAy = "" },
       ...secenekler.map((s) => h("label", { class: "secenek" }, h("input", { type: "checkbox", checked: durum.sec[s.k], onchange: (e) => { durum.sec[s.k] = e.target.checked; } }), h("span", {}, s.ad))),
       ozelLogoVar() && h("div", { class: "alan" }, h("span", {}, "Logo"), segment([["yok", "Yok"], ["sol", "Sol"], ["sag", "Sağ"]], durum.logo, (k) => { durum.logo = k; ciz(); })),
       ozelLogoVar() && durum.logo !== "yok" && h("div", { class: "alan" }, h("span", {}, "Logo boyutu"), segment([["kucuk", "Küçük"], ["orta", "Orta"], ["buyuk", "Büyük"]], durum.boyut, (k) => { durum.boyut = k; ciz(); })),
-      h("button", { class: "dugme birincil genis", type: "button", onclick: gonder }, ikon("indir", 18), onay));
+      h("button", { class: "dugme birincil genis", type: "button", onclick: () => gonder("indir") }, ikon("indir", 18), onay),
+      goster && h("button", { class: "dugme ikincil genis", type: "button", onclick: () => gonder("goster") }, ikon("goz", 18), "Görüntüle"));
   }
-  function gonder() {
+  function gonder(mod) {
+    const sekme = mod === "goster" ? sekmeAc() : null;   // sekme tıklama anında açılmalı
     ayarYaz({ donemTur: durum.tur, donemAy: durum.ay, firma: durum.firma.trim(), logo: ozelLogoVar() ? durum.logo : kayit.logo, boyut: durum.boyut });
     panel.kapat();
-    devam({ donem: donemCoz({ tur: durum.tur, ay: durum.ay }), firma: durum.firma.trim(), logoKonum: durum.logo, logoBoyut: durum.boyut, sec: { ...durum.sec } });
+    devam({ donem: donemCoz({ tur: durum.tur, ay: durum.ay }), firma: durum.firma.trim(), logoKonum: durum.logo, logoBoyut: durum.boyut, sec: { ...durum.sec } }, mod, sekme);
   }
   ciz();
   const panel = panelAc(baslik, kap);
@@ -120,15 +123,19 @@ export function ciktiDugmeleri({ dosya, donem = false, varsayilanAy = null, pdf 
   const kap = h("div", { class: "cikti-dugmeleri" });
   async function calistir(tur, tanim, dugme) {
     const etiket = dugme.lastChild.textContent;
-    const calis = async (ayar) => {
+    const calis = async (ayar, mod = "indir", sekme = null) => {
       dugme.disabled = true;
       dugme.lastChild.textContent = "Hazırlanıyor";
       try {
         const ctx = { ...ayar, donemGoster: donem };
         const bayt = tur === "pdf" ? await pdfUret(tanim, ctx) : xlsxUret(await tanim.uret(ctx));
-        dosyaIndir(bayt, dosyaAdi(dosya, tur), tur);
-        toast(`${tur === "pdf" ? "PDF" : "Excel"} dosyası indirildi`, "basari");
+        if (mod === "goster") sekmedeGoster(sekme, new Blob([bayt], { type: MIME.pdf }), dosyaAdi(dosya, "pdf"));
+        else {
+          dosyaIndir(bayt, dosyaAdi(dosya, tur), tur);
+          toast(`${tur === "pdf" ? "PDF" : "Excel"} dosyası indirildi`, "basari");
+        }
       } catch (e) {
+        sekmeKapat(sekme);
         toast((e && e.message) || "Dosya oluşturulamadı", "hata");
       } finally {
         dugme.disabled = false;
@@ -136,7 +143,7 @@ export function ciktiDugmeleri({ dosya, donem = false, varsayilanAy = null, pdf 
       }
     };
     if (tur === "xlsx" && !tanim.sor && !donem && !(tanim.secenekler || []).length) return calis({ donem: donemCoz({}), firma: ayarOku().firma ?? baglam.isletmeAdi ?? marka.ad, logoKonum: "yok", logoBoyut: "kucuk", sec: {} });
-    ayarPaneli({ donem, baslik: tur === "pdf" ? "PDF ayarları" : "Excel ayarları", onay: tur === "pdf" ? "PDF indir" : "Excel indir", secenekler: tanim.secenekler, varsayilanAy: varsayilanAy ? varsayilanAy() : "" }, calis);
+    ayarPaneli({ donem, baslik: tur === "pdf" ? "PDF ayarları" : "Excel ayarları", onay: tur === "pdf" ? "PDF indir" : "Excel indir", goster: tur === "pdf", secenekler: tanim.secenekler, varsayilanAy: varsayilanAy ? varsayilanAy() : "" }, calis);
   }
   const dugme = (tur, ad, tanim) => {
     const d = h("button", { class: "dugme ikincil kucuk", type: "button" }, ikon("indir", 16), h("span", {}, ad));

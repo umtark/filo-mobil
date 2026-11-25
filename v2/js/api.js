@@ -96,13 +96,13 @@ export const depoSil = (kova, yol) => cagir(`/storage/v1/object/${kova}/${yol}`,
 // Evrakı doğrudan Google Drive'a koyan Supabase fonksiyonu (supabase/functions/evrak_drive). Dönen: { id, dosya }.
 export const evrakDriveYukle = (isletme, yol, dosya) => cagir("/functions/v1/evrak_drive", { yontem: "POST", govde: dosya, ust: { "Content-Type": dosya.type || "application/octet-stream", "x-isletme": isletme, "x-yol": encodeURIComponent(yol) } });
 // Drive'daki evrak dosyasını (herkese açık bağlantı olmadan) fonksiyon üzerinden indirir; yetki sunucuda denetlenir. Dönen: Blob.
-export async function evrakDriveIndir(isletme, kayit) {
+async function driveIndir(ust) {
   if (oturum && oturum.expires_at && oturum.expires_at - 30 < Date.now() / 1000) await yenile();
   let cevap;
   try {
     cevap = await fetch(SUPABASE_URL + "/functions/v1/evrak_drive", {
       method: "POST",
-      headers: { apikey: ANON_KEY, Authorization: `Bearer ${oturum && oturum.access_token}`, "x-islem": "indir", "x-isletme": isletme, "x-kayit": encodeURIComponent(kayit) },
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${oturum && oturum.access_token}`, ...ust },
     });
   } catch { throw new ApiHatasi(duz("login_hata_sunucu"), 0); }
   if (!cevap.ok) {
@@ -112,6 +112,9 @@ export async function evrakDriveIndir(isletme, kayit) {
   }
   return cevap.blob();
 }
+export const evrakDriveIndir = (isletme, kayit) => driveIndir({ "x-islem": "indir", "x-isletme": isletme, "x-kayit": encodeURIComponent(kayit) });
+// Okul ödemesine eklenmiş dekont (Drive: Evraklar/Okul_Dekont/<öğrenci>/<dosya>); yetki ve yolun o öğrencinin kaydında geçmesi sunucuda denetlenir.
+export const dekontDriveIndir = (isletme, ogrenci, yol) => driveIndir({ "x-islem": "dekont", "x-isletme": isletme, "x-kayit": encodeURIComponent(ogrenci), "x-dosya": encodeURIComponent(yol) });
 export async function depoBaglantisi(kova, yol, saniye = 600) {
   const v = await cagir(`/storage/v1/object/sign/${kova}/${yol}`, { yontem: "POST", govde: { expiresIn: saniye } });
   return `${SUPABASE_URL}/storage/v1${v.signedURL}`;
