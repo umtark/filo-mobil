@@ -6,7 +6,7 @@ import { goruntule, indir } from "../dosya.js";
 import { okulToplam, yontemToplami } from "../hesap.js";
 import { animasyon } from "../lottie.js";
 import { duz, doldur, baslik as mb, etiket as me } from "../metin.js";
-import { para, paraKesin, sayi, tarihYaz, tarihCoz, ayAdi, ayAnahtari, ayEkle, eslesir, sirala, isoTarih, bugun, telefonTemizle } from "../bicim.js";
+import { para, paraKesin, sayi, tarihYaz, tarihCoz, ayAdi, ayAnahtari, ayEkle, eslesir, aramaEslesir, aramaHazirla, sirala, isoTarih, bugun, telefonTemizle } from "../bicim.js";
 import { ekleDugmesi, islemDugmeleri } from "../form.js";
 import * as ed from "../duzenle.js";
 import { ciktiDugmeleri } from "../cikti.js";
@@ -47,7 +47,7 @@ async function kullanmayanEkrani() {
   const sonuc = h("div");
   const ozet = h("p", { class: "soluk ozet-satir" });
   function guncelle() {
-    const g = liste.filter((o) => !durum.kullanmayan || eslesir(`${o.ad} ${o.sinif} ${o.veli}`, durum.kullanmayan));
+    const g = liste.filter((o) => !durum.kullanmayan || aramaEslesir(o.arama, durum.kullanmayan));
     ozet.textContent = doldur("okul_toplam", { sayi: g.length });
     sonuc.replaceChildren(g.length ? sayfalamali(g, (o) => satir({ baslik: o.ad, alt: [o.sinif, o.veli].filter(Boolean).join(" · "), sag: o.neden, onclick: () => detayAc(o.ad, () => kullanmayanDetay(o.id)) })) : bosDurum("Öğrenci bulunamadı."));
   }
@@ -71,7 +71,7 @@ async function servislerEkrani() {
   const sonuc = h("div");
   const ozet = h("p", { class: "soluk ozet-satir" });
   function guncelle() {
-    const g = liste.filter((s) => !durum.servis || eslesir(`${s.plaka} ${s.sofor} ${s.guzergah} ${s.sahip}`, durum.servis));
+    const g = liste.filter((s) => !durum.servis || aramaEslesir(s.arama, durum.servis));
     ozet.textContent = `${g.length} servis · ${g.reduce((t, s) => t + s.ogrenci, 0)} öğrenci`;
     sonuc.replaceChildren(g.length ? sayfalamali(g, (s) => {
       const b = s.belgeler.find((x) => x.seviye !== "iyi");
@@ -128,7 +128,7 @@ async function puantajEkrani() {
 
   function guncelle() {
     const ay = durum.puantajAy;
-    const g = servisler.filter((s) => !durum.puantaj || eslesir(`${s.plaka} ${s.guzergah || ""} ${s.sofor_ad || ""} ${s.arac_sahibi || ""}`, durum.puantaj));
+    const g = servisler.filter((s) => !durum.puantaj || aramaEslesir(aramaHazirla([s.plaka, String(s.plaka || "").replace(/\s+/g, ""), s.guzergah, s.sofor_ad, s.sofor_tel, s.arac_sahibi], [s.sofor_tel]), durum.puantaj));
     const gunler = (s) => gelenGunSayisi(s, ay, ayar);
     const gruplar = new Map();
     for (const s of g) { const k = String(s.kademe || ""); (gruplar.get(k) || gruplar.set(k, []).get(k)).push(s); }
@@ -163,7 +163,7 @@ async function ogrencilerEkrani(tahsilat) {
   function guncelle() {
     cipAlani.replaceChildren(cipler([["hepsi", mb("okul_tum_odemeler"), liste.length], ["bekliyor", mb("okul_bekliyor"), t.bekliyor], ["kismi", mb("okul_kismi_odendi"), t.kismi], ["odendi", mb("okul_odendi"), t.odendi]],
       durum.filtre, (k) => { durum.filtre = k; guncelle(); }));
-    const g = liste.filter((o) => (durum.filtre === "hepsi" || o.durum === durum.filtre) && (!durum.yontem || o.odemeler.some((x) => x.yontem === durum.yontem)) && (!durum.arama || eslesir(`${o.ad} ${o.sinif} ${o.plaka}`, durum.arama)));
+    const g = liste.filter((o) => (durum.filtre === "hepsi" || o.durum === durum.filtre) && (!durum.yontem || o.odemeler.some((x) => x.yontem === durum.yontem)) && (!durum.arama || aramaEslesir(o.arama, durum.arama)));
     sonuc.replaceChildren(g.length ? sayfalamali(g, ogrenciSatiri) : bosDurum("Bu filtreyle eşleşen öğrenci yok."));
   }
 

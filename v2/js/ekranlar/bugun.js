@@ -7,6 +7,7 @@ import { durum as okulDurumu } from "./okul.js";
 import { aracAc, kalanYaz, belgeTonu } from "./filo.js";
 import { ciktiDugmeleri } from "../cikti.js";
 import { genelVeri, genelDurumPdf } from "../cikti_genel.js";
+import { baslik, etiket } from "../metin.js";
 
 const durum = { ay: null };
 
@@ -58,8 +59,8 @@ async function gelirGider() {
         h("p", { class: "kart-etiket" }, "Net"),
         h("p", { class: "buyuk-sayi " + (net < 0 ? "kirmizi" : "yesil") }, para(net)),
         h("div", { class: "bilgi-grid" },
-          h("div", { class: "bilgi" }, h("span", { class: "bilgi-etiket" }, "Gelir"), h("span", { class: "bilgi-deger yesil" }, para(k.gelir))),
-          h("div", { class: "bilgi" }, h("span", { class: "bilgi-etiket" }, "Gider"), h("span", { class: "bilgi-deger" }, para(k.gider))))));
+          h("div", { class: "bilgi" }, h("span", { class: "bilgi-etiket" }, etiket("dash_income_label")), h("span", { class: "bilgi-deger yesil" }, para(k.gelir))),
+          h("div", { class: "bilgi" }, h("span", { class: "bilgi-etiket" }, etiket("dash_expense_label")), h("span", { class: "bilgi-deger" }, para(k.gider))))));
   }
   guncelle();
   return kap;
@@ -74,8 +75,8 @@ async function tahsilat(sekmeyeGit) {
     h("p", { class: "buyuk-sayi" }, para(t.kalan)),
     h("p", { class: "soluk" }, `Kalan · ${para(t.odenen)} / ${para(t.ucret)} tahsil edildi`),
     h("div", { class: "liste" },
-      satir({ baslik: "Hiç ödemeyen", sag: `${t.bekliyor} öğrenci`, ton: t.bekliyor ? "kirmizi" : "", onclick: () => git("bekliyor") }),
-      satir({ baslik: "Eksik ödeyen", sag: `${t.kismi} öğrenci`, ton: t.kismi ? "kehribar" : "", onclick: () => git("kismi") })));
+      satir({ baslik: baslik("tah_ozet_hic_odemeyen"), sag: `${t.bekliyor} öğrenci`, ton: t.bekliyor ? "kirmizi" : "", onclick: () => git("bekliyor") }),
+      satir({ baslik: baslik("tah_ozet_kismi_odeyen"), sag: `${t.kismi} öğrenci`, ton: t.kismi ? "kehribar" : "", onclick: () => git("kismi") })));
 }
 
 async function belgeler() {
@@ -84,7 +85,7 @@ async function belgeler() {
     .sort((x, y) => x.gun - y.gun);
   const SINIR = 8;
   return kart(
-    h("h3", {}, "Yaklaşan belgeler"),
+    h("h3", {}, baslik("dash_alerts")),
     yaklasan.length
       ? h("div", { class: "liste" },
         yaklasan.slice(0, SINIR).map((b) => satir({ baslik: b.arac.plaka, alt: b.ad, sag: kalanYaz(b.gun), ton: belgeTonu(b.seviye), onclick: () => aracAc(b.arac.id, b.arac.plaka) })),
