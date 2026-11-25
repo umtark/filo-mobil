@@ -10,19 +10,20 @@ import { ciktiDugmeleri } from "../cikti.js";
 import { genelVeri, genelDurumPdf } from "../cikti_genel.js";
 import { baslik } from "../metin.js";
 import { DONEMLER, VARSAYILAN_DONEM, donemAraligi, aylikSeri, kpiOzeti, filoOzeti, uyariOzeti, uyariOnceligi, hareketler, tutarYaz } from "../ozet.js";
-import { trendGrafigi, halkaGrafigi, paraSayaci, adetSayaci, sayac } from "../grafik.js";
+import { trendGrafigi, halkaGrafigi, paraSayaci, adetSayaci, sayac, canlandir } from "../grafik.js";
 
-const durum = { kpi: VARSAYILAN_DONEM, grafik: VARSAYILAN_DONEM };
-const FIRMA_RENKLERI = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16", "#f97316", "#14b8a6"];
+// Tek dönem seçimi hem özet kartını hem grafiği yönetir; dinleyiciler her çizimde yeniden kurulur.
+const durum = { donem: VARSAYILAN_DONEM };
+let donemDinleyicileri = [];
 const finansIzni = () => ["fatura", "petrol", "esnaf"].every(veri.izinVar);
 
 export async function ciz(sekmeyeGit) {
   const d = bugun();
+  donemDinleyicileri = [];
   const sayfa = h("div", { class: "sayfa" },
     h("div", { class: "karsilama" },
       h("p", { class: "soluk" }, new Intl.DateTimeFormat("tr-TR", { weekday: "long", day: "numeric", month: "long" }).format(d)),
-      h("h2", {}, veri.baglam.isletmeAdi || "Filo Muhasebe"),
-      h("p", { class: "soluk" }, baslik("dashboard_subtitle"))));
+      h("h2", {}, veri.baglam.isletmeAdi || "Filo Muhasebe")));
   if (["fatura", "petrol", "esnaf", "okul", "arac", "ic_hizmet"].every(veri.izinVar)) {
     sayfa.append(ciktiDugmeleri({
       dosya: "genel_durum_raporu", donem: true,
@@ -36,8 +37,8 @@ export async function ciz(sekmeyeGit) {
     }));
   }
   if (finansIzni() || veri.izinVar("arac")) sayfa.append(blok(donemOzeti));
-  if (veri.izinVar("arac")) sayfa.append(blok(filoKarti));
   if (finansIzni()) sayfa.append(blok(trendKarti));
+  if (veri.izinVar("arac")) sayfa.append(blok(filoKarti));
   if (veri.izinVar("okul")) sayfa.append(blok(() => tahsilat(sekmeyeGit)));
   if (veri.izinVar("arac")) sayfa.append(blok(uyarilar));
   if (veri.izinVar("fatura") || veri.izinVar("arac")) sayfa.append(blok(sonHareketler));
@@ -65,63 +66,73 @@ async function aylikVeri() {
 }
 
 // ── Dönem özeti ─────────────────────────────────────────────────────────────
-function kpiKarti(sira, renk) {
-  const ad = h("span", { class: "kpi-baslik" });
-  const deger = h("strong", { class: "kpi-deger" });
-  return { el: h("div", { class: "kpi-kart", style: `--renk:var(--${renk});--i:${sira}` }, ad, deger), ad, deger };
+// Net büyük; gelir/gider yanında; araç sayısı ve kritik uyarı daha sessiz ikinci satırda.
+function hucre(sinif, renk) {
+  const ad = h("span", { class: "ozet-etiket" });
+  const deger = h("strong", { class: "ozet-deger" });
+  return { ad, deger, el: h("div", { class: `ozet-hucre ${sinif}`, style: renk ? `--renk:${renk}` : null }, ad, deger) };
 }
 
 async function donemOzeti() {
   const arac = veri.izinVar("arac"), finans = finansIzni();
   const [aylik, araclar] = await Promise.all([finans ? aylikVeri() : new Map(), arac ? veri.araclar() : []]);
-  const kartlar = {
-    arac: arac && kpiKarti(0, "ana"), gelir: finans && kpiKarti(1, "yesil"), gider: finans && kpiKarti(2, "kirmizi"), uyari: arac && kpiKarti(3, "kehribar"),
-  };
   const cipAlani = h("div");
+  const net = finans && hucre("net"), gelir = finans && hucre("gelir", "var(--yesil)"), gider = finans && hucre("gider", "var(--kirmizi)");
+  const adet = arac && hucre("ikincil"), uyari = arac && hucre("ikincil");
   function guncelle() {
-    if (!finans) return;
-    const o = kpiOzeti(durum.kpi, aylik);
-    kartlar.gelir.ad.textContent = o.gelirBaslik;
-    kartlar.gider.ad.textContent = o.giderBaslik;
-    paraSayaci(kartlar.gelir.deger, o.gelir);
-    paraSayaci(kartlar.gider.deger, o.gider);
-    cipAlani.replaceChildren(donemCipleri(durum.kpi, (k) => { durum.kpi = k; guncelle(); }));
+    const o = kpiOzeti(durum.donem, aylik);
+    net.ad.textContent = baslik("dash_net_label");
+    gelir.ad.textContent = o.gelirBaslik;
+    gider.ad.textContent = o.giderBaslik;
+    net.deger.className = `ozet-deger ${o.gelir - o.gider < 0 ? "kirmizi" : "yesil"}`;
+    paraSayaci(net.deger, o.gelir - o.gider);
+    paraSayaci(gelir.deger, o.gelir);
+    paraSayaci(gider.deger, o.gider);
+    cipAlani.replaceChildren(donemCipleri(durum.donem, (k) => { durum.donem = k; guncelle(); donemDinleyicileri.forEach((f) => f()); }));
   }
+  if (finans) guncelle();
   if (arac) {
-    kartlar.arac.ad.textContent = baslik("kpi_toplam_arac");
-    adetSayaci(kartlar.arac.deger, filoOzeti(araclar).toplam, ` ${baslik("adet_birimi")}`);
+    adet.ad.textContent = baslik("kpi_toplam_arac");
+    adetSayaci(adet.deger, filoOzeti(araclar).toplam, ` ${baslik("adet_birimi")}`);
     const u = uyariOzeti(araclar);
-    kartlar.uyari.ad.textContent = baslik("kpi_kritik_uyari");
-    sayac(kartlar.uyari.deger, u.liste.length, (v) => `${u.liste.length ? Math.min(u.kritik, Math.round((v * u.kritik) / u.liste.length)) : 0} / ${Math.round(v)}`, { sure: 1200 });
+    uyari.ad.textContent = baslik("kpi_kritik_uyari");
+    uyari.deger.classList.toggle("kirmizi", u.kritik > 0);
+    sayac(uyari.deger, u.liste.length, (v) => `${u.liste.length ? Math.min(u.kritik, Math.round((v * u.kritik) / u.liste.length)) : 0} / ${Math.round(v)}`, { sure: 1200 });
   }
-  guncelle();
-  return kart(h("h3", {}, baslik("kpi_header_title")), cipAlani, h("div", { class: "kpi-izgara" }, [kartlar.arac, kartlar.gelir, kartlar.gider, kartlar.uyari].filter(Boolean).map((k) => k.el)));
+  return kart(h("h3", {}, baslik("kpi_header_title")), finans && cipAlani,
+    finans && h("div", { class: "ozet-ust" }, net.el, h("div", { class: "ozet-cift" }, gelir.el, gider.el)),
+    arac && h("div", { class: "ozet-cift ozet-alt" }, adet.el, uyari.el));
 }
 
 // ── Filo özeti ──────────────────────────────────────────────────────────────
+// Firmalar araç sayısına göre sıralı; ince çubuk en kalabalık firmaya oranı gösterir.
 async function filoKarti() {
   const { toplam, firmalar } = filoOzeti(await veri.araclar());
   if (!toplam) return kart(h("h3", {}, baslik("filo_istatistikleri")), bosDurum(baslik("sistemde_arac_yok")));
   const adet = h("strong", { class: "buyuk-sayi" });
   adetSayaci(adet, toplam);
+  const enCok = Math.max(...firmalar.map(([, n]) => n));
+  const liste = h("div", { class: "firma-siralama grafik" }, firmalar.map(([ad, sayi], i) =>
+    h("div", { class: "firma-satir", style: `--w:${(sayi / enCok).toFixed(3)};--i:${i}` }, h("span", { class: "firma-ad", title: ad }, ad), h("strong", {}, sayi), h("span", { class: "firma-bar" }, h("i")))));
+  canlandir(liste);
   return kart(h("h3", {}, baslik("filo_istatistikleri")),
     h("div", { class: "filo-ust" }, h("div", {}, h("span", { class: "kart-etiket" }, baslik("toplam_arac")), adet), h("p", { class: "soluk" }, `${firmalar.length} ${baslik("toplam_firma")}`)),
-    h("div", { class: "firma-izgara" }, firmalar.map(([ad, sayi], i) => h("div", { class: "firma-kart", style: `--renk:${FIRMA_RENKLERI[i % FIRMA_RENKLERI.length]};--i:${i}` }, h("span", { class: "firma-ad", title: ad }, ad), h("strong", {}, sayi)))));
+    liste);
 }
 
 // ── Gelir / gider grafikleri ────────────────────────────────────────────────
 async function trendKarti() {
   const aylik = await aylikVeri();
-  const cipAlani = h("div"), grafikAlani = h("div"), halkaAlani = h("div");
+  const grafikAlani = h("div"), dagilimAlani = h("div", { class: "dagilim-alan" });
   function guncelle() {
-    const seri = aylikSeri(aylik, donemAraligi(durum.grafik, aylik));
+    const seri = aylikSeri(aylik, donemAraligi(durum.donem, aylik));
     const gelir = seri.reduce((t, x) => t + x.gelir, 0), gider = seri.reduce((t, x) => t + x.gider, 0);
-    cipAlani.replaceChildren(donemCipleri(durum.grafik, (k) => { durum.grafik = k; guncelle(); }));
     grafikAlani.replaceChildren(gelir + gider > 0 ? trendGrafigi(seri) : bosDurum(baslik("dash_chart_no_data")));
-    halkaAlani.replaceChildren(h("h3", {}, baslik("dash_pie_title")), gelir + gider > 0 ? halkaGrafigi(gelir, gider) : bosDurum(baslik("dash_chart_no_data")));
+    dagilimAlani.replaceChildren(h("h4", {}, baslik("dash_pie_title")), gelir + gider > 0 ? halkaGrafigi(gelir, gider) : bosDurum(baslik("dash_chart_no_data")));
   }
   guncelle();
-  return kart(h("h3", {}, baslik("dash_monthly_trend")), cipAlani, grafikAlani, halkaAlani);
+  donemDinleyicileri.push(guncelle);
+  return kart(h("h3", {}, baslik("dash_monthly_trend")), grafikAlani, dagilimAlani);
 }
 
 async function tahsilat(sekmeyeGit) {
