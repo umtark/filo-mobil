@@ -8,7 +8,7 @@ import { VARSAYILAN_MARKA } from "./marka_normal.js";
 import { baglam } from "./veri.js";
 import { ayAnahtari, bugun } from "./bicim.js";
 import { sayiTr, tl, gg, ggSaat, donemCoz } from "./cikti_yardim.js";
-import { sekmeAc, sekmedeGoster, sekmeKapat } from "./dosya.js";
+import { goruntuleyiciAc } from "./goruntuleyici.js";
 
 const AYAR_ANAHTARI = "filo2.cikti";
 const p2 = (n) => String(n).padStart(2, "0");
@@ -79,10 +79,9 @@ function ayarPaneli({ donem, baslik, onay, secenekler = [], varsayilanAy = "", g
       goster && h("button", { class: "dugme ikincil genis", type: "button", onclick: () => gonder("goster") }, ikon("goz", 18), "Görüntüle"));
   }
   function gonder(mod) {
-    const sekme = mod === "goster" ? sekmeAc() : null;   // sekme tıklama anında açılmalı
     ayarYaz({ donemTur: durum.tur, donemAy: durum.ay, firma: durum.firma.trim(), logo: ozelLogoVar() ? durum.logo : kayit.logo, boyut: durum.boyut });
     panel.kapat();
-    devam({ donem: donemCoz({ tur: durum.tur, ay: durum.ay }), firma: durum.firma.trim(), logoKonum: durum.logo, logoBoyut: durum.boyut, sec: { ...durum.sec } }, mod, sekme);
+    devam({ donem: donemCoz({ tur: durum.tur, ay: durum.ay }), firma: durum.firma.trim(), logoKonum: durum.logo, logoBoyut: durum.boyut, sec: { ...durum.sec } }, mod);
   }
   ciz();
   const panel = panelAc(baslik, kap);
@@ -123,19 +122,18 @@ export function ciktiDugmeleri({ dosya, donem = false, varsayilanAy = null, pdf 
   const kap = h("div", { class: "cikti-dugmeleri" });
   async function calistir(tur, tanim, dugme) {
     const etiket = dugme.lastChild.textContent;
-    const calis = async (ayar, mod = "indir", sekme = null) => {
+    const calis = async (ayar, mod = "indir") => {
       dugme.disabled = true;
       dugme.lastChild.textContent = "Hazırlanıyor";
       try {
         const ctx = { ...ayar, donemGoster: donem };
         const bayt = tur === "pdf" ? await pdfUret(tanim, ctx) : xlsxUret(await tanim.uret(ctx));
-        if (mod === "goster") sekmedeGoster(sekme, new Blob([bayt], { type: MIME.pdf }), dosyaAdi(dosya, "pdf"));
+        if (mod === "goster") { const ad = dosyaAdi(dosya, "pdf"); goruntuleyiciAc(new Blob([bayt], { type: MIME.pdf }), ad, () => dosyaIndir(bayt, ad, "pdf")); }
         else {
           dosyaIndir(bayt, dosyaAdi(dosya, tur), tur);
           toast(`${tur === "pdf" ? "PDF" : "Excel"} dosyası indirildi`, "basari");
         }
       } catch (e) {
-        sekmeKapat(sekme);
         toast((e && e.message) || "Dosya oluşturulamadı", "hata");
       } finally {
         dugme.disabled = false;

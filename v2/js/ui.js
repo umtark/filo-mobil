@@ -44,6 +44,7 @@ const YOLLAR = {
   telefon: "M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z",
   mesaj: "M4 5h16v11H9l-5 4V5z",
   arti: "M12 5v14M5 12h14",
+  eksi: "M5 12h14",
   tik: "M5 12.5l4.5 4.5L19 7.5",
   cikis: "M9 4H5v16h4M16 8l4 4-4 4M20 12H9",
   indir: "M12 4v11M7 11l5 5 5-5M5 20h14",
@@ -109,7 +110,12 @@ export function detayAc(baslik, kur) {
 
 export function geri() { history.back(); }
 
+// Tam ekran görüntüleyici gibi yığına girmeyen katmanlar: geri tuşu önce bu katmanı kapatır, ekran yığınına dokunmaz.
+let geriKapatici = null;
+export const geriKancasi = (kapat) => { geriKapatici = kapat; };
+
 window.addEventListener("popstate", () => {
+  if (geriKapatici) { const kapat = geriKapatici; geriKapatici = null; kapat(); return; }
   const hedef = (history.state && history.state.d) || 0;
   while (yigin.length > hedef) yigin.pop();
   detayCiz();

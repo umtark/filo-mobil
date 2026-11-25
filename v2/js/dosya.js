@@ -1,5 +1,6 @@
-// Dosyayı telefonda yeni sekmede göstermek ya da indirmek için ortak yardımcılar (evrak, dekont ve rapor PDF'leri).
+// Dosyayı uygulama içinde göstermek ya da indirmek için ortak yardımcılar (evrak, dekont ve rapor PDF'leri).
 import { h, toast } from "./ui.js";
+import { goruntuleyiciAc } from "./goruntuleyici.js";
 
 const TUR = { pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", txt: "text/plain" };
 
@@ -17,13 +18,6 @@ export async function dugmeIsi(dugme, yazi, is) {
   try { await is(); } finally { dugme.replaceChildren(...eski); dugme.classList.remove("mesgul"); dugme.disabled = false; }
 }
 
-// Sekme tıklama anında (beklemeden önce) açılmalıdır; telefon tarayıcıları beklemeden sonra açılan pencereyi engeller.
-export function sekmeAc() {
-  const sekme = window.open("", "_blank");
-  if (sekme) { try { sekme.document.title = "Dosya açılıyor"; } catch { /* çapraz kaynak */ } }
-  return sekme;
-}
-
 export function blobIndir(blob, ad) {
   const adres = URL.createObjectURL(blob);
   const a = h("a", { href: adres, download: ad || "dosya", hidden: true });
@@ -31,25 +25,16 @@ export function blobIndir(blob, ad) {
   setTimeout(() => URL.revokeObjectURL(adres), 60000);
 }
 
-// Sekme açılamadıysa (engellendiyse) uygulamadan çıkmamak için dosya indirilir.
-export function sekmedeGoster(sekme, blob, ad) {
-  if (!sekme) { toast("Açılır pencere engellendi; dosya indiriliyor", "hata"); blobIndir(blob, ad); return; }
-  const adres = URL.createObjectURL(blob);
-  sekme.location.href = adres;
-  setTimeout(() => URL.revokeObjectURL(adres), 300000);
-}
-
-export const sekmeKapat = (sekme) => { if (sekme) { try { sekme.close(); } catch { /* kapalı */ } } };
-
+// Dosyayı uygulamanın içinde tam ekran görüntüleyicide açar (PDF, resim, metin); desteklenmeyen türde (Word, Excel...) indirir.
 // blobAl: Promise<Blob> döndüren işlev.
 export function goruntule(dugme, blobAl, ad) {
-  const sekme = sekmeAc();
   return dugmeIsi(dugme, "Açılıyor", async () => {
-    try { sekmedeGoster(sekme, turlu(await blobAl(), ad), ad); }
-    catch (e) { sekmeKapat(sekme); toast(e.message || "Dosya açılamadı", "hata"); }
+    try {
+      const blob = turlu(await blobAl(), ad);
+      if (!goruntuleyiciAc(blob, ad, () => blobIndir(blob, ad))) { toast("Bu dosya türü uygulamada gösterilemiyor; indiriliyor"); blobIndir(blob, ad); }
+    } catch (e) { toast(e.message || "Dosya açılamadı", "hata"); }
   });
 }
-
 export function indir(dugme, blobAl, ad) {
   return dugmeIsi(dugme, "İndiriliyor", async () => {
     try { blobIndir(turlu(await blobAl(), ad), ad); toast("Dosya indirildi"); }
