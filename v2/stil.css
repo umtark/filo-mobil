@@ -253,7 +253,7 @@ body.detay-acik { overflow: hidden; }
   .dugme, .menu-kutu, .cip, .sekme .menu-resim { transition: none; transform: none !important; }
   .cekmece, .cekmece-arka { animation: none; }
   .cekmece-arka.kapaniyor, .cekmece-arka.kapaniyor .cekmece { transition: none; }
-  .cekmece-ok { transition: none; }
+  .cekmece-ok-dugme { transition: none; }
   .toast { transition: opacity .15s; transform: translate(-50%, 0); }
 }
 
@@ -297,8 +297,11 @@ body.detay-acik { overflow: hidden; }
 }
 .cekmece-oge .menu-resim { width: 28px; height: 28px; flex: none; }
 .cekmece-ad { flex: 1; min-width: 0; font-weight: 500; }
-.cekmece-ok { display: inline-flex; color: var(--soluk); transition: transform .15s; }
-.cekmece-ok.acik { transform: rotate(90deg); }
+.cekmece-satir { display: flex; align-items: center; gap: 2px; }
+.cekmece-satir .cekmece-oge { flex: 1; min-width: 0; }
+.cekmece-ok-dugme { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 48px; min-height: 48px; background: none; border: 0; border-radius: 12px; color: var(--soluk); transition: transform .15s, background-color .15s; }
+.cekmece-ok-dugme.acik { transform: rotate(90deg); }
+.cekmece-ok-dugme:active { background: var(--yuzey2); }
 .cekmece-oge.secili, .cekmece-altoge.secili { background: var(--yuzey2); color: var(--ana); font-weight: 600; }
 .cekmece-alt { display: flex; flex-direction: column; margin: 2px 0 6px 26px; padding-left: 12px; border-left: 1px solid var(--cizgi); }
 .cekmece-altoge { min-height: 44px; font-size: 14px; color: var(--soluk); }
