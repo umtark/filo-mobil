@@ -89,6 +89,20 @@ body.detay-acik { overflow: hidden; }
 .dugme.tehlike { background: none; border-color: var(--kirmizi); color: var(--kirmizi); }
 .dugme:disabled { opacity: .55; cursor: default; }
 .dugme.mesgul:disabled { opacity: 1; }
+/* Uygulama içi dosya görüntüleyici: ekran yığınının (20) ve alt panellerin (40) üstünde, bildirimin (60) altında */
+.goruntuleyici { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; background: var(--zemin); padding-top: env(safe-area-inset-top); }
+.gor-ust { display: flex; align-items: center; gap: 4px; min-height: 56px; padding: 0 4px; background: var(--yuzey); border-bottom: 1px solid var(--cizgi); }
+.gor-baslik { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 0 4px; }
+.gor-baslik strong { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gor-alt { font-size: 12px; color: var(--soluk); font-variant-numeric: tabular-nums; }
+.gor-alan { flex: 1; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; background: var(--yuzey2); padding: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; position: relative; }
+.gor-icerik { width: max-content; min-width: 100%; }
+.gor-sayfa { margin: 0 auto 8px; background: #fff; border: 1px solid var(--cizgi); overflow: hidden; }
+.gor-sayfa canvas { display: block; width: 100%; height: 100%; }
+.gor-resim { display: block; margin: 0 auto; max-width: none; height: auto; }
+.gor-metin { margin: 0; padding: 12px; background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: 12px; white-space: pre-wrap; word-break: break-word; font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace; }
+.gor-bekle { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; color: var(--soluk); }
+.gor-bekle.hata { color: var(--yazi); }
 .doner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: don .8s linear infinite; }
 @keyframes don { to { transform: rotate(360deg); } }
 .dugme:active, .satir:active { filter: brightness(.94); }
