@@ -95,6 +95,23 @@ export const depoYukle = (kova, yol, dosya, ek = {}) => cagir(`/storage/v1/objec
 export const depoSil = (kova, yol) => cagir(`/storage/v1/object/${kova}/${yol}`, { yontem: "DELETE" });
 // Evrakı doğrudan Google Drive'a koyan Supabase fonksiyonu (supabase/functions/evrak_drive). Dönen: { id, dosya }.
 export const evrakDriveYukle = (isletme, yol, dosya) => cagir("/functions/v1/evrak_drive", { yontem: "POST", govde: dosya, ust: { "Content-Type": dosya.type || "application/octet-stream", "x-isletme": isletme, "x-yol": encodeURIComponent(yol) } });
+// Drive'daki evrak dosyasını (herkese açık bağlantı olmadan) fonksiyon üzerinden indirir; yetki sunucuda denetlenir. Dönen: Blob.
+export async function evrakDriveIndir(isletme, kayit) {
+  if (oturum && oturum.expires_at && oturum.expires_at - 30 < Date.now() / 1000) await yenile();
+  let cevap;
+  try {
+    cevap = await fetch(SUPABASE_URL + "/functions/v1/evrak_drive", {
+      method: "POST",
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${oturum && oturum.access_token}`, "x-islem": "indir", "x-isletme": isletme, "x-kayit": encodeURIComponent(kayit) },
+    });
+  } catch { throw new ApiHatasi(duz("login_hata_sunucu"), 0); }
+  if (!cevap.ok) {
+    let m = null;
+    try { m = (await cevap.json()).mesaj; } catch { m = null; }
+    throw new ApiHatasi(m || `Dosya açılamadı (${cevap.status}).`, cevap.status);
+  }
+  return cevap.blob();
+}
 export async function depoBaglantisi(kova, yol, saniye = 600) {
   const v = await cagir(`/storage/v1/object/sign/${kova}/${yol}`, { yontem: "POST", govde: { expiresIn: saniye } });
   return `${SUPABASE_URL}/storage/v1${v.signedURL}`;

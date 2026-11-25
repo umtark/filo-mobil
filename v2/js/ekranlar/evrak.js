@@ -55,6 +55,17 @@ export async function ciz() {
 
 const bekliyor = (r) => Boolean(r.aktarim && r.aktarim.durum === "bekliyor");
 
+async function driveDosyasiIndir(r, dugme) {
+  dugme.disabled = true;
+  try {
+    const blob = await api.evrakDriveIndir(veri.baglam.isletme, r.id);
+    const adres = URL.createObjectURL(blob);
+    const a = h("a", { href: adres, download: r.dosya_adi || "evrak", hidden: true });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(adres), 60000);
+  } catch (e) { toast(e.message || "Dosya indirilemedi", "hata"); } finally { dugme.disabled = false; }
+}
+
 async function dosyaAc(r) {
   try { window.open(await api.depoBaglantisi("evrak_aktarim", r.aktarim.yol), "_blank", "noopener"); } catch (e) { toast(e.message || "Dosya açılamadı", "hata"); }
 }
@@ -77,6 +88,6 @@ async function evrakDetay(id) {
     bilgiSatiri(etiket("sevrak_gecerlilik"), r.gecerlilikTarihi ? `${tarihYaz(r.gecerlilikTarihi)} (${kalanMetni(r.gun)})` : "", ton(r.gun)),
     bilgiSatiri(etiket("sevrak_etiketler"), r.etiketler), bilgiSatiri(etiket("sevrak_not"), r.not), bilgiSatiri("Dosya", r.dosya_adi), bekliyor(r) && bilgiSatiri("Aktarım", "Bilgisayara aktarılmayı bekliyor", "kehribar")),
     bekliyor(r) && h("button", { class: "dugme ikincil genis", type: "button", onclick: () => dosyaAc(r) }, ikon("indir", 18), "Dosyayı aç"),
-    !bekliyor(r) && r.drive_id && h("a", { class: "dugme ikincil genis", href: `https://drive.google.com/file/d/${encodeURIComponent(r.drive_id)}/view`, target: "_blank", rel: "noopener" }, ikon("indir", 18), "Drive'da aç"),
+    !bekliyor(r) && r.drive_id && h("button", { class: "dugme ikincil genis", type: "button", onclick: (e) => driveDosyasiIndir(r, e.currentTarget) }, ikon("indir", 18), "Dosyayı indir"),
     veri.yazabilir("sirket_evrak") && islemDugmeleri({ duzenle: () => duz.evrakFormu(id, { detaydan: true }) }));
 }
