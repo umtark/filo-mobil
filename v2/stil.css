@@ -448,14 +448,14 @@ button, a, [role="button"], input, select { touch-action: manipulation; }
 .firma-bar i { display: block; height: 100%; width: calc(var(--w) * 100%); border-radius: 2px; background: var(--ana); opacity: .8; transform-origin: left; }
 .g-okuma { display: flex; flex-direction: column; gap: 10px; padding-bottom: 12px; }
 .g-okuma-ay { font-size: 13px; color: var(--soluk); }
-.g-okuma-izgara { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.g-okuma-izgara { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; gap: 8px; }
 .g-okuma-hucre { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .g-okuma-hucre span { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--soluk); }
 .g-okuma-hucre span::before { content: ""; width: 8px; height: 8px; border-radius: 3px; background: var(--renk); flex: none; }
 .g-okuma-hucre.gelir { --renk: var(--g-gelir); }
 .g-okuma-hucre.gider { --renk: var(--g-gider); }
 .g-okuma-hucre.net { --renk: var(--g-net); }
-.g-okuma-hucre strong { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.g-okuma-hucre strong { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .grafik-kaydir { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; margin: 0 -4px; }
 .grafik-kaydir::-webkit-scrollbar { display: none; }
 .grafik-svg { display: block; width: 100%; height: auto; overflow: visible; }
@@ -490,7 +490,7 @@ button, a, [role="button"], input, select { touch-action: manipulation; }
 .grafik[data-seri="gelir"] :is(.g-cubuk.gider, .g-net, .g-nokta, .g-net-alan), .grafik[data-seri="gider"] :is(.g-cubuk.gelir, .g-net, .g-nokta, .g-net-alan), .grafik[data-seri="net"] .g-cubuk { opacity: .2; }
 .dagilim-alan { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--cizgi); }
 .halka-kap { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 14px 24px; }
-.halka { position: relative; width: 156px; height: 156px; flex: none; }
+.halka { position: relative; width: 184px; height: 184px; flex: none; }
 .halka svg { display: block; width: 100%; height: 100%; }
 .g-halka-arka { stroke: var(--yuzey2); }
 .g-dilim { stroke-dashoffset: 0; }
@@ -498,7 +498,7 @@ button, a, [role="button"], input, select { touch-action: manipulation; }
 .g-dilim.gider { stroke: var(--g-gider); }
 .halka-orta { position: absolute; inset: 0; display: grid; place-content: center; gap: 1px; text-align: center; }
 .halka-orta span { font-size: 12px; color: var(--soluk); }
-.halka-orta strong { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.halka-orta strong { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .halka-lejant { display: flex; flex-direction: column; gap: 14px; min-width: 150px; }
 .halka-satir { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 2px 8px; }
 .halka-satir i { width: 10px; height: 10px; border-radius: 3px; align-self: center; }
