@@ -88,6 +88,9 @@ body.detay-acik { overflow: hidden; }
 .dugme.ikincil { background: var(--yuzey2); border-color: var(--cizgi); }
 .dugme.tehlike { background: none; border-color: var(--kirmizi); color: var(--kirmizi); }
 .dugme:disabled { opacity: .55; cursor: default; }
+.dugme.mesgul:disabled { opacity: 1; }
+.doner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: don .8s linear infinite; }
+@keyframes don { to { transform: rotate(360deg); } }
 .dugme:active, .satir:active { filter: brightness(.94); }
 
 /* ── Kart ve metin ── */
