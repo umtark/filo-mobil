@@ -55,8 +55,10 @@ body.detay-acik { overflow: hidden; }
   border-bottom: 1px solid var(--cizgi); background: var(--zemin);
 }
 #detay .ust { padding-left: 4px; }
-.ust-logo { height: 30px; width: auto; max-width: 96px; object-fit: contain; border-radius: 6px; flex: none; }
-.ust h1 { flex: 1; font-size: 20px; font-weight: 600; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ust-logo { display: block; height: 32px; width: auto; max-width: 112px; object-fit: contain; }
+.ust-logo-dugme { display: inline-flex; flex: none; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; padding: 0 2px; overflow: visible; background: none; border: 0; border-radius: 8px; }
+.ust-logo-dugme:active { background: var(--yuzey2); }
+.ust h1 { flex: 1; min-width: 0; font-size: 17px; line-height: 1.2; font-weight: 600; letter-spacing: -.01em; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .icerik, .detay-icerik { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .sayfa { padding: var(--kenar); padding-bottom: 32px; display: flex; flex-direction: column; gap: 12px; }
 .tam-ekran { min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; padding: 24px; }
@@ -131,8 +133,17 @@ body.detay-acik { overflow: hidden; }
 .kirmizi { color: var(--kirmizi); }
 .ozet-satir { margin: 4px 2px; }
 
-.ilerleme { height: 8px; border-radius: 4px; background: var(--yuzey2); overflow: hidden; }
-.ilerleme > span { display: block; height: 100%; background: var(--ana); border-radius: 4px; }
+/* Tahsilat havuzu */
+.havuz { --su: var(--ana); position: relative; width: var(--b); height: var(--b); flex: none; border-radius: 50%; overflow: hidden; background: var(--yuzey2); border: 2px solid var(--cizgi); display: grid; place-items: center; }
+.havuz.yesil { --su: var(--yesil); } .havuz.kehribar { --su: var(--kehribar); } .havuz.kirmizi { --su: var(--kirmizi); }
+.havuz-su { position: absolute; inset: 0; opacity: .5; color: var(--su); transform: translateY(calc((100 - var(--p)) * 1%)); transition: transform 1.1s cubic-bezier(.22, .8, .3, 1); }
+.havuz-govde { position: absolute; inset: 0; background: var(--su); }
+.havuz-dalga { position: absolute; left: 0; top: -9%; width: 200%; height: 9%; fill: var(--su); animation: dalga 3.2s linear 2; }
+.havuz-yazi { position: relative; z-index: 1; color: var(--yazi); font-size: calc(var(--b) * .27); font-weight: 600; letter-spacing: -.01em; font-variant-numeric: tabular-nums; text-shadow: 0 1px 6px var(--zemin); }
+.havuz-satir { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.havuz-ortala { display: flex; justify-content: center; padding: 4px 0 8px; }
+@keyframes dalga { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .havuz-su { transition: none; } .havuz-dalga { animation: none; } }
 
 /* ── Liste satırı ── */
 .liste { display: flex; flex-direction: column; }
@@ -241,6 +252,7 @@ body.detay-acik { overflow: hidden; }
   .iskelet { animation: none; background: var(--yuzey); }
   .dugme, .menu-kutu, .cip, .sekme .menu-resim { transition: none; transform: none !important; }
   .cekmece, .cekmece-arka { animation: none; }
+  .cekmece-arka.kapaniyor, .cekmece-arka.kapaniyor .cekmece { transition: none; }
   .cekmece-ok { transition: none; }
   .toast { transition: opacity .15s; transform: translate(-50%, 0); }
 }
@@ -266,15 +278,17 @@ body.detay-acik { overflow: hidden; }
 .alt-cubugu { flex: none; padding: 10px var(--kenar) 2px; background: var(--zemin); }
 
 /* ── Soldan açılan menü (masaüstündeki yan menü) ── */
-.cekmece-arka { position: fixed; inset: 0; z-index: 45; background: rgba(0, 0, 0, .55); animation: sol .15s ease-out; }
+.cekmece-arka { position: fixed; inset: 0; z-index: 45; background: rgba(0, 0, 0, .55); animation: sol .28s ease-out; }
+.cekmece-arka.kapaniyor { opacity: 0; transition: opacity .22s ease-in; pointer-events: none; animation: none; }
+.cekmece-arka.kapaniyor .cekmece { transform: translateX(-100%); transition: transform .22s cubic-bezier(.4, 0, 1, 1); animation: none; }
 .cekmece {
-  position: absolute; inset: 0 auto 0 0; width: min(86vw, 340px); display: flex; flex-direction: column;
-  background: var(--yuzey); border-right: 1px solid var(--cizgi); box-shadow: var(--golge); animation: soldan .2s ease-out;
+  position: absolute; inset: 0 auto 0 0; width: min(70vw, 280px); display: flex; flex-direction: column;
+  background: var(--yuzey); border-right: 1px solid var(--cizgi); box-shadow: var(--golge); animation: soldan .3s cubic-bezier(.22, .8, .3, 1);
   padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
 }
 @keyframes soldan { from { transform: translateX(-100%); } to { transform: none; } }
 .cekmece-ust { display: flex; align-items: center; gap: 10px; padding: 12px 8px 12px var(--kenar); border-bottom: 1px solid var(--cizgi); }
-.cekmece-logo { height: 32px; width: auto; max-width: 96px; object-fit: contain; border-radius: 6px; flex: none; }
+.cekmece-logo { height: 32px; width: auto; max-width: 112px; object-fit: contain; flex: none; }
 .cekmece-sirket { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cekmece-liste { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
 .cekmece-oge, .cekmece-altoge {
@@ -290,7 +304,8 @@ body.detay-acik { overflow: hidden; }
 .cekmece-altoge { min-height: 44px; font-size: 14px; color: var(--soluk); }
 .cekmece-oge:active, .cekmece-altoge:active { background: var(--yuzey2); }
 .cekmece-alt-kisim { display: flex; flex-direction: column; gap: 12px; padding: 12px var(--kenar); border-top: 1px solid var(--cizgi); }
-.cekmece-kullanici { display: flex; align-items: center; gap: 12px; }
+.cekmece-kullanici { display: flex; align-items: center; gap: 12px; width: 100%; padding: 4px; margin: -4px; background: none; border: 0; border-radius: 12px; color: inherit; text-align: left; }
+.cekmece-kullanici:active { background: var(--yuzey2); }
 .avatar {
   display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex: none; border-radius: 50%;
   background: var(--ana) center / cover no-repeat; color: var(--ana-ustu); font-weight: 700;
