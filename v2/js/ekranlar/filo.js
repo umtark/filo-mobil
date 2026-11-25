@@ -6,6 +6,7 @@ import { ekleDugmesi, islemDugmeleri } from "../form.js";
 import * as duz from "../duzenle.js";
 import { ciktiDugmeleri } from "../cikti.js";
 import { aracPdf, aracXlsx, icHizmetPdf, icHizmetXlsx } from "../cikti_filo.js";
+import { aracFirmaSecenekleri, aracFirmaSuz } from "../firma_suz.js";
 import { baslik as mb, etiket as me, duz as md } from "../metin.js";
 import { para, sayiYaz, tarihYaz, tarihKisa, ayAdi, ayAnahtari, bugun, eslesir, sirala, telefonTemizle } from "../bicim.js";
 
@@ -19,6 +20,8 @@ export const icHizmetSayfasi = async () => h("div", { class: "sayfa" }, await ic
 
 // ── Araçlar ─────────────────────────────────────────────────────────────────
 const ARAC_SECENEK = [{ k: "bakim", ad: mb("export_include_bakim_harcama"), v: false }];
+const aracFirmalari = async () => aracFirmaSecenekleri(await veri.hamListe("araclar"));
+const aracCiktisi = async (c) => aracFirmaSuz(await veri.hamListe("araclar"), c.firmaSecim);
 
 async function aracEkrani() {
   const liste = (await veri.araclar()).slice().sort((a, b) => sirala(a.plaka, b.plaka));
@@ -36,8 +39,8 @@ async function aracEkrani() {
   return h("div", {}, veri.yazabilir("arac") && ekleDugmesi(md("qpushbutton__yeni_arac_ekle"), () => duz.aracFormu(null)),
     aramaKutusu(d.arama, (v) => { d.arama = v; guncelle(); }, mb("arac_carsaf_ara_placeholder")),
     ciktiDugmeleri({ dosya: "arac_kayitlari",
-      pdf: { yatay: true, altSol: "Araç Kayıtları Analiz Raporu", secenekler: ARAC_SECENEK, uret: async (c) => aracPdf(c, await veri.hamListe("araclar")) },
-      xlsx: { secenekler: ARAC_SECENEK, uret: async (c) => aracXlsx(c, await veri.hamListe("araclar")) } }),
+      pdf: { yatay: true, altSol: "Araç Kayıtları Analiz Raporu", secenekler: ARAC_SECENEK, firmalar: aracFirmalari, uret: async (c) => aracPdf(c, await aracCiktisi(c)) },
+      xlsx: { secenekler: ARAC_SECENEK, firmalar: aracFirmalari, uret: async (c) => aracXlsx(c, await aracCiktisi(c)) } }),
     cipAlani, sonuc);
 }
 
