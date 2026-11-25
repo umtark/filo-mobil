@@ -130,10 +130,22 @@ export async function detayYenile({ kok = false } = {}) {
   await detayCiz(true);
 }
 
+let kapanisZamani = null;
 async function detayCiz(koru = false) {
   const kap = document.getElementById("detay");
   if (!kap) return;
-  if (!yigin.length) { kap.hidden = true; kap.replaceChildren(); document.body.classList.remove("detay-acik"); return; }
+  if (!yigin.length) {
+    document.body.classList.remove("detay-acik");
+    const bitir = () => { kapanisZamani = null; if (yigin.length) return; kap.hidden = true; kap.replaceChildren(); kap.classList.remove("kapaniyor"); };
+    // Kapanışta ekran sağa doğru kayarak solar; hareket azaltma açıksa anında kapanır
+    if (kap.hidden || (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches)) { bitir(); return; }
+    kap.classList.add("kapaniyor");
+    clearTimeout(kapanisZamani);
+    kapanisZamani = setTimeout(bitir, 160);
+    return;
+  }
+  clearTimeout(kapanisZamani);
+  kap.classList.remove("kapaniyor");
   const { baslik, kur } = yigin[yigin.length - 1];
   const eskiKaydirma = koru && kap.querySelector(".detay-icerik") ? kap.querySelector(".detay-icerik").scrollTop : 0;
   const icerik = h("div", { class: "detay-icerik" }, yukleniyor());
@@ -177,9 +189,15 @@ export function havuz(oran, { boyut = 132 } = {}) {
       dalga("arka", "M0 6 Q25 1 50 6 T100 6 T150 6 T200 6 V12 H0 Z"), dalga("on", "M0 6 Q25 11 50 6 T100 6 T150 6 T200 6 V12 H0 Z"), h("div", { class: "havuz-govde" })),
     h("span", { class: "havuz-yazi" }, `%${yuzde}`));
   const doldur = () => el.style.setProperty("--p", String(yuzde));
+  // Ekrandan çıkınca dalgalar durur (pil ve akıcılık); girince devam eder. Su seviyesi ilk görünüşte yükselir.
+  let doldu = false;
   if (typeof IntersectionObserver === "undefined") doldur();
   else {
-    const gozcu = new IntersectionObserver((k) => { if (k.some((x) => x.isIntersecting)) { gozcu.disconnect(); requestAnimationFrame(doldur); } });
+    const gozcu = new IntersectionObserver((k) => {
+      const gorunur = k.some((x) => x.isIntersecting);
+      el.classList.toggle("durgun", !gorunur);
+      if (gorunur && !doldu) { doldu = true; requestAnimationFrame(doldur); }
+    });
     gozcu.observe(el);
   }
   return el;
