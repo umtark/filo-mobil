@@ -1,6 +1,8 @@
 // Araç Yönetimi (belge bitişleri, bakım) ve İç Hizmetler ekranları. Bu ilk sürümde yalnızca görüntüleme.
-import { h, kart, satir, bilgiSatiri, cipler, segment, aramaKutusu, ayCubugu, sayfalamali, bosDurum, detayAc, ikon } from "../ui.js";
+import { h, kart, satir, bilgiSatiri, cipler, segment, aramaKutusu, ayCubugu, sayfalamali, bosDurum, detayAc, ikon, yukleniyor, hataGoster } from "../ui.js";
 import * as veri from "../veri.js";
+import * as api from "../api.js";
+import { goruntule } from "../dosya.js";
 import { aylaraGore } from "../hesap.js";
 import { ekleDugmesi, islemDugmeleri } from "../form.js";
 import * as duz from "../duzenle.js";
@@ -8,7 +10,7 @@ import { ciktiDugmeleri } from "../cikti.js";
 import { aracPdf, aracXlsx, icHizmetPdf, icHizmetXlsx } from "../cikti_filo.js";
 import { aracFirmaSecenekleri, aracFirmaSuz } from "../firma_suz.js";
 import { baslik as mb, etiket as me, duz as md } from "../metin.js";
-import { para, sayiYaz, tarihYaz, tarihKisa, ayAdi, ayAnahtari, bugun, eslesir, sirala, telefonTemizle } from "../bicim.js";
+import { para, sayiYaz, tarihYaz, tarihKisa, ayAdi, ayAnahtari, bugun, eslesir, sirala, telefonTemizle, tarihCoz } from "../bicim.js";
 
 const durum = { arac: { arama: "", filtre: "hepsi" }, ic: { arama: "", ay: null }, kayit: { arama: "" } };
 export const kalanYaz = (gun) => (gun === 0 ? "Bugün bitiyor" : gun > 0 ? `${gun} gün kaldı` : `${-gun} gün geçti`);
@@ -96,6 +98,27 @@ export function aracAc(id, plaka) {
 // Kart başlığı: sağda "Ekle" düğmesi (yazma yetkisi varsa).
 const kartBasligi = (ad, ekle) => h("div", { class: "kart-baslik" }, h("h3", {}, ad), ekle && h("button", { class: "dugme ikincil kucuk", type: "button", onclick: ekle }, ikon("arti", 16), "Ekle"));
 
+// Araç ve şoför evrakları: masaüstündeki "Araç Evrakları" / "Şoför Evrakları" klasörlerinin (Google Drive) dosyaları; kart açılınca yüklenir.
+const boyutYaz = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+function evrakKarti(a, tur) {
+  const baslikMetni = tur === "arac" ? mb("evrak_yonetimi_baslik") : mb("sofor_evraklari");
+  const kap = kart(h("h3", {}, baslikMetni), yukleniyor(2));
+  const yukle = () => {
+    kap.replaceChildren(h("h3", {}, baslikMetni), yukleniyor(2));
+    api.aracEvrakListe(veri.baglam.isletme, a.id).then((s) => {
+      const dosyalar = Array.isArray(s[tur]) ? s[tur] : [];
+      kap.replaceChildren(h("h3", {}, baslikMetni), dosyalar.length
+        ? h("div", { class: "liste" }, dosyalar.map((d) => satir({
+          baslik: d.ad, alt: [d.boyut ? boyutYaz(d.boyut) : "", d.tarih ? tarihYaz(tarihCoz(String(d.tarih).slice(0, 10))) : ""].filter(Boolean).join(" · "),
+          onclick: (e) => goruntule(e.currentTarget, () => api.aracEvrakIndir(veri.baglam.isletme, a.id, tur, d.ad), d.ad),
+        })))
+        : bosDurum(mb("hic_evrak_yok_uyari")));
+    }, (e) => kap.replaceChildren(h("h3", {}, baslikMetni), hataGoster(e, yukle)));
+  };
+  yukle();
+  return kap;
+}
+
 function aracDetay(a) {
   const tel = telefonTemizle(a.soforTel);
   const yaz = veri.yazabilir("arac");
@@ -109,6 +132,8 @@ function aracDetay(a) {
     kart(h("h3", {}, mb("tab_muayene__sigor")), a.belgeler.length
       ? h("div", { class: "liste" }, a.belgeler.map((b) => satir({ baslik: b.ad, alt: `${b.bakim ? "Sonraki: " : "Bitiş: "}${tarihYaz(b.son)}`, sag: kalanYaz(b.gun), ton: belgeTonu(b.seviye) })))
       : bosDurum("Belge tarihi girilmemiş.")),
+    evrakKarti(a, "arac"),
+    a.sofor && evrakKarti(a, "sofor"),
     (yaz || a.yagKayitlari.length > 0) && kart(kartBasligi(mb("tab_yakt_kaytlar"), yaz && (() => duz.aracKayitFormu(a.id, "yag", null))),
       a.yagKayitlari.length ? h("div", { class: "liste" }, a.yagKayitlari.slice(0, 30).map((k) => satir({ baslik: [k.yag, k.litre && `${k.litre} lt`].filter(Boolean).join(" · ") || "Yağ bakımı", alt: [tarihYaz(k.tarih), k.km && `${k.km} km`, ...k.degisenler].filter(Boolean).join(" · "), sagAlt: k.usta, onclick: duzenleKayit("yag", k) }))) : bosDurum("Yağ bakımı kaydı yok.")),
     (yaz || a.bakimKayitlari.length > 0) && kart(kartBasligi(mb("tab_bakm__servis"), yaz && (() => duz.aracKayitFormu(a.id, "bakim", null))),
