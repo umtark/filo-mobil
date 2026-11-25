@@ -1,6 +1,6 @@
 // İş kuralları: ham kayıtlardan (masaüstündeki alan adlarıyla) ekranların ihtiyaç duyduğu özetleri üretir. Saf fonksiyonlar.
 // Kurallar masaüstü ve eski telefon köprüsüyle (mobil_koprusu.py) birebir aynıdır.
-import { etiket } from "./metin.js";
+import { etiket, baslik } from "./metin.js";
 import { sayi, tarihCoz, ayAnahtari, bugun, gunFarki, kucuk, sirala, aramaHazirla } from "./bicim.js";
 
 const AY_RX = /^\d{4}-\d{2}$/;
@@ -63,7 +63,7 @@ export function servisListesi(satirlar) {
   }
   return satirlar.filter((s) => String(s.id).startsWith("srv_")).map((s) => {
     const plaka = String(s.plaka || "").trim();
-    const belgeler = [["Sigorta", s.sigorta_bitis], ["Muayene", s.muayene_bitis], ["Koltuk sigortası", s.koltuk_bitis]]
+    const belgeler = [["Sigorta", s.sigorta_bitis], [baslik("doc_inspection"), s.muayene_bitis], [baslik("doc_seat_insurance"), s.koltuk_bitis]]
       .map(([ad, d]) => ({ ad, son: tarihCoz(d) })).filter((b) => b.son).map((b) => ({ ...b, ...belgeDurumu(b.son) })).sort((x, y) => x.gun - y.gun);
     return {
       id: s.id, sira: sayi(s.sira_no), plaka, sofor: s.sofor_ad || "", tel: String(s.sofor_tel || "").trim(), guzergah: s.guzergah || "", tip: s.arac_tipi || "",
@@ -121,9 +121,9 @@ export function esnafKaydi(e) {
 
 // ── Araçlar ve belge bitişleri ──────────────────────────────────────────────
 const ARAC_BELGELERI = [
-  ["muayene", "muayene_tarihi", "Muayene", null], ["trafik", "trafik_tarihi", "Trafik sigortası", null], ["kasko", "kasko_tarihi", "Kasko", null],
-  ["koltuk", "koltuk_sigortasi", "Koltuk sigortası", null], ["guzergah", "guzergah_tarihi", "Güzergah belgesi", null],
-  ["yag", "yag_bakim_tarihi", "Yağ bakımı", "yag"], ["genel", "genel_bakim_tarihi", "Genel bakım", "genel"],
+  ["muayene", "muayene_tarihi", baslik("doc_inspection"), null], ["trafik", "trafik_tarihi", baslik("doc_traffic_insurance"), null], ["kasko", "kasko_tarihi", baslik("doc_casco"), null],
+  ["koltuk", "koltuk_sigortasi", baslik("doc_seat_insurance"), null], ["guzergah", "guzergah_tarihi", baslik("doc_route"), null],
+  ["yag", "yag_bakim_tarihi", baslik("doc_oil"), "yag"], ["genel", "genel_bakim_tarihi", baslik("doc_maint"), "genel"],
 ];
 
 export function belgeDurumu(son, referans = bugun()) {
@@ -150,7 +150,7 @@ export function aracKaydi(a, periyot) {
   // Masaüstündeki "Yağ Bakımı" sekmesi: tarih_km alanı "21.04.2026 / 150.000" biçimindedir.
   const yagKayitlari = (a.yakit_kayitlari || []).map((b) => {
     const [tarihMetni, ...km] = String(b.tarih_km || "").split("/");
-    return { id: b.id, tur: "Yağ bakımı", tarih: tarihCoz(tarihMetni.trim().split(/\s+/)[0]), km: km.join("/").trim(), yag: b.yag_cinsi || "", litre: b.yag_lt || "", usta: b.usta || "", yaptiran: b.yaptiran || "", not: b.notlar || "",
+    return { id: b.id, tur: baslik("tab_yakt_kaytlar"), tarih: tarihCoz(tarihMetni.trim().split(/\s+/)[0]), km: km.join("/").trim(), yag: b.yag_cinsi || "", litre: b.yag_lt || "", usta: b.usta || "", yaptiran: b.yaptiran || "", not: b.notlar || "",
       degisenler: [["Hava kompresörü", b.hava_kompresoru], ["Yağ filtresi", b.yag_filtresi], ["Mazot filtresi", b.mazot_filtresi], ["Hava filtresi", b.hava_filtresi]].filter(([, d]) => String(d || "").trim()).map(([ad, d]) => `${ad}: ${d}`) };
   }).sort(yeniden);
   const kayitlar = [...bakimKayitlari, ...harcamaKayitlari].sort(yeniden);

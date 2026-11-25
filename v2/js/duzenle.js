@@ -37,7 +37,7 @@ function kalemAlani(ilk) {
   function guncelle() {
     let m = 0, t = 0;
     for (const s of satirlar) { const k = s.oku(); if (k) { m += k.matrah; t += k.toplam; } }
-    ozet.textContent = `Matrah ${yuvarla(m).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} · Genel toplam ${yuvarla(t).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺`;
+    ozet.textContent = `${me("fatura_form_toplam_matrah_lbl")} ${yuvarla(m).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} · ${me("fatura_form_genel_toplam_lbl")} ${yuvarla(t).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺`;
   }
   function ekle(k = {}) {
     const aciklama = h("input", { class: "girdi", type: "text", maxlength: "200", placeholder: "Kalem açıklaması", "aria-label": "Kalem açıklaması" });
@@ -67,7 +67,7 @@ function kalemAlani(ilk) {
     guncelle();
   }
   (ilk && ilk.length ? ilk : [{}]).forEach(ekle);
-  const kok = h("div", { class: "alan" }, h("span", {}, "Kalemler"), kap, ozet,
+  const kok = h("div", { class: "alan" }, h("span", {}, me("kalemler_basligi")), kap, ozet,
     h("button", { class: "dugme ikincil", type: "button", onclick: () => ekle() }, ikon("arti", 18), "Kalem ekle"));
   return { kok, oku: () => satirlar.map((s) => s.oku()).filter(Boolean), bos: () => !satirlar.some((s) => s.oku()) };
 }
@@ -85,14 +85,14 @@ export async function faturaFormu(id, { detaydan = false } = {}) {
   }
   const baslangic = k ? { Tip: k.Tip, Tarih: k.Tarih, "Fatura No": k["Fatura No"], Firma: k.Firma, Aciklama: k.Aciklama, kalemler } : { Tip: "Gelen" };
   formAc({
-    baslik: k ? "Faturayı düzenle" : "Yeni fatura", deger: baslangic,
+    baslik: k ? mb("fatura_duzenle_baslik") : mb("fatura_ekle_baslik"), deger: baslangic,
     alanlar: [
-      { ad: "Tip", etiket: "Fatura türü", tur: "segment", secenekler: [["Gelen", "Gelen"], ["Giden", "Giden"]] },
+      { ad: "Tip", etiket: me("qlabel_fatura_tipi"), tur: "segment", secenekler: [["Gelen", "Gelen"], ["Giden", "Giden"]] },
       { ad: "Tarih", etiket: "Tarih", tur: "tarih", zorunlu: true, bugun: true },
-      { ad: "Fatura No", etiket: "Fatura no", zorunlu: true, uzunluk: 40 },
+      { ad: "Fatura No", etiket: me("qlabel_fatura_no"), zorunlu: true, uzunluk: 40 },
       { ad: "Firma", etiket: "Firma", zorunlu: true, liste: firmalar },
       { ad: "Aciklama", etiket: "Açıklama" },
-      { ad: "kalemler", etiket: "Kalemler", tur: "ozel", zorunlu: true, kur: (ilk) => kalemAlani(ilk) },
+      { ad: "kalemler", etiket: me("kalemler_basligi"), tur: "ozel", zorunlu: true, kur: (ilk) => kalemAlani(ilk) },
     ],
     kaydet: async (g) => {
       const kl = g.kalemler;
@@ -110,28 +110,28 @@ export async function faturaFormu(id, { detaydan = false } = {}) {
 }
 
 // ── Araç ────────────────────────────────────────────────────────────────────
-const BELGE_ALANLARI = [["muayene_tarihi", "Muayene bitişi"], ["trafik_tarihi", "Trafik sigortası bitişi"], ["kasko_tarihi", "Kasko bitişi"], ["koltuk_sigortasi", "Koltuk sigortası bitişi"],
-  ["guzergah_tarihi", "Güzergah belgesi bitişi"], ["yag_bakim_tarihi", "Son yağ bakımı"], ["genel_bakim_tarihi", "Son genel bakım"]];
+const BELGE_ALANLARI = [["muayene_tarihi", me("muayene_bitis_lbl")], ["trafik_tarihi", me("trafik_bitis_lbl")], ["kasko_tarihi", me("kasko_bitis_lbl")], ["koltuk_sigortasi", me("koltuk_sigortasi_lbl")],
+  ["guzergah_tarihi", me("guzergah_tarihi_lbl")], ["yag_bakim_tarihi", me("yag_bakim_lbl")], ["genel_bakim_tarihi", me("genel_bakim_lbl")]];
 
 export async function aracFormu(id, { detaydan = false } = {}) {
   const k = id ? await veri.hamKayit("araclar", id) : null;
   const tumu = await veri.araclar();
   const alanlar = [
     { ad: "plaka", etiket: "Plaka", zorunlu: true, buyuk: true, uzunluk: 20 },
-    { ad: "firma", etiket: "Firma", liste: tekil(tumu.map((a) => a.firma)) },
+    { ad: "firma", etiket: me("firma_sahibi_lbl"), liste: tekil(tumu.map((a) => a.firma)) },
     { yan: [{ ad: "marka", etiket: "Marka" }, { ad: "model", etiket: "Model" }] },
-    { yan: [{ ad: "yil", etiket: "Yıl", uzunluk: 4 }, { ad: "km", etiket: "Kilometre", uzunluk: 12 }] },
-    { yan: [{ ad: "yakit", etiket: "Yakıt", tur: "secim", secenekler: ["Dizel", "Benzin", "LPG", "Elektrik", "Hibrit"] }, { ad: "vites", etiket: "Vites", tur: "secim", secenekler: ["Manuel", "Otomatik", "Yarı Otomatik"] }] },
-    { yan: [{ ad: "utts", etiket: "UTTS", tur: "secim", secenekler: ["Var", "Yok"], bos: false }, { ad: "hgs", etiket: "HGS", tur: "secim", secenekler: ["Var", "Yok"], bos: false }] },
-    { ad: "sofor", etiket: "Şoför" },
-    { ad: "sofor_tel", etiket: "Şoför telefonu", tur: "tel" },
-    { ad: "kurum", etiket: "Kurum" },
-    { yan: [{ ad: "vergi_no", etiket: "Vergi no" }, { ad: "ruhsat_no", etiket: "Ruhsat no" }] },
-    { ad: "sasi", etiket: "Şasi no", buyuk: true },
+    { yan: [{ ad: "yil", etiket: me("model_yili_lbl"), uzunluk: 4 }, { ad: "km", etiket: me("hr_km"), uzunluk: 12 }] },
+    { yan: [{ ad: "yakit", etiket: "Yakıt", tur: "secim", secenekler: ["Dizel", "Benzin", "LPG", "Elektrik", "Hibrit"] }, { ad: "vites", etiket: me("vites_tipi_lbl"), tur: "secim", secenekler: ["Manuel", "Otomatik", "Yarı Otomatik"] }] },
+    { yan: [{ ad: "utts", etiket: me("utts_durumu_lbl"), tur: "secim", secenekler: ["Var", "Yok"], bos: false }, { ad: "hgs", etiket: me("hgs_durumu_lbl"), tur: "secim", secenekler: ["Var", "Yok"], bos: false }] },
+    { ad: "sofor", etiket: me("sofor_lbl") },
+    { ad: "sofor_tel", etiket: me("sofor_tel_lbl"), tur: "tel" },
+    { ad: "kurum", etiket: me("kurum_lbl") },
+    { yan: [{ ad: "vergi_no", etiket: me("vergi_tc_lbl") }, { ad: "ruhsat_no", etiket: me("ruhsat_belge_no_lbl") }] },
+    { ad: "sasi", etiket: mb("hr_sasi"), buyuk: true },
     ...BELGE_ALANLARI.map(([ad, etiket]) => ({ ad, etiket, tur: "tarih", bosDeger: "-", ipucu: "Boş bırakırsanız belge yok sayılır." })),
   ];
   formAc({
-    baslik: k ? "Aracı düzenle" : "Yeni araç", alanlar, deger: k || { utts: "Yok", hgs: "Yok", yakit: "Dizel", vites: "Manuel" },
+    baslik: k ? mb("dlg_arac_duzenle") : mb("dlg_yeni_arac_ekle"), alanlar, deger: k || { utts: "Yok", hgs: "Yok", yakit: "Dizel", vites: "Manuel" },
     kaydet: async (g) => {
       if (tumu.some((a) => a.id !== id && a.plaka.replace(/\s+/g, "") === g.plaka.replace(/\s+/g, ""))) throw new Error("Bu plakayla başka bir araç kayıtlı.");
       await veri.kayitKaydet("araclar", id, (v) => ({ ek_soforler: [], ...v, ...g }));
@@ -142,7 +142,7 @@ export async function aracFormu(id, { detaydan = false } = {}) {
   });
 }
 
-const KAYIT_TURLERI = { yag: ["yakit_kayitlari", "yag_bakim_tarihi", "Yağ bakımı"], bakim: ["bakim_kayitlari", "genel_bakim_tarihi", "Tamir-bakım"], harcama: ["harcama_kayitlari", null, "Harcama"] };
+const KAYIT_TURLERI = { yag: ["yakit_kayitlari", "yag_bakim_tarihi", mb("tab_yakt_kaytlar")], bakim: ["bakim_kayitlari", "genel_bakim_tarihi", mb("tab_bakm__servis")], harcama: ["harcama_kayitlari", null, mb("tab_harcamalar")] };
 
 // Yağ bakımı: tarih ve kilometre masaüstünde tek alanda tutulur ("gg.aa.yyyy / km").
 function yagDegeri(k) {
@@ -159,14 +159,14 @@ export async function aracKayitFormu(aracId, tur, kayitId, { detaydan = false } 
   if (kayitId && !eski) throw new Error("Kayıt bulunamadı.");
   const tutarAlani = (ad2, etiket) => ({ ad: ad2, etiket, tur: "para" });
   const alanlar = [
-    !aracId && { ad: "arac", etiket: "Araç", tur: "secim", zorunlu: true, secenekler: araclar.map((a) => [a.id, a.plaka]) },
+    !aracId && { ad: "arac", etiket: me("qlabel_mevcut_arac"), tur: "secim", zorunlu: true, secenekler: araclar.map((a) => [a.id, a.plaka]) },
     { ad: "tarih", etiket: "Tarih", tur: "tarih", zorunlu: true, bugun: true },
     ...(tur === "yag" ? [
-      { ad: "km", etiket: "Kilometre", uzunluk: 12 },
-      { yan: [{ ad: "yag_cinsi", etiket: "Yağ cinsi", liste: ["5/30", "10/40", "15/40"] }, { ad: "yag_lt", etiket: "Yağ (lt)" }] },
-      { yan: [{ ad: "yag_filtresi", etiket: "Yağ filtresi", liste: ["DEĞİŞTİ"] }, { ad: "mazot_filtresi", etiket: "Mazot filtresi", liste: ["DEĞİŞTİ"] }] },
-      { yan: [{ ad: "hava_filtresi", etiket: "Hava filtresi", liste: ["DEĞİŞTİ"] }, { ad: "hava_kompresoru", etiket: "Hava kompresörü", liste: ["DEĞİŞTİ"] }] },
-      { yan: [{ ad: "usta", etiket: "Usta" }, { ad: "yaptiran", etiket: "Yaptıran" }] },
+      { ad: "km", etiket: me("hr_km2"), uzunluk: 12 },
+      { yan: [{ ad: "yag_cinsi", etiket: me("yag_cinsi_lbl"), liste: ["5/30", "10/40", "15/40"] }, { ad: "yag_lt", etiket: me("yag_lt_lbl") }] },
+      { yan: [{ ad: "yag_filtresi", etiket: me("yag_filtresi_lbl"), liste: ["DEĞİŞTİ"] }, { ad: "mazot_filtresi", etiket: me("mazot_filtresi_lbl"), liste: ["DEĞİŞTİ"] }] },
+      { yan: [{ ad: "hava_filtresi", etiket: me("hava_filtresi_lbl"), liste: ["DEĞİŞTİ"] }, { ad: "hava_kompresoru", etiket: me("hava_kompresoru_lbl"), liste: ["DEĞİŞTİ"] }] },
+      { yan: [{ ad: "usta", etiket: me("usta_lbl") }, { ad: "yaptiran", etiket: mb("isi_yaptiran") }] },
       { ad: "notlar", etiket: "Not", tur: "uzun" },
     ] : [
       { ad: "aciklama", etiket: "Açıklama", zorunlu: true, tur: "uzun" },
@@ -176,7 +176,7 @@ export async function aracKayitFormu(aracId, tur, kayitId, { detaydan = false } 
   ].filter(Boolean);
   const deger = eski ? (tur === "yag" ? yagDegeri(eski) : eski) : {};
   formAc({
-    baslik: eski ? `${ad} kaydını düzenle` : `Yeni ${ad.toLocaleLowerCase("tr")} kaydı`, alanlar, deger,
+    baslik: eski ? `${mb("kayit_duzenle")} · ${ad}` : `${mb("yeni_kayit_ekle")} · ${ad}`, alanlar, deger,
     kaydet: async (g) => {
       const hedef = aracId || g.arac;
       await veri.kayitKaydet("araclar", hedef, (a) => {
@@ -212,8 +212,8 @@ export async function aracKayitFormu(aracId, tur, kayitId, { detaydan = false } 
 export async function esnafFormu(id, { detaydan = false } = {}) {
   const k = id ? await veri.hamKayit("esnaflar", id) : null;
   formAc({
-    baslik: k ? "Esnafı düzenle" : "Yeni esnaf", deger: k || {},
-    alanlar: [{ ad: "isim", etiket: "Esnaf adı", zorunlu: true, buyuk: true }],
+    baslik: k ? mb("kayit_duzenle") : mb("esnaf_yeni_ekle"), deger: k || {},
+    alanlar: [{ ad: "isim", etiket: me("esnaf_adi_gir"), zorunlu: true, buyuk: true }],
     kaydet: async (g) => {
       const tumu = await veri.esnaflar();
       if (tumu.some((e) => e.id !== id && e.isim.toLocaleLowerCase("tr") === g.isim.toLocaleLowerCase("tr"))) throw new Error("Bu isimde bir esnaf zaten var.");
@@ -233,7 +233,7 @@ export async function esnafIslemFormu(esnafId, islemId, { odeme = false } = {}) 
   const araclar = tekil((await veri.araclar()).map((a) => a.plaka));
   const deger = eski ? { ...eski, tutar: odemeMi ? eski.toplam : eski.tutar, plaka: eski.plaka === "-" ? "" : eski.plaka } : {};
   formAc({
-    baslik: `${odemeMi ? "Ödeme" : "İşlem"} ${eski ? "düzenle" : "ekle"} · ${e.isim}`, deger,
+    baslik: `${eski ? mb("kayit_duzenle") : odemeMi ? mb("esnaf_odeme_yap") : mb("esnaf_islem_ekle")} · ${e.isim}`, deger,
     alanlar: [
       { ad: "tarih", etiket: "Tarih", tur: "tarih", zorunlu: true, bugun: true },
       ...(odemeMi ? [] : [{ ad: "plaka", etiket: "Plaka", buyuk: true, liste: araclar }]),
@@ -268,15 +268,15 @@ export async function akaryakitFormu(id, { detaydan = false } = {}) {
   const [araclar, kayitlar] = await Promise.all([veri.araclar(), veri.akaryakit()]);
   const deger = k ? { ...k, tur: k.is_odeme ? "odeme" : "alim", plaka: k.arac_id || "" } : { tur: "alim" };
   formAc({
-    baslik: k ? "Akaryakıt kaydını düzenle" : "Yeni akaryakıt kaydı", deger,
+    baslik: k ? mb("kayit_duzenle") : mb("petrol_yeni_alim_ekle"), deger,
     alanlar: [
-      { ad: "tur", etiket: "Kayıt türü", tur: "segment", secenekler: [["alim", "Yakıt alımı"], ["odeme", "İstasyona ödeme"]] },
+      { ad: "tur", etiket: "Kayıt türü", tur: "segment", secenekler: [["alim", mb("hr_yakit")], ["odeme", mb("hr_odeme")]] },
       { ad: "tarih", etiket: "Tarih", tur: "tarih", iso: true, zorunlu: true, bugun: true },
       { ad: "istasyon", etiket: "İstasyon", zorunlu: true, buyuk: true, liste: tekil(kayitlar.map((r) => r.istasyon)) },
-      { ad: "plaka", etiket: "Araç (yakıt alımında)", tur: "secim", secenekler: araclar.slice().sort((a, b) => sirala(a.plaka, b.plaka)).map((a) => [a.id, a.plaka]) },
-      { yan: [{ ad: "litre", etiket: "Litre", tur: "para" }, { ad: "fiyat", etiket: "Litre fiyatı", tur: "para" }] },
-      { ad: "tutar", etiket: "Tutar", tur: "para", ipucu: "Boş bırakırsanız litre × fiyat alınır." },
-      { yan: [{ ad: "fis_no", etiket: "Fiş no" }, { ad: "aciklama", etiket: "Açıklama" }] },
+      { ad: "plaka", etiket: me("qlabel_araç_seçimi"), tur: "secim", secenekler: araclar.slice().sort((a, b) => sirala(a.plaka, b.plaka)).map((a) => [a.id, a.plaka]) },
+      { yan: [{ ad: "litre", etiket: me("qlabel_litre_l"), tur: "para" }, { ad: "fiyat", etiket: me("qlabel_birim_fiyat"), tur: "para" }] },
+      { ad: "tutar", etiket: me("qlabel_toplam_tutar"), tur: "para", ipucu: "Boş bırakırsanız litre × fiyat alınır." },
+      { yan: [{ ad: "fis_no", etiket: me("ic_col_fis_no") }, { ad: "aciklama", etiket: "Açıklama" }] },
     ],
     kaydet: async (g) => {
       const odeme = g.tur === "odeme";
@@ -302,16 +302,16 @@ export async function icHizmetFormu(id, { detaydan = false } = {}) {
     id ? veri.hamKayit("ic_hizmetler", id) : null, veri.icHizmet(), veri.icFiyatlar(), veri.icYerler(), veri.icSoforler(), veri.araclar()]);
   const fiyat = new Map(fiyatlar.map((f) => [f.guzergah, sayi(f.birim_fiyat)]));
   formAc({
-    baslik: k ? "Seferi düzenle" : "Yeni sefer", deger: k || {},
+    baslik: k ? mb("ic_duzenle") : md("ic_yeni_sefer"), deger: k || {},
     alanlar: [
-      { yan: [{ ad: "tarih", etiket: "Tarih", tur: "tarih", zorunlu: true, bugun: true }, { ad: "saat", etiket: "Saat", zorunlu: true, uzunluk: 5, yerTutucu: "10:50" }] },
+      { yan: [{ ad: "tarih", etiket: "Tarih", tur: "tarih", zorunlu: true, bugun: true }, { ad: "saat", etiket: me("ic_col_saat"), zorunlu: true, uzunluk: 5, yerTutucu: "10:50" }] },
       { ad: "plaka", etiket: "Plaka", zorunlu: true, buyuk: true, liste: tekil(araclar.map((a) => a.plaka)) },
-      { ad: "sofor", etiket: "Şoför", liste: tekil([...soforler.map((s) => s.tam_ad), ...liste.map((s) => s.sofor)]) },
-      { ad: "guzergah", etiket: "Güzergah", zorunlu: true, liste: [...fiyat.keys()] },
-      { ad: "gidilen_yer", etiket: "Gidilen yer", zorunlu: true, liste: yerler.map((y) => y.yer) },
-      { ad: "personel", etiket: "Personel", zorunlu: true, tur: "uzun", satir: 2 },
-      { yan: [{ ad: "kisi_sayisi", etiket: "Kişi sayısı", tur: "sayi", tamSayi: true, varsayilan: 1 }, { ad: "fis_no", etiket: "Fiş no", zorunlu: true }] },
-      { ad: "tutar", etiket: "Sefer ücreti", tur: "para", ipucu: "Boş bırakırsanız güzergahın birim fiyatı alınır." },
+      { ad: "sofor", etiket: mb("hr_sofor"), liste: tekil([...soforler.map((s) => s.tam_ad), ...liste.map((s) => s.sofor)]) },
+      { ad: "guzergah", etiket: me("ic_guzergah"), zorunlu: true, liste: [...fiyat.keys()] },
+      { ad: "gidilen_yer", etiket: me("ic_col_gidilen_yer"), zorunlu: true, liste: yerler.map((y) => y.yer) },
+      { ad: "personel", etiket: me("ic_col_personel"), zorunlu: true, tur: "uzun", satir: 2 },
+      { yan: [{ ad: "kisi_sayisi", etiket: me("ic_col_kisi"), tur: "sayi", tamSayi: true, varsayilan: 1 }, { ad: "fis_no", etiket: me("ic_col_fis_no"), zorunlu: true }] },
+      { ad: "tutar", etiket: me("ic_col_sefer"), tur: "para", ipucu: "Boş bırakırsanız güzergahın birim fiyatı alınır." },
       { ad: "aciklama", etiket: "Açıklama" },
     ],
     kaydet: async (g) => {
