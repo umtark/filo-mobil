@@ -19,7 +19,7 @@
     --zemin: #f3f5f8; --yuzey: #ffffff; --yuzey2: #edf0f4; --cizgi: #dde3ea;
     --yazi: #111a24; --soluk: #5b6979;
     --ana: #1a6fbf; --ana-ustu: #ffffff;
-    --yesil: #12805a; --kehribar: #a85f00; --kirmizi: #c0352a;
+    --yesil: #0f7a54; --kehribar: #985800; --kirmizi: #c0352a;
     --g-gelir: #16a34a; --g-gider: #e11d48; --g-net: #0284c7;
     --golge: 0 8px 30px rgba(20, 30, 45, .15);
     color-scheme: light;
@@ -145,7 +145,7 @@ body.detay-acik { overflow: hidden; }
 .havuz-dalga.arka { top: -9%; fill: color-mix(in srgb, var(--su) 55%, transparent); animation: dalga 5s linear infinite reverse, salin 3.4s ease-in-out infinite; }
 .havuz-dalga.on { top: -7%; fill: var(--su); animation: dalga 3.4s linear infinite, salin 2.6s ease-in-out infinite reverse; }
 .havuz.durgun .havuz-dalga { animation-play-state: paused; }
-.havuz-yazi { position: relative; z-index: 1; color: #fff; font-size: calc(var(--b) * .27); font-weight: 600; letter-spacing: -.01em; font-variant-numeric: tabular-nums; text-shadow: 0 1px 8px rgba(0, 40, 36, .55); }.havuz-satir { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.havuz-yazi { position: relative; z-index: 1; color: #fff; font-size: calc(var(--b) * .27); font-weight: 600; letter-spacing: -.01em; font-variant-numeric: tabular-nums; text-shadow: 0 1px 3px rgba(0, 0, 0, .4); }.havuz-satir { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .havuz-ortala { display: flex; justify-content: center; padding: 4px 0 8px; }
 @keyframes dalga { to { transform: translateX(-50%); } }
 @keyframes salin { 0%, 100% { margin-top: 0; } 50% { margin-top: 2px; } }
@@ -387,7 +387,7 @@ button, a, [role="button"], input, select { touch-action: manipulation; }
 
 /* ── Kayıt ekleme / düzenleme ── */
 .sayfa > div > .dugme.genis { margin-bottom: 10px; }
-.dugme.kucuk { min-height: 36px; padding: 0 12px; font-size: 13px; gap: 6px; margin: 4px 0 8px; }
+.dugme.kucuk { min-height: 44px; padding: 0 14px; font-size: 13px; gap: 6px; margin: 4px 0 8px; }
 .kart-baslik { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .kart-baslik h3 { margin: 0; }
 .kart-baslik .dugme.kucuk { margin: 0; }
