@@ -4,9 +4,9 @@ import { baslik } from "./metin.js";
 
 // Masaüstündeki her sayfanın sekmeleri (QTabWidget başlıkları); soldan açılan menüde modülün altında listelenir.
 const ALT = {
-  fatura: [["tum", "Tüm Kayıtlar"], ["gelen", "Gelen Faturalar"], ["giden", "Giden Faturalar"], ["ozet", "Aylık Özet"]],
-  arac: [["liste", "Araç Listesi"], ["yag", "Yağ Bakımı"], ["bakim", "Genel Tamir-Bakım"], ["harcama", "Harcamalar"]],
-  okul: [["ogrenciler", "Öğrenciler"], ["kullanmayan", "Servis Kullanmayanlar"], ["servisler", "Servisler"], ["puantaj", "Servis Puantajları"], ["tahsilat", "Tahsilat Raporu"]],
+  fatura: [["tum", baslik("tab_tm_kaytlar")], ["gelen", baslik("tab_gelen_faturalar")], ["giden", baslik("tab_giden_faturalar")], ["ozet", "Aylık Özet"]],
+  arac: [["liste", "Araç Listesi"], ["yag", baslik("tab_yakt_kaytlar")], ["bakim", baslik("tab_bakm__servis")], ["harcama", baslik("tab_harcamalar")]],
+  okul: [["ogrenciler", baslik("okul_tab_ogrenciler")], ["kullanmayan", baslik("okul_tab_srv_kullanmayan")], ["servisler", baslik("okul_tab_servisler")], ["tahsilat", baslik("okul_tab_tahsilat")], ["puantaj", baslik("okul_tab_puantaj")]],
   ayarlar: [["hesap", "Hesap"], ["kullanicilar", "Kullanıcılar"]],
 };
 

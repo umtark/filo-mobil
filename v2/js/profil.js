@@ -1,6 +1,7 @@
 // Profil fotoğrafı: masaüstüyle ortak, özel "profil_foto" kovasında <işletme>/<kullanıcı_id>.jpg olarak durur (bkz. supabase/profil_foto.sql).
 import * as api from "./api.js";
 import * as veri from "./veri.js";
+import { h, toast } from "./ui.js";
 
 const BOYUT = 256;
 const yol = () => { const k = api.kullanici(); return k && veri.baglam.isletme ? `${veri.baglam.isletme}/${k.id}.jpg` : null; };
@@ -54,3 +55,29 @@ export async function avatarUygula(el) {
   if (url && el.isConnected !== false) { el.style.backgroundImage = `url("${url}")`; el.classList.add("foto"); }
   return Boolean(url);
 }
+
+// Büyük avatar + fotoğraf seç/kaldır (Hesap ekranı ve menüdeki avatar paneli ortak kullanır). degisti(url): fotoğraf değişince çağrılır.
+export function fotoBolumu(ad, degisti = () => {}) {
+  const av = h("span", { class: "avatar avatar-buyuk", "aria-hidden": "true" }, (ad[0] || "?").toLocaleUpperCase("tr"));
+  const girdi = h("input", { type: "file", accept: "image/*", hidden: true, "aria-label": "Profil fotoğrafı seç" });
+  const kaldir = h("button", { class: "dugme ikincil", type: "button", hidden: true }, "Fotoğrafı kaldır");
+  const uygula = (url) => {
+    av.style.backgroundImage = url ? `url("${url}")` : "";
+    av.classList.toggle("foto", Boolean(url));
+    kaldir.hidden = !url;
+  };
+  fotoUrl().then(uygula);
+  girdi.addEventListener("change", async () => {
+    const dosya = girdi.files[0];
+    girdi.value = "";
+    if (!dosya) return;
+    try { const url = await fotoYukle(dosya); uygula(url); degisti(url); toast("Fotoğraf kaydedildi", "basari"); } catch (e) { toast(e.message || "Fotoğraf yüklenemedi", "hata"); }
+  });
+  kaldir.onclick = async () => {
+    try { await fotoSil(); uygula(null); degisti(null); toast("Fotoğraf kaldırıldı", "basari"); } catch (e) { toast(e.message || "Fotoğraf kaldırılamadı", "hata"); }
+  };
+  return h("div", { class: "profil-foto" }, h("button", { class: "avatar-dugme", type: "button", "aria-label": "Profil fotoğrafı seç", onclick: () => girdi.click() }, av),
+    h("button", { class: "dugme birincil", type: "button", onclick: () => girdi.click() }, "Fotoğraf seç"), girdi, kaldir);
+}
+
+export const gorunenAd = () => (veri.baglam.uye && veri.baglam.uye.ad) || (api.kullanici() && api.epostadanKullaniciAdi(api.kullanici().email)) || "";

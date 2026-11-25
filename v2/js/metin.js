@@ -36,6 +36,17 @@ const METIN = {
   "sevrak_gecerlilik": "Geçerlilik Bitişi:",
   "sevrak_etiketler": "Etiketler:",
   "sevrak_not": "Not:",
+  "tab_tm_kaytlar": "Tüm Kayıtlar",
+  "tab_gelen_faturalar": "Gelen Faturalar",
+  "tab_giden_faturalar": "Giden Faturalar",
+  "tab_yakt_kaytlar": "Yağ Bakımı",
+  "tab_bakm__servis": "Genel Tamir-Bakım",
+  "tab_harcamalar": "Harcamalar",
+  "okul_tab_ogrenciler": "Öğrenciler",
+  "okul_tab_srv_kullanmayan": "Servis Kullanmayanlar",
+  "okul_tab_servisler": "Servisler",
+  "okul_tab_tahsilat": "Tahsilat Raporu",
+  "okul_tab_puantaj": "Servis Puantajları",
 };
 
 // Masaüstü metinlerinde satır sonu ve sondaki ':' olabilir; başlık ve etiket olarak kullanılırken sadeleştirilir.

@@ -4,7 +4,7 @@ import * as veri from "./veri.js";
 import { marka, markaDinle, markaOnbellektenYukle, sirketBaslangici, sirketBilgisiYukle, sirketKaydet } from "./marka.js";
 import { sirketKodunuNormalle } from "./kimlik.js";
 import { VARSAYILAN_MARKA } from "./marka_normal.js";
-import { h, ikon, toast, yukleniyor, hataGoster, kokYenileyiciAyarla, tumDetaylariKapat, uyariKutusu, animOnay, parolaAlani, cipler, telif } from "./ui.js";
+import { h, ikon, toast, panelAc, yukleniyor, hataGoster, kokYenileyiciAyarla, tumDetaylariKapat, uyariKutusu, animOnay, parolaAlani, cipler, telif } from "./ui.js";
 import * as bugun from "./ekranlar/bugun.js";
 import * as okul from "./ekranlar/okul.js";
 import * as muhasebe from "./ekranlar/muhasebe.js";
@@ -168,6 +168,11 @@ function avatarOlustur(ad) {
   return el;
 }
 
+// Menüdeki avatara dokununca: menü kapanır, fotoğraf seç / kaldır paneli açılır (menü yeniden açılınca avatar güncel fotoğrafı gösterir).
+function profilPaneli(ad) {
+  cekmeceKapat(false);
+  panelAc("Profil fotoğrafı", h("div", { class: "form" }, profil.fotoBolumu(ad)));
+}
 function cikis() {
   cekmeceKapat(false);
   api.cikisYap();
@@ -190,14 +195,13 @@ function kabuk() {
   // Masaüstündeki yan menü soldan açılır; seçili modülün alt başlıkları (masaüstündeki sekmeler) başlığın altında çip olarak durur.
   altCubugu = h("nav", { class: "alt-cubugu", "aria-label": "Alt başlıklar", hidden: true });
   menuDugmesi = h("button", { class: "ikon-dugme", "aria-label": "Menü", "aria-haspopup": "dialog", "aria-expanded": "false", onclick: cekmeceAc }, ikon("menu", 26));
-  const ustLogo = h("img", { class: "ust-logo", src: marka.logo, alt: marka.ad });
+  const ustLogo = h("img", { class: "ust-logo", src: marka.logo, alt: "" });
   markaDinle(() => {
     if (!ustLogo.isConnected) return false;   // kabuk yeniden çizildi
     ustLogo.src = marka.logo;
-    ustLogo.alt = marka.ad;
   });
   kok.replaceChildren(
-    h("header", { class: "ust" }, menuDugmesi, ustLogo, baslikIkonu, baslik, h("button", { class: "ikon-dugme", "aria-label": "Yenile", onclick: tazele }, ikon("yenile"))),
+    h("header", { class: "ust" }, menuDugmesi, h("button", { class: "ust-logo-dugme", type: "button", "aria-label": `${marka.ad} - ana sayfa`, onclick: anaSayfa }, ustLogo), baslikIkonu, baslik, h("button", { class: "ikon-dugme", "aria-label": "Yenile", onclick: tazele }, ikon("yenile"))),
     altCubugu, bildirim, icerik);
   kokYenileyiciAyarla(() => sekmeCiz(aktif, true));
   if (!veri.lisansAcik()) bildirim.append(uyariKutusu("İşletmenin lisans süresi dolmuş. Veriler gösterilmiyor; lisansı yenileyin."));
@@ -210,7 +214,7 @@ function kabuk() {
 function cekmeceAc() {
   if (cekmece) return cekmeceKapat();
   const kullanici = api.kullanici();
-  const ad = (kullanici && api.epostadanKullaniciAdi(kullanici.email)) || "";
+  const ad = profil.gorunenAd();
   const rol = { sahip: "Sahip", yonetici: "Yönetici", kullanici: "Kullanıcı" }[veri.baglam.uye && veri.baglam.uye.rol] || "";
   const acik = new Set(aktif && altlar(gorunenSekmeler.find((s) => s.id === aktif) || {}).length > 1 ? [aktif] : []);
   const liste = h("nav", { class: "cekmece-liste", "aria-label": "Ana bölümler" });
@@ -236,7 +240,7 @@ function cekmeceAc() {
       h("button", { class: "ikon-dugme", "aria-label": "Kapat", onclick: () => cekmeceKapat() }, ikon("kapat"))),
     liste,
     h("div", { class: "cekmece-alt-kisim" },
-      h("div", { class: "cekmece-kullanici" }, avatarOlustur(ad),
+      h("button", { class: "cekmece-kullanici", type: "button", "aria-label": "Profil fotoğrafını değiştir", onclick: () => profilPaneli(ad) }, avatarOlustur(ad),
         h("span", { class: "satir-metin" }, h("span", { class: "satir-baslik" }, ad), h("span", { class: "satir-alt" }, rol))),
       h("button", { class: "dugme tehlike genis", onclick: cikis }, metin("settings_session_logout"))));
   const arka = h("div", { class: "cekmece-arka", onclick: (e) => { if (e.target === arka) cekmeceKapat(); } }, panel);
@@ -255,9 +259,16 @@ function cekmeceKapat(odak = true) {
   if (!cekmece) return;
   const { arka, tus } = cekmece;
   cekmece = null;
-  arka.remove();
+  arka.classList.add("kapaniyor");   // yumuşak kapanış; bitince DOM'dan kalkar
+  setTimeout(() => arka.remove(), 240);
   document.removeEventListener("keydown", tus);
   if (menuDugmesi) { menuDugmesi.setAttribute("aria-expanded", "false"); if (odak) menuDugmesi.focus(); }
+}
+
+// Şirket logosu: ana sayfaya (yoksa ilk izinli sekmeye) götürür.
+function anaSayfa() {
+  const hedef = gorunenSekmeler.find((s) => s.id === "dashboard") || gorunenSekmeler[0];
+  if (hedef) sekmeyeGit(hedef.id);
 }
 
 export function sekmeyeGit(id, alt) {

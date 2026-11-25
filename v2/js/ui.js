@@ -157,6 +157,31 @@ export function hataGoster(e, tekrar) {
   return h("div", { class: "hata-kutusu" }, h("p", {}, (e && e.message) || "Bir sorun oluştu."), tekrar && h("button", { class: "dugme ikincil", onclick: tekrar }, "Tekrar dene"));
 }
 
+// Tahsilat havuzu: yuvarlak bir havuz, ödenen oran kadar dolar (görününce yükselir, yüzeyde hafif dalga). Ortada yüzde yazar.
+// oran 0-1; ton: "yesil" | "kehribar" | "kirmizi" (verilmezse orandan türetilir).
+export function havuz(oran, { boyut = 132, ton } = {}) {
+  const yuzde = Math.round(Math.min(1, Math.max(0, Number.isFinite(oran) ? oran : 0)) * 100);
+  const renk = ton || (yuzde >= 100 ? "yesil" : yuzde > 0 ? "kehribar" : "kirmizi");
+  const ns = "http://www.w3.org/2000/svg";
+  const dalga = document.createElementNS(ns, "svg");
+  dalga.setAttribute("viewBox", "0 0 200 12");
+  dalga.setAttribute("preserveAspectRatio", "none");
+  dalga.setAttribute("class", "havuz-dalga");
+  dalga.setAttribute("aria-hidden", "true");
+  const yol = document.createElementNS(ns, "path");
+  yol.setAttribute("d", "M0 6 Q25 0 50 6 T100 6 T150 6 T200 6 V12 H0 Z");
+  dalga.append(yol);
+  const el = h("div", { class: `havuz ${renk}`, role: "img", "aria-label": `Tahsilat yüzde ${yuzde}`, style: `--b:${boyut}px;--p:0` },
+    h("div", { class: "havuz-su", "aria-hidden": "true" }, dalga, h("div", { class: "havuz-govde" })),
+    h("span", { class: "havuz-yazi" }, `%${yuzde}`));
+  const doldur = () => el.style.setProperty("--p", String(yuzde));
+  if (typeof IntersectionObserver === "undefined") doldur();
+  else {
+    const gozcu = new IntersectionObserver((k) => { if (k.some((x) => x.isIntersecting)) { gozcu.disconnect(); requestAnimationFrame(doldur); } });
+    gozcu.observe(el);
+  }
+  return el;
+}
 export function kart(...cocuklar) { return h("section", { class: "kart" }, ...cocuklar); }
 
 export function satir({ baslik, alt, sag, sagAlt, ton = "", onclick }) {
