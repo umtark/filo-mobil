@@ -103,6 +103,14 @@ body.detay-acik { overflow: hidden; }
 .gor-metin { margin: 0; padding: 12px; background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: 12px; white-space: pre-wrap; word-break: break-word; font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace; }
 .gor-bekle { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; color: var(--soluk); }
 .gor-bekle.hata { color: var(--yazi); }
+.gor-yazdir { display: none; }
+@media print {
+  body > *:not(.gor-yazdir) { display: none !important; }
+  .gor-yazdir { display: block; }
+  .gor-yazdir img { display: block; width: 100%; height: auto; break-after: page; break-inside: avoid; }
+  .gor-yazdir img:last-child { break-after: auto; }
+  .gor-yazdir pre { white-space: pre-wrap; font: 12px/1.4 monospace; color: #000; }
+}
 .doner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: don .8s linear infinite; }
 @keyframes don { to { transform: rotate(360deg); } }
 .dugme:active, .satir:active { filter: brightness(.94); }
