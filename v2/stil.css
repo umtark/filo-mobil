@@ -479,12 +479,15 @@ button, a, [role="button"], input, select { touch-action: manipulation; }
 .g-net { fill: none; stroke: var(--g-net); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 0; pointer-events: none; }
 .g-nokta { fill: var(--yuzey); stroke: var(--g-net); stroke-width: 2; pointer-events: none; transition: r .2s ease; }
 .g-nokta.secili { r: 4.6; stroke-width: 2.6; }
-.grafik-lejant { display: flex; justify-content: center; gap: 18px; padding-top: 10px; font-size: 13px; color: var(--soluk); }
-.grafik-lejant span { display: flex; align-items: center; gap: 6px; }
+.grafik-lejant { display: flex; justify-content: center; gap: 6px; padding-top: 6px; font-size: 13px; color: var(--soluk); }
+.lejant-dugme { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 10px; background: none; color: var(--soluk); font-size: 13px; }
+.lejant-dugme[aria-pressed="true"] { background: var(--yuzey2); color: var(--yazi); }
 .grafik-lejant i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .grafik-lejant i.gelir { background: var(--g-gelir); }
 .grafik-lejant i.gider { background: var(--g-gider); }
 .grafik-lejant i.net { background: var(--g-net); }
+.g-cubuk, .g-net, .g-nokta, .g-net-alan { transition: opacity .2s ease; }
+.grafik[data-seri="gelir"] :is(.g-cubuk.gider, .g-net, .g-nokta, .g-net-alan), .grafik[data-seri="gider"] :is(.g-cubuk.gelir, .g-net, .g-nokta, .g-net-alan), .grafik[data-seri="net"] .g-cubuk { opacity: .2; }
 .dagilim-alan { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--cizgi); }
 .halka-kap { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 14px 24px; }
 .halka { position: relative; width: 156px; height: 156px; flex: none; }
