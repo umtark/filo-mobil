@@ -1,7 +1,9 @@
 // Biçimleme ve tarih yardımcıları (saf fonksiyonlar; testleri testler/ altında).
 
-const paraBicimi = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 });
-const paraTam = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 2, minimumFractionDigits: 2 });
+// Masaüstündeki format_currency gibi sembol rakamın sağında ve bitişik boşlukla: "15.000 ₺", "1.234,50 ₺" (satır sonunda ₺ tek kalmasın diye bölünmez boşluk).
+const tamSayi = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 });
+const kurusluSayi = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+const TL = "\u00a0₺";
 const sayiBicimi = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 });
 
 export const sayi = (v) => {
@@ -14,12 +16,12 @@ export const sayi = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-// Tam sayı tutarlar kuruşsuz (₺15.000), kuruşlu olanlar iki basamakla (₺1.234,50) yazılır.
+// Tam sayı tutarlar kuruşsuz (15.000 ₺), kuruşlu olanlar iki basamakla (1.234,50 ₺) yazılır.
 export const para = (n) => {
   const v = sayi(n);
-  return (Math.abs(v - Math.round(v)) < 0.005 ? paraBicimi : paraTam).format(v).replace(/\u00a0/g, " ");
+  return (Math.abs(v - Math.round(v)) < 0.005 ? tamSayi : kurusluSayi).format(v) + TL;
 };
-export const paraKesin = (n) => paraTam.format(sayi(n)).replace(/\u00a0/g, " ");
+export const paraKesin = (n) => kurusluSayi.format(sayi(n)) + TL;
 export const sayiYaz = (n) => sayiBicimi.format(sayi(n));
 
 const AYLAR = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];

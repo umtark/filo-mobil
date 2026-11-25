@@ -162,7 +162,7 @@ export function halkaGrafigi(gelir, gider) {
   const kap = h("div", { class: "halka-kap grafik" },
     h("div", { class: "halka", role: "img", "aria-label": `${baslik("dash_pie_title")}: ${baslik("dash_income_label")} ${yuzde(gelir)}, ${baslik("dash_expense_label")} ${yuzde(gider)}` },
       s("svg", { viewBox: "0 0 160 160", "aria-hidden": "true" }, s("circle", { class: "g-halka-arka", cx: 80, cy: 80, r: R, fill: "none", "stroke-width": 20 }), dilim(g, "gelir", 0, 0), dilim(d, "gider", g, 0.3)),
-      h("div", { class: "halka-orta" }, h("span", {}, baslik("dash_net_label")), h("strong", { class: net < 0 ? "kirmizi" : "yesil", title: tl0(net) }, `${net < 0 ? "-" : ""}₺${kisa(Math.abs(net))}`))),
+      h("div", { class: "halka-orta" }, h("span", {}, baslik("dash_net_label")), h("strong", { class: net < 0 ? "kirmizi" : "yesil", title: tl0(net) }, `${net < 0 ? "-" : ""}${kisa(Math.abs(net))}\u00a0₺`))),
     h("div", { class: "halka-lejant" }, satir(baslik("dash_income_label"), "gelir", gelir), satir(baslik("dash_expense_label"), "gider", gider)));
   canlandir(kap);
   return kap;
