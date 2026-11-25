@@ -1,6 +1,6 @@
 // PDF ve Excel çıktılarının ortak altyapısı: yazı tipi/logo yükleme, dışa aktarma ayarları paneli (dönem, firma, logo), dosyayı indirme.
 // Raporların kendisi cikti_raporlar.js'dedir; bu dosya yalnızca düğmeleri ve dosya üretim akışını sağlar.
-import { h, ikon, toast, panelAc, segment } from "./ui.js";
+import { h, ikon, toast, panelAc, segment, animOnay } from "./ui.js";
 import { Belge } from "./cikti_pdf.js";
 import { xlsxUret } from "./cikti_xlsx.js";
 import { marka } from "./marka.js";
@@ -57,23 +57,28 @@ function ayarYaz(a) {
   try { localStorage.setItem(AYAR_ANAHTARI, JSON.stringify(a)); } catch { /* depolama kapalı */ }
 }
 
-function ayarPaneli({ donem, baslik, onay, secenekler = [], varsayilanAy = "", goster = false }, devam) {
+function ayarPaneli({ donem, baslik, onay, secenekler = [], firmalar = [], varsayilanAy = "", goster = false }, devam) {
   const kayit = ayarOku();
   const durum = {
     tur: donem ? (varsayilanAy ? "ay" : kayit.donemTur || "tumu") : "tumu", ay: varsayilanAy || kayit.donemAy || ayAnahtari(bugun()),
     firma: kayit.firma ?? baglam.isletmeAdi ?? marka.ad, logo: ozelLogoVar() ? (kayit.logo || "sol") : "yok", boyut: kayit.boyut || "kucuk",
-    sec: Object.fromEntries(secenekler.map((s) => [s.k, s.v !== false])),
+    sec: Object.fromEntries(secenekler.map((s) => [s.k, s.v !== false])), firmaSec: new Set(),
   };
   const kap = h("div", { class: "form" });
+  const yerles = (...cocuklar) => kap.replaceChildren(...cocuklar.filter(Boolean));
   const firma = h("input", { class: "girdi", type: "text", maxlength: "80", value: durum.firma, "aria-label": "Firma adı", oninput: () => { durum.firma = firma.value; } });
   const ayGirdi = h("input", { class: "girdi", type: "month", value: durum.ay, "aria-label": "Ay", oninput: () => { if (ayGirdi.value) durum.ay = ayGirdi.value; } });
   function ciz() {
-    kap.replaceChildren(
+    yerles(
       donem && h("div", { class: "alan" }, h("span", {}, "Dönem"),
         segment([["tumu", "Tümü"], ["bu", "Bu ay"], ["gecen", "Geçen ay"], ["ay", "Ay seç"]], durum.tur, (k) => { durum.tur = k; ciz(); }),
         durum.tur === "ay" && ayGirdi),
       h("label", { class: "alan" }, h("span", {}, "Firma adı"), firma),
-      ...secenekler.map((s) => h("label", { class: "secenek" }, h("input", { type: "checkbox", checked: durum.sec[s.k], onchange: (e) => { durum.sec[s.k] = e.target.checked; } }), h("span", {}, s.ad))),
+      firmalar.length > 0 && h("div", { class: "alan" }, h("span", {}, "Dışa aktarılacak firmalar"),
+        h("p", { class: "soluk" }, "İşaretleyin; hiçbiri işaretli değilse tümü çıkar"),
+        h("div", { class: "firma-liste", role: "group", "aria-label": "Dışa aktarılacak firmalar" },
+          firmalar.map((f) => animOnay({ etiket: f, isaretli: durum.firmaSec.has(f), degisti: (a) => { if (a) durum.firmaSec.add(f); else durum.firmaSec.delete(f); } })))),
+      ...secenekler.map((s) => animOnay({ etiket: s.ad, isaretli: durum.sec[s.k], degisti: (a) => { durum.sec[s.k] = a; } })),
       ozelLogoVar() && h("div", { class: "alan" }, h("span", {}, "Logo"), segment([["yok", "Yok"], ["sol", "Sol"], ["sag", "Sağ"]], durum.logo, (k) => { durum.logo = k; ciz(); })),
       ozelLogoVar() && durum.logo !== "yok" && h("div", { class: "alan" }, h("span", {}, "Logo boyutu"), segment([["kucuk", "Küçük"], ["orta", "Orta"], ["buyuk", "Büyük"]], durum.boyut, (k) => { durum.boyut = k; ciz(); })),
       h("button", { class: "dugme birincil genis", type: "button", onclick: () => gonder("indir") }, ikon("indir", 18), onay),
@@ -82,7 +87,7 @@ function ayarPaneli({ donem, baslik, onay, secenekler = [], varsayilanAy = "", g
   function gonder(mod) {
     ayarYaz({ donemTur: durum.tur, donemAy: durum.ay, firma: durum.firma.trim(), logo: ozelLogoVar() ? durum.logo : kayit.logo, boyut: durum.boyut });
     panel.kapat();
-    devam({ donem: donemCoz({ tur: durum.tur, ay: durum.ay }), firma: durum.firma.trim(), logoKonum: durum.logo, logoBoyut: durum.boyut, sec: { ...durum.sec } }, mod);
+    devam({ donem: donemCoz({ tur: durum.tur, ay: durum.ay }), firma: durum.firma.trim(), logoKonum: durum.logo, logoBoyut: durum.boyut, sec: { ...durum.sec }, firmaSecim: firmalar.filter((f) => durum.firmaSec.has(f)) }, mod);
   }
   ciz();
   const panel = panelAc(baslik, kap);
@@ -141,8 +146,12 @@ export function ciktiDugmeleri({ dosya, donem = false, varsayilanAy = null, pdf 
         dugme.lastChild.textContent = etiket;
       }
     };
-    if (tur === "xlsx" && !tanim.sor && !donem && !(tanim.secenekler || []).length) return calis({ donem: donemCoz({}), firma: ayarOku().firma ?? baglam.isletmeAdi ?? marka.ad, logoKonum: "yok", logoBoyut: "kucuk", sec: {} });
-    ayarPaneli({ donem, baslik: tur === "pdf" ? "PDF ayarları" : "Excel ayarları", onay: tur === "pdf" ? "PDF indir" : "Excel indir", goster: tur === "pdf", secenekler: tanim.secenekler, varsayilanAy: varsayilanAy ? varsayilanAy() : "" }, calis);
+    if (tur === "xlsx" && !tanim.sor && !donem && !(tanim.secenekler || []).length && !tanim.firmalar) return calis({ donem: donemCoz({}), firma: ayarOku().firma ?? baglam.isletmeAdi ?? marka.ad, logoKonum: "yok", logoBoyut: "kucuk", sec: {} });
+    let firmalar = [];
+    if (tanim.firmalar) {
+      try { firmalar = await tanim.firmalar(); } catch (e) { return toast((e && e.message) || "Firma listesi okunamadı", "hata"); }
+    }
+    ayarPaneli({ donem, baslik: tur === "pdf" ? "PDF ayarları" : "Excel ayarları", onay: tur === "pdf" ? "PDF indir" : "Excel indir", goster: tur === "pdf", secenekler: tanim.secenekler, firmalar, varsayilanAy: varsayilanAy ? varsayilanAy() : "" }, calis);
   }
   const dugme = (tur, ad, tanim) => {
     const d = h("button", { class: "dugme ikincil kucuk", type: "button" }, ikon("indir", 16), h("span", {}, ad));

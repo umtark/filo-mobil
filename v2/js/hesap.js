@@ -102,7 +102,7 @@ export function yontemToplami(liste) {
 export function faturaKaydi(r) {
   return {
     id: r.id, tarih: tarihCoz(al(r, "Tarih", "tarih")), giden: kucuk(al(r, "Tip", "tip")).includes("giden"),
-    no: String(al(r, "Fatura No", "fatura_no")), firma: String(al(r, "Firma", "firma")), aciklama: String(al(r, "Aciklama", "aciklama")),
+    no: String(al(r, "Fatura No", "fatura_no")), firma: String(al(r, "Firma", "firma")), plaka: String(al(r, "Plaka", "plaka")), aciklama: String(al(r, "Aciklama", "aciklama")),
     matrah: sayi(al(r, "Matrah", "matrah")), kdvOrani: String(al(r, "KDV %", "kdv_orani")), kdv: sayi(al(r, "KDV Tutari", "kdv_tutari")),
     tevkifat: String(al(r, "Tevkifat", "tevkifat") || "Yok"), tevTutar: sayi(al(r, "Tev.Tutarı", "tev_tutari")), toplam: sayi(al(r, "Toplam", "toplam")),
   };
@@ -150,13 +150,14 @@ export function aracKaydi(a, periyot) {
   // Masaüstündeki "Yağ Bakımı" sekmesi: tarih_km alanı "21.04.2026 / 150.000" biçimindedir.
   const yagKayitlari = (a.yakit_kayitlari || []).map((b) => {
     const [tarihMetni, ...km] = String(b.tarih_km || "").split("/");
-    return { id: b.id, tur: baslik("tab_yakt_kaytlar"), tarih: tarihCoz(tarihMetni.trim().split(/\s+/)[0]), km: km.join("/").trim(), yag: b.yag_cinsi || "", litre: b.yag_lt || "", usta: b.usta || "", yaptiran: b.yaptiran || "", not: b.notlar || "",
+    return { id: b.id, tur: baslik("tab_yakt_kaytlar"), tarihKm: String(b.tarih_km || ""), tarih: tarihCoz(tarihMetni.trim().split(/\s+/)[0]), km: km.join("/").trim(), yag: b.yag_cinsi || "", litre: b.yag_lt || "", usta: b.usta || "", yaptiran: b.yaptiran || "", not: b.notlar || "",
       degisenler: [["Hava kompresörü", b.hava_kompresoru], ["Yağ filtresi", b.yag_filtresi], ["Mazot filtresi", b.mazot_filtresi], ["Hava filtresi", b.hava_filtresi]].filter(([, d]) => String(d || "").trim()).map(([ad, d]) => `${ad}: ${d}`) };
   }).sort(yeniden);
   const kayitlar = [...bakimKayitlari, ...harcamaKayitlari].sort(yeniden);
   return {
-    id: a.id, plaka: a.plaka || "", firma: String(a.firma || "").split(/\s+/).join(" "), marka: a.marka || "", model: a.model || "", yil: String(a.yil || ""),
+    id: a.id, plaka: a.plaka || "", firma: String(a.firma || "").split(/\s+/).join(" "), kurum: String(a.kurum || "").trim(), marka: a.marka || "", model: a.model || "", yil: String(a.yil || ""),
     yakit: a.yakit || "", sofor: a.sofor && a.sofor !== "-" ? a.sofor : "", soforTel: String(a.sofor_tel || "").trim(), km: String(a.km || ""), belgeler, kayitlar, bakimKayitlari, harcamaKayitlari, yagKayitlari,
+    olaylar: (Array.isArray(a.olaylar) ? a.olaylar : []).map((o) => ({ tarih: tarihCoz(o.tarih), mesaj: String(o.mesaj || "").trim(), tip: String(o.tip || ""), p1: String(o.p1 || ""), p2: String(o.p2 || ""), tutar: sayi(o.tutar) })),
     enYakin: belgeler.filter((b) => !b.bakim)[0] || belgeler[0] || null,
   };
 }
