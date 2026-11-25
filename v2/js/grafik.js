@@ -53,7 +53,7 @@ export const paraSayaci = (el, hedef) => sayac(el, hedef, (v) => tl0(v));
 export const adetSayaci = (el, hedef, ek = "") => sayac(el, hedef, (v) => `${sayiYaz(Math.round(v))}${ek}`, { sure: 1200 });
 
 export const kisa = (v) => {
-  const m = Math.abs(v), kes = (x) => x.toFixed(1).replace(/\.0$/, "");
+  const m = Math.abs(v), kes = (x) => x.toFixed(1).replace(/\.0$/, "").replace(".", ",");
   const x = m >= 1e6 ? `${kes(m / 1e6)}M` : m >= 1e3 ? `${m >= 1e5 ? Math.round(m / 1e3) : kes(m / 1e3)}K` : String(Math.round(m));
   return v < 0 ? `-${x}` : x;
 };
@@ -154,15 +154,15 @@ export function halkaGrafigi(gelir, gider) {
   const top = gelir + gider;
   const g = (gelir / top) * 100, d = 100 - g, ayrik = g > 0 && d > 0 ? 1 : 0;
   const yuzde = (v) => `%${((v / top) * 100).toFixed(1).replace(".", ",")}`;
-  const R = 56;
-  const dilim = (uzunluk, sinif, baslangic, gec) => uzunluk > 0 && s("circle", { class: `g-dilim ${sinif}`, cx: 80, cy: 80, r: R, fill: "none", "stroke-width": 20, pathLength: 100,
+  const R = 58;
+  const dilim = (uzunluk, sinif, baslangic, gec) => uzunluk > 0 && s("circle", { class: `g-dilim ${sinif}`, cx: 80, cy: 80, r: R, fill: "none", "stroke-width": 18, pathLength: 100,
     "stroke-dasharray": `${Math.max(0, uzunluk - ayrik)} ${100 - Math.max(0, uzunluk - ayrik)}`, transform: `rotate(${-90 + baslangic * 3.6} 80 80)`, style: `--u:${uzunluk};--gec:${gec}s` });
   const net = gelir - gider;
   const satir = (ad, sinif, deger) => h("div", { class: `halka-satir ${sinif}` }, h("i"), h("span", {}, ad), h("strong", {}, tl0(deger)), h("small", {}, yuzde(deger)));
   const kap = h("div", { class: "halka-kap grafik" },
     h("div", { class: "halka", role: "img", "aria-label": `${baslik("dash_pie_title")}: ${baslik("dash_income_label")} ${yuzde(gelir)}, ${baslik("dash_expense_label")} ${yuzde(gider)}` },
-      s("svg", { viewBox: "0 0 160 160", "aria-hidden": "true" }, s("circle", { class: "g-halka-arka", cx: 80, cy: 80, r: R, fill: "none", "stroke-width": 20 }), dilim(g, "gelir", 0, 0), dilim(d, "gider", g, 0.3)),
-      h("div", { class: "halka-orta" }, h("span", {}, baslik("dash_net_label")), h("strong", { class: net < 0 ? "kirmizi" : "yesil", title: tl0(net) }, `${net < 0 ? "-" : ""}${kisa(Math.abs(net))}\u00a0₺`))),
+      s("svg", { viewBox: "0 0 160 160", "aria-hidden": "true" }, s("circle", { class: "g-halka-arka", cx: 80, cy: 80, r: R, fill: "none", "stroke-width": 18 }), dilim(g, "gelir", 0, 0), dilim(d, "gider", g, 0.3)),
+      h("div", { class: "halka-orta" }, h("span", {}, baslik("dash_net_label")), h("strong", { class: net < 0 ? "kirmizi" : "yesil" }, tl0(net)))),
     h("div", { class: "halka-lejant" }, satir(baslik("dash_income_label"), "gelir", gelir), satir(baslik("dash_expense_label"), "gider", gider)));
   canlandir(kap);
   return kap;
