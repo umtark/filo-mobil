@@ -96,7 +96,7 @@ export const depoSil = (kova, yol) => cagir(`/storage/v1/object/${kova}/${yol}`,
 // Evrakı doğrudan Google Drive'a koyan Supabase fonksiyonu (supabase/functions/evrak_drive). Dönen: { id, dosya }.
 export const evrakDriveYukle = (isletme, yol, dosya) => cagir("/functions/v1/evrak_drive", { yontem: "POST", govde: dosya, ust: { "Content-Type": dosya.type || "application/octet-stream", "x-isletme": isletme, "x-yol": encodeURIComponent(yol) } });
 // Drive'daki evrak dosyasını (herkese açık bağlantı olmadan) fonksiyon üzerinden indirir; yetki sunucuda denetlenir. Dönen: Blob.
-async function driveIndir(ust) {
+async function driveYanit(ust) {
   if (oturum && oturum.expires_at && oturum.expires_at - 30 < Date.now() / 1000) await yenile();
   let cevap;
   try {
@@ -110,9 +110,14 @@ async function driveIndir(ust) {
     try { m = (await cevap.json()).mesaj; } catch { m = null; }
     throw new ApiHatasi(m || `Dosya açılamadı (${cevap.status}).`, cevap.status);
   }
-  return cevap.blob();
+  return cevap;
 }
+const driveIndir = async (ust) => (await driveYanit(ust)).blob();
 export const evrakDriveIndir = (isletme, kayit) => driveIndir({ "x-islem": "indir", "x-isletme": isletme, "x-kayit": encodeURIComponent(kayit) });
+// Araç ve şoför evrakları (Drive: Evraklar/Araçlar/<plaka>, Evraklar/Şoförler/<şoför>); klasör adı sunucuda aracın kaydından çıkarılır, istemciden yol alınmaz.
+// Liste: { arac: [{ ad, boyut, tarih }], sofor: [...] }
+export const aracEvrakListe = async (isletme, aracId) => (await driveYanit({ "x-islem": "arac_liste", "x-isletme": isletme, "x-kayit": encodeURIComponent(aracId) })).json();
+export const aracEvrakIndir = (isletme, aracId, tur, ad) => driveIndir({ "x-islem": "arac_indir", "x-isletme": isletme, "x-kayit": encodeURIComponent(aracId), "x-tur": tur, "x-dosya": encodeURIComponent(ad) });
 // Okul ödemesine eklenmiş dekont (Drive: Evraklar/Okul_Dekont/<öğrenci>/<dosya>); yetki ve yolun o öğrencinin kaydında geçmesi sunucuda denetlenir.
 export const dekontDriveIndir = (isletme, ogrenci, yol) => driveIndir({ "x-islem": "dekont", "x-isletme": isletme, "x-kayit": encodeURIComponent(ogrenci), "x-dosya": encodeURIComponent(yol) });
 export async function depoBaglantisi(kova, yol, saniye = 600) {

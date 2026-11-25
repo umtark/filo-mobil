@@ -123,13 +123,26 @@ export function trendGrafigi(seri) {
   }
   kolonEl.forEach((k, i) => {
     k.addEventListener("click", () => sec(i));
-    k.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sec(i); } });
+    k.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sec(i); }
+      // shadcn accessibilityLayer gibi: ok tuşlarıyla aylar arasında gezinilir
+      else if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); const j = Math.min(n - 1, Math.max(0, i + (e.key === "ArrowRight" ? 1 : -1))); kolonEl[j].focus(); sec(j); }
+    });
   });
   sec(secili);
 
   const kaydir = h("div", { class: "grafik-kaydir" }, svg);
-  const lejant = h("div", { class: "grafik-lejant" },
-    h("span", {}, h("i", { class: "gelir" }), baslik("dash_income_label")), h("span", {}, h("i", { class: "gider" }), baslik("dash_expense_label")), h("span", {}, h("i", { class: "net" }), baslik("dash_net_label")));
+  // Tremor lejantı gibi: bir seriye dokununca diğerleri soluklaşır, tekrar dokununca kalkar
+  const lejantDugme = (sinif, ad) => {
+    const d = h("button", { class: "lejant-dugme", type: "button", "aria-pressed": "false" }, h("i", { class: sinif }), ad);
+    d.addEventListener("click", () => {
+      const yeni = kap.dataset.seri === sinif ? "" : sinif;
+      if (yeni) kap.dataset.seri = yeni; else delete kap.dataset.seri;
+      lejant.querySelectorAll(".lejant-dugme").forEach((x) => x.setAttribute("aria-pressed", String(x === d && Boolean(yeni))));
+    });
+    return d;
+  };
+  const lejant = h("div", { class: "grafik-lejant" }, lejantDugme("gelir", baslik("dash_income_label")), lejantDugme("gider", baslik("dash_expense_label")), lejantDugme("net", baslik("dash_net_label")));
   const kap = h("div", { class: "grafik" }, okuma, kaydir, lejant);
   gorununce(kap, () => { kap.classList.add("calis"); kaydir.scrollLeft = kaydir.scrollWidth; });
   requestAnimationFrame(() => { kaydir.scrollLeft = kaydir.scrollWidth; });
