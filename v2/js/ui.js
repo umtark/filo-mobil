@@ -45,6 +45,8 @@ const YOLLAR = {
   mesaj: "M4 5h16v11H9l-5 4V5z",
   arti: "M12 5v14M5 12h14",
   eksi: "M5 12h14",
+  yazdir: "M7 8V4h10v4M6 17H4v-6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6h-2M7 14h10v6H7z",
+  paylas: "M12 15V4M8 8l4-4 4 4M5 12v7h14v-7",
   tik: "M5 12.5l4.5 4.5L19 7.5",
   cikis: "M9 4H5v16h4M16 8l4 4-4 4M20 12H9",
   indir: "M12 4v11M7 11l5 5 5-5M5 20h14",

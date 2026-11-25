@@ -1,7 +1,7 @@
 // Uygulama içi dosya görüntüleyici (tam ekran): PDF, resim ve düz metin yeni sekme açmadan burada gösterilir.
 // Telefon tarayıcıları PDF'i sayfaya gömmediği için PDF, pdf.js ile sayfa sayfa çizilir (kütüphane yalnızca ilk kullanımda indirilir).
-// Telefonun geri tuşu görüntüleyiciyi kapatır; iki parmakla ya da +/- düğmeleriyle yakınlaştırılır.
-import { h, ikon, geriKancasi } from "./ui.js";
+// Telefonun geri tuşu görüntüleyiciyi kapatır; iki parmakla yakınlaştırılır. Üst çubukta indir, yazdır ve (destekleyen telefonlarda) paylaş düğmeleri vardır.
+import { h, ikon, toast, geriKancasi } from "./ui.js";
 
 const ZMIN = 1, ZMAX = 5, KENAR = 16, PIKSEL_SINIRI = 12e6;
 const RESIM = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg", "avif"];
@@ -81,6 +81,21 @@ async function pdfCiz(blob, alan, icerik, durum) {
   return {
     uygula: boyutla,
     sayfaSayisi: sayfalar.length,
+    // Yazdırma için her sayfa A4 çözünürlüğünde çizilip JPEG'e çevrilir (hepsi canvas kalsa uzun belgede bellek biter).
+    yazdirIcerigi: async () => {
+      const resimler = [];
+      for (const s of sayfalar) {
+        const v1 = s.sayfa.getViewport({ scale: 1 });
+        const vp = s.sayfa.getViewport({ scale: Math.min(3, Math.max(1, 1500 / v1.width)) });
+        const tuval = document.createElement("canvas");
+        tuval.width = Math.floor(vp.width); tuval.height = Math.floor(vp.height);
+        await s.sayfa.render({ canvasContext: tuval.getContext("2d"), viewport: vp }).promise;
+        const jpeg = await new Promise((coz) => tuval.toBlob(coz, "image/jpeg", 0.9));
+        tuval.width = 0;
+        resimler.push(h("img", { src: URL.createObjectURL(jpeg), alt: "" }));
+      }
+      return resimler;
+    },
     gecerliSayfa: () => {
       const orta = alan.scrollTop + alan.clientHeight / 3;
       let bulunan = 1;
@@ -98,12 +113,13 @@ function resimCiz(blob, alan, icerik, durum) {
   icerik.append(resim);
   const uygula = () => { resim.style.width = `${Math.max(120, (alan.clientWidth - KENAR) * durum.zoom)}px`; };
   uygula();
-  return bitti.then(() => ({ uygula, sayfaSayisi: 0, temizle: () => URL.revokeObjectURL(adres) }));
+  return bitti.then(() => ({ uygula, sayfaSayisi: 0, yazdirIcerigi: async () => [h("img", { src: URL.createObjectURL(blob), alt: "" })], temizle: () => URL.revokeObjectURL(adres) }));
 }
 
 async function metinCiz(blob, icerik) {
-  icerik.append(h("pre", { class: "gor-metin" }, await blob.text()));
-  return { uygula: () => {}, sayfaSayisi: 0, temizle: () => {}, yakinlastirma: false };
+  const metin = await blob.text();
+  icerik.append(h("pre", { class: "gor-metin" }, metin));
+  return { uygula: () => {}, sayfaSayisi: 0, yazdirIcerigi: async () => [h("pre", {}, metin)], temizle: () => {} };
 }
 
 // blob: gösterilecek dosya, ad: dosya adı, indir: "İndir" düğmesinin çağıracağı işlev. Desteklenmeyen türde false döner (çağıran indirir).
@@ -117,15 +133,40 @@ export function goruntuleyiciAc(blob, ad, indir) {
   const icerik = h("div", { class: "gor-icerik" });
   alan.append(icerik);
   const alt = h("span", { class: "gor-alt" });
-  const dugme = (ad_, simge, tikla, ozellik = {}) => h("button", { class: "ikon-dugme", type: "button", "aria-label": ad_, onclick: tikla, ...ozellik }, ikon(simge));
+  const dugme = (yazi, simge, tikla) => h("button", { class: "ikon-dugme", type: "button", "aria-label": yazi, title: yazi, onclick: tikla }, ikon(simge));
   const kapatDugmesi = dugme("Kapat", "geri", () => history.back());
-  const eksi = dugme("Uzaklaştır", "eksi", () => zoomYap(durum.zoom / 1.4));
-  const arti = dugme("Yakınlaştır", "arti", () => zoomYap(durum.zoom * 1.4));
   const indirDugmesi = dugme("Telefona indir", "indir", () => indir());
-  const ust = h("header", { class: "gor-ust" }, kapatDugmesi, h("div", { class: "gor-baslik" }, h("strong", {}, ad), alt), tur === "metin" ? null : eksi, tur === "metin" ? null : arti, indirDugmesi);
-  const kok = h("div", { class: "goruntuleyici", role: "dialog", "aria-modal": "true", "aria-label": ad }, ust, alan);
-  const bekle = h("p", { class: "gor-bekle", role: "status" }, "Yükleniyor");
+  const yazdirDugmesi = dugme("Yazdır", "yazdir", () => yazdir(yazdirDugmesi));
+  const dosya = () => new File([blob], ad, { type: blob.type || "application/octet-stream" });
+  const paylasilabilir = typeof navigator.share === "function" && typeof navigator.canShare === "function" && (() => { try { return navigator.canShare({ files: [dosya()] }); } catch { return false; } })();
+  const paylasDugmesi = paylasilabilir ? dugme("Paylaş", "paylas", async () => {
+    try { await navigator.share({ files: [dosya()], title: ad }); } catch (e) { if (e && e.name !== "AbortError") toast("Paylaşılamadı", "hata"); }
+  }) : null;
+  const ust = h("header", { class: "gor-ust" }, kapatDugmesi, h("div", { class: "gor-baslik" }, h("strong", {}, ad), alt), indirDugmesi, yazdirDugmesi, paylasDugmesi);
+  const kok = h("div", { class: "goruntuleyici", role: "dialog", "aria-modal": "true", "aria-label": ad }, ust, alan);  const bekle = h("p", { class: "gor-bekle", role: "status" }, "Yükleniyor");
   alan.append(bekle);
+
+  // Yazdırma: sayfa görüntüleri yalnızca yazdırmada görünen bir katmana konur (stil.css @media print), yazdırma bitince kaldırılır.
+  async function yazdir(dugme) {
+    if (!motor || dugme.disabled) return;
+    dugme.disabled = true;
+    toast("Yazdırma hazırlanıyor");
+    const kap = h("div", { class: "gor-yazdir" });
+    const bitir = () => {
+      window.removeEventListener("afterprint", bitir);
+      kap.querySelectorAll("img").forEach((i) => URL.revokeObjectURL(i.src));
+      kap.remove();
+    };
+    try {
+      kap.append(...await motor.yazdirIcerigi());
+      document.body.append(kap);
+      await Promise.all([...kap.querySelectorAll("img")].map((i) => (i.decode ? i.decode().catch(() => {}) : Promise.resolve())));
+      window.addEventListener("afterprint", bitir);
+      setTimeout(bitir, 10 * 60 * 1000);
+      window.print();
+    } catch (e) { bitir(); toast((e && e.message) || "Yazdırılamadı", "hata"); }
+    finally { dugme.disabled = false; }
+  }
 
   function kapat() {
     if (kapandi) return;
@@ -145,7 +186,6 @@ export function goruntuleyiciAc(blob, ad, indir) {
     motor.uygula();
     alan.scrollTop = ortaY * oran - alan.clientHeight / 2;
     alan.scrollLeft = ortaX * oran - alan.clientWidth / 2;
-    arti.disabled = z >= ZMAX; eksi.disabled = z <= ZMIN;
   }
 
   // İki parmakla yakınlaştırma: parmaklar hareket ederken içerik anlık ölçeklenir, bırakınca yeni boyutta yeniden çizilir.
@@ -181,9 +221,7 @@ export function goruntuleyiciAc(blob, ad, indir) {
       if (kapandi) { m.temizle(); return; }
       motor = m;
       bekle.remove();
-      if (m.yakinlastirma === false) { eksi.hidden = true; arti.hidden = true; }
       if (m.sayfaSayisi) alt.textContent = `Sayfa 1 / ${m.sayfaSayisi}`;
-      eksi.disabled = true;
     })
     .catch((e) => {
       bekle.replaceChildren(h("span", {}, (e && e.message) || "Dosya gösterilemedi."), h("button", { class: "dugme ikincil", type: "button", onclick: () => indir() }, ikon("indir", 18), "Telefona indir"));
