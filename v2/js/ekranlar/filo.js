@@ -98,14 +98,25 @@ export function aracAc(id, plaka) {
 // Kart başlığı: sağda "Ekle" düğmesi (yazma yetkisi varsa).
 const kartBasligi = (ad, ekle) => h("div", { class: "kart-baslik" }, h("h3", {}, ad), ekle && h("button", { class: "dugme ikincil kucuk", type: "button", onclick: ekle }, ikon("arti", 16), "Ekle"));
 
+// Her iki kart aynı listeyi kullanır: tek istek atılır; aynı araca kısa süre sonra dönülürse önbellekten anında gelir.
+const evrakOnbellek = new Map();
+function evrakListesi(aracId, yeniden = false) {
+  const var_ = evrakOnbellek.get(aracId);
+  if (!yeniden && var_ && Date.now() - var_.t < 3 * 60000) return var_.p;
+  const p = api.aracEvrakListe(veri.baglam.isletme, aracId);
+  evrakOnbellek.set(aracId, { t: Date.now(), p });
+  p.catch(() => { if (evrakOnbellek.get(aracId)?.p === p) evrakOnbellek.delete(aracId); });
+  return p;
+}
+
 // Araç ve şoför evrakları: masaüstündeki "Araç Evrakları" / "Şoför Evrakları" klasörlerinin (Google Drive) dosyaları; kart açılınca yüklenir.
 const boyutYaz = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 function evrakKarti(a, tur) {
   const baslikMetni = tur === "arac" ? mb("evrak_yonetimi_baslik") : mb("sofor_evraklari");
   const kap = kart(h("h3", {}, baslikMetni), yukleniyor(2));
-  const yukle = () => {
+  const yukle = (yeniden = false) => {
     kap.replaceChildren(h("h3", {}, baslikMetni), yukleniyor(2));
-    api.aracEvrakListe(veri.baglam.isletme, a.id).then((s) => {
+    evrakListesi(a.id, yeniden).then((s) => {
       const dosyalar = Array.isArray(s[tur]) ? s[tur] : [];
       kap.replaceChildren(h("h3", {}, baslikMetni), dosyalar.length
         ? h("div", { class: "liste" }, dosyalar.map((d) => satir({
@@ -113,7 +124,7 @@ function evrakKarti(a, tur) {
           onclick: (e) => goruntule(e.currentTarget, () => api.aracEvrakIndir(veri.baglam.isletme, a.id, tur, d.ad), d.ad),
         })))
         : bosDurum(mb("hic_evrak_yok_uyari")));
-    }, (e) => kap.replaceChildren(h("h3", {}, baslikMetni), hataGoster(e, yukle)));
+    }, (e) => kap.replaceChildren(h("h3", {}, baslikMetni), hataGoster(e, () => yukle(true))));
   };
   yukle();
   return kap;
