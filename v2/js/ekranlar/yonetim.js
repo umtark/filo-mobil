@@ -1,4 +1,4 @@
-// Yönetim (yalnızca platform yöneticisi): şirket başvurularını onaylar/reddeder, doğrudan şirket açar, lisans uzatır, şirketi blokeler/açar, tüm şirketleri bakım moduna alır.
+// Yönetim (yalnızca platform yöneticisi): şirket başvurularını onaylar/reddeder, doğrudan şirket açar, lisans uzatır, şirketi blokeler/açar, şirketin kullanıcılarına bitiş tarihi verir/kapatır, tüm şirketleri bakım moduna alır.
 // Yetki sunucuda zorlanır (platform_* fonksiyonları); bu ekran yalnızca yöneticiye gösterilir.
 import * as api from "../api.js";
 import { tarihCoz, tarihYaz } from "../bicim.js";
@@ -109,6 +109,72 @@ function basvuruPaneli(b, yenile) {
     lisans.dugumler, mesaj, onayla, neden, reddet));
 }
 
+const ROL = { sahip: "Sahip", yonetici: "Yönetici", kullanici: "Kullanıcı" };
+const isoTarih = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const bugunIso = () => isoTarih(new Date());
+const gunEkle = (iso, gun) => { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + gun); return isoTarih(d); };
+const gunFarki = (iso) => Math.round((new Date(iso + "T00:00:00") - new Date(new Date().toDateString())) / 86400000);
+
+// Kullanıcının bitiş tarihi bitiş gününün sonuna kadar geçerlidir (sunucuda bitis >= bugün).
+function uyeSuresi(u) {
+  if (!u.bitis) return "süresiz";
+  const kalan = gunFarki(String(u.bitis).slice(0, 10));
+  return kalan < 0 ? `süresi ${-kalan} gün önce doldu` : `${tarihMetni(u.bitis)} (${kalan} gün)`;
+}
+const uyeSuresiDoldu = (u) => Boolean(u.bitis) && gunFarki(String(u.bitis).slice(0, 10)) < 0;
+
+function uyePaneli(s, u, listeyiYenile, yenile) {
+  const mesaj = h("p", { class: "hata-metin", role: "alert", hidden: true });
+  const uygula = (dugme, govde, bildirim) => yap(dugme, mesaj, async () => {
+    await api.rpc("platform_uye_ayarla", { p_isletme: s.id, p_kullanici: u.id, ...govde });
+    toast(bildirim);
+    panel.kapat();
+    listeyiYenile();
+    yenile();
+  });
+  const suredugme = (yazi, govde, bildirim) => {
+    const d = h("button", { class: "dugme ikincil", type: "button", disabled: u.benim }, yazi);
+    d.onclick = () => uygula(d, govde, bildirim);
+    return d;
+  };
+  const artir = (gun) => {
+    const baz = u.bitis && String(u.bitis).slice(0, 10) > bugunIso() ? String(u.bitis).slice(0, 10) : bugunIso();
+    const yeni = gunEkle(baz, gun);
+    return suredugme(`+${gun} gün`, { p_bitis: yeni }, `Erişim ${tarihMetni(yeni)} tarihine kadar`);
+  };
+  const ozel = h("input", { class: "girdi", type: "date", min: bugunIso(), "aria-label": "Bitiş tarihi", disabled: u.benim });
+  const ozelDugme = h("button", { class: "dugme ikincil", type: "button", disabled: u.benim }, "Uygula");
+  ozelDugme.onclick = () => {
+    if (!ozel.value) { mesaj.textContent = "Bir bitiş tarihi seçin."; mesaj.hidden = false; return; }
+    uygula(ozelDugme, { p_bitis: ozel.value }, `Erişim ${tarihMetni(ozel.value)} tarihine kadar`);
+  };
+  const durumDugmesi = h("button", { class: u.aktif ? "dugme tehlike genis" : "dugme birincil genis", type: "button", disabled: u.benim && u.aktif }, u.aktif ? "Kullanıcıyı kapat" : "Kullanıcıyı aç");
+  durumDugmesi.onclick = () => uygula(durumDugmesi, { p_aktif: !u.aktif }, u.aktif ? "Kullanıcı kapatıldı" : "Kullanıcı açıldı");
+  const bilgi = (e, d) => h("div", { class: "bilgi" }, h("span", { class: "bilgi-etiket" }, e), h("span", { class: "bilgi-deger" }, d));
+  const panel = panelAc(u.ad, h("div", { class: "form" },
+    h("div", { class: "kart" }, bilgi("Kullanıcı adı", u.giris), bilgi("Rol", ROL[u.rol] || u.rol), bilgi("Durum", u.aktif ? "Açık" : "Kapalı"), bilgi("Erişim süresi", uyeSuresi(u))),
+    h("div", { class: "alan" }, h("span", {}, "Erişim süresini uzat"), h("div", { class: "dugme-sirasi" }, artir(30), artir(90), artir(365), suredugme("Süresiz yap", { p_sure_kaldir: true }, "Süre sınırı kaldırıldı"))),
+    h("div", { class: "dugme-sirasi" }, ozel, ozelDugme),
+    mesaj, durumDugmesi, u.benim && h("p", { class: "soluk" }, "Kendi hesabınızı kapatamaz ya da süreye bağlayamazsınız.")));
+}
+
+async function kullanicilarPaneli(s, yenile) {
+  const icerik = h("div", { class: "form" }, h("p", { class: "soluk" }, "Yükleniyor"));
+  panelAc(`${s.ad} · Kullanıcılar`, icerik);
+  const doldur = async () => {
+    try {
+      const liste = await api.rpc("platform_uyeler", { p_isletme: s.id });
+      icerik.replaceChildren(liste.length
+        ? kart(liste.map((u) => satir({
+          baslik: u.ad, alt: `${ROL[u.rol] || u.rol} · ${u.giris}`, sag: u.aktif ? (uyeSuresiDoldu(u) ? "Süresi doldu" : "") : "Kapalı", sagAlt: u.aktif ? uyeSuresi(u) : "",
+          ton: !u.aktif || uyeSuresiDoldu(u) ? "kirmizi" : "", onclick: () => uyePaneli(s, u, doldur, yenile),
+        })))
+        : bosDurum("Kullanıcı yok."));
+    } catch (e) { icerik.replaceChildren(h("p", { class: "hata-metin", role: "alert" }, /platform_uyeler/.test(e.message) ? "Kullanılamıyor: supabase/uye_sure.sql henüz çalıştırılmamış." : e.message)); }
+  };
+  doldur();
+}
+
 function sirketPaneli(s, yenile) {
   const mesaj = h("p", { class: "hata-metin", role: "alert", hidden: true });
   const uzat = (gun, omur = false) => {
@@ -146,6 +212,7 @@ function sirketPaneli(s, yenile) {
       bilgi("Kullanıcı", `${s.kullanici_sayisi}${s.kullanici_siniri ? " / " + s.kullanici_siniri : ""}`), bilgi("Bağlantı", baglanti(s.kod))),
     h("div", { class: "alan" }, h("span", {}, "Lisansı uzat"), h("div", { class: "dugme-sirasi" }, uzat(30), uzat(90), uzat(365), uzat(0, true))),
     h("div", { class: "dugme-sirasi" }, ozelGun, ozelDugme),
+    h("button", { class: "dugme ikincil genis", type: "button", onclick: () => kullanicilarPaneli(s, yenile) }, `Kullanıcılar (${s.kullanici_sayisi})`),
     mesaj, durumDugmesi, s.benim && s.aktif && h("p", { class: "soluk" }, "Kendi şirketinizi blokeleyemezsiniz.")));
 }
 

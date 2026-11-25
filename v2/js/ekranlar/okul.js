@@ -1,6 +1,8 @@
 // Okul: servis kullanan öğrencilerin tahsilat takibi. Telefondan yapılabilen tek yazma işlemi ödeme eklemektir.
 import { h, ikon, kart, satir, bilgiSatiri, cipler, aramaKutusu, ayCubugu, sayfalamali, bosDurum, panelAc, detayAc, detayYenile, toast, segment } from "../ui.js";
 import * as veri from "../veri.js";
+import * as api from "../api.js";
+import { goruntule, indir } from "../dosya.js";
 import { okulToplam, yontemToplami } from "../hesap.js";
 import { animasyon } from "../lottie.js";
 import { duz, doldur } from "../metin.js";
@@ -225,10 +227,21 @@ function detay(o) {
     ciktiDugmeleri({ dosya: "odeme_gecmisi", pdf: { ad: "Ödeme geçmişi PDF", yatay: false, altSol: "Ödeme Geçmişi Raporu", uret: (c) => ogrenciOdemePdf(c, o) } }),
     kart(h("h3", {}, "Ödemeler"),
       o.odemeler.length
-        ? o.odemeler.map((g) => satir({ baslik: para(g.tutar), alt: [tarihYaz(g.tarih), YONTEM[g.yontem] || g.yontem, g.not].filter(Boolean).join(" · "), sagAlt: g.kisi ? `Telefon: ${g.kisi}` : "",
-          onclick: yazabilir && g.id ? () => ed.odemeFormu(o.id, g.id) : undefined }))
+        ? o.odemeler.map((g) => satir({ baslik: para(g.tutar), alt: [tarihYaz(g.tarih), YONTEM[g.yontem] || g.yontem, g.not, g.dekont && "Dekont var"].filter(Boolean).join(" · "), sagAlt: g.kisi ? `Telefon: ${g.kisi}` : "",
+          onclick: g.dekont ? () => odemeDetayPaneli(o, g, yazabilir) : yazabilir && g.id ? () => ed.odemeFormu(o.id, g.id) : undefined }))
         : bosDurum("Henüz ödeme yok.")),
     yazabilir && islemDugmeleri({ duzenle: () => ed.ogrenciFormu(o.id, { detaydan: true }) }));
+}
+
+// Dekontu olan ödeme: bilgi + dekontu yeni sekmede görüntüle / telefona indir (dosya Drive'dadır; sunucu fonksiyonu yetkiyi denetleyip getirir).
+function odemeDetayPaneli(o, g, yazabilir) {
+  const dosyaAdi = g.dekontYolu.split("/").pop();
+  const blobAl = () => api.dekontDriveIndir(veri.baglam.isletme, o.id, g.dekontYolu);
+  const panel = panelAc(para(g.tutar), h("div", { class: "form" },
+    h("div", { class: "kart" }, bilgiSatiri("Öğrenci", o.ad), bilgiSatiri("Tarih", tarihYaz(g.tarih)), bilgiSatiri("Yöntem", YONTEM[g.yontem] || g.yontem), g.not && bilgiSatiri("Not", g.not)),
+    h("button", { class: "dugme birincil genis", type: "button", onclick: (e) => goruntule(e.currentTarget, blobAl, dosyaAdi) }, ikon("goz", 18), "Dekontu görüntüle"),
+    h("button", { class: "dugme ikincil genis", type: "button", onclick: (e) => indir(e.currentTarget, blobAl, dosyaAdi) }, ikon("indir", 18), "Telefona indir"),
+    yazabilir && g.id && h("button", { class: "dugme ikincil genis", type: "button", onclick: () => { panel.kapat(); ed.odemeFormu(o.id, g.id); } }, "Ödemeyi düzenle")));
 }
 
 function telefonSatiri(kim, tel) {

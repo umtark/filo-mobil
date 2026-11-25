@@ -7,6 +7,7 @@ import { tarihCoz, tarihYaz, gunFarki, eslesir, sirala } from "../bicim.js";
 import { metin, etiket } from "../metin.js";
 import { islemDugmeleri, ekleDugmesi } from "../form.js";
 import * as duz from "../duzenle.js";
+import { goruntule, indir } from "../dosya.js";
 
 const UYARI_GUN = 30;   // masaüstündeki _SEVRAK_UYARI_GUN ile aynı
 const durum = { arama: "", firma: "", yil: "", arsiv: false };
@@ -55,50 +56,7 @@ export async function ciz() {
 
 const bekliyor = (r) => Boolean(r.aktarim && r.aktarim.durum === "bekliyor");
 
-const TUR = { pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", txt: "text/plain" };
-
-// Tarayıcının dosyayı sayfada gösterebilmesi için doğru MIME türü gerekir; sunucu genel tür dönerse uzantıdan çıkarılır.
-async function drive(r) {
-  const blob = await api.evrakDriveIndir(veri.baglam.isletme, r.id);
-  const tur = TUR[String(r.dosya_adi || "").split(".").pop().toLowerCase()];
-  return tur && (!blob.type || blob.type === "application/octet-stream") ? new Blob([blob], { type: tur }) : blob;
-}
-
-// Düğme çalışırken dönen halka ve yazı gösterir; bitince bildirim verir.
-async function dugmeIsi(dugme, yazi, is) {
-  const eski = [...dugme.childNodes];
-  dugme.disabled = true; dugme.classList.add("mesgul");
-  dugme.replaceChildren(h("span", { class: "doner", "aria-hidden": "true" }), yazi);
-  try { await is(); } finally { dugme.replaceChildren(...eski); dugme.classList.remove("mesgul"); dugme.disabled = false; }
-}
-
-function driveDosyasiIndir(r, dugme) {
-  return dugmeIsi(dugme, "İndiriliyor", async () => {
-    try {
-      const adres = URL.createObjectURL(await drive(r));
-      const a = h("a", { href: adres, download: r.dosya_adi || "evrak", hidden: true });
-      document.body.append(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(adres), 60000);
-      toast("Dosya indirildi");
-    } catch (e) { toast(e.message || "Dosya indirilemedi", "hata"); }
-  });
-}
-
-// Sekme tıklama anında açılır (telefon tarayıcıları beklemeden sonra açılan pencereyi engeller); dosya gelince içine yüklenir.
-function driveDosyasiGoruntule(r, dugme) {
-  const sekme = window.open("", "_blank");
-  if (sekme) sekme.document.title = "Dosya açılıyor";
-  return dugmeIsi(dugme, "Açılıyor", async () => {
-    try {
-      const adres = URL.createObjectURL(await drive(r));
-      if (sekme) sekme.location.href = adres; else window.location.assign(adres);
-      setTimeout(() => URL.revokeObjectURL(adres), 300000);
-    } catch (e) {
-      if (sekme) sekme.close();
-      toast(e.message || "Dosya açılamadı", "hata");
-    }
-  });
-}
+const evrakBlob = (r) => () => api.evrakDriveIndir(veri.baglam.isletme, r.id);
 
 async function dosyaAc(r) {
   try { window.open(await api.depoBaglantisi("evrak_aktarim", r.aktarim.yol), "_blank", "noopener"); } catch (e) { toast(e.message || "Dosya açılamadı", "hata"); }
@@ -122,7 +80,7 @@ async function evrakDetay(id) {
     bilgiSatiri(etiket("sevrak_gecerlilik"), r.gecerlilikTarihi ? `${tarihYaz(r.gecerlilikTarihi)} (${kalanMetni(r.gun)})` : "", ton(r.gun)),
     bilgiSatiri(etiket("sevrak_etiketler"), r.etiketler), bilgiSatiri(etiket("sevrak_not"), r.not), bilgiSatiri("Dosya", r.dosya_adi), bekliyor(r) && bilgiSatiri("Aktarım", "Bilgisayara aktarılmayı bekliyor", "kehribar")),
     bekliyor(r) && h("button", { class: "dugme ikincil genis", type: "button", onclick: () => dosyaAc(r) }, ikon("indir", 18), "Dosyayı aç"),
-    !bekliyor(r) && r.drive_id && h("button", { class: "dugme birincil genis", type: "button", onclick: (e) => driveDosyasiGoruntule(r, e.currentTarget) }, ikon("goz", 18), "Görüntüle"),
-    !bekliyor(r) && r.drive_id && h("button", { class: "dugme ikincil genis", type: "button", onclick: (e) => driveDosyasiIndir(r, e.currentTarget) }, ikon("indir", 18), "Telefona indir"),
+    !bekliyor(r) && r.drive_id && h("button", { class: "dugme birincil genis", type: "button", onclick: (e) => goruntule(e.currentTarget, evrakBlob(r), r.dosya_adi || "evrak") }, ikon("goz", 18), "Görüntüle"),
+    !bekliyor(r) && r.drive_id && h("button", { class: "dugme ikincil genis", type: "button", onclick: (e) => indir(e.currentTarget, evrakBlob(r), r.dosya_adi || "evrak") }, ikon("indir", 18), "Telefona indir"),
     veri.yazabilir("sirket_evrak") && islemDugmeleri({ duzenle: () => duz.evrakFormu(id, { detaydan: true }) }));
 }
