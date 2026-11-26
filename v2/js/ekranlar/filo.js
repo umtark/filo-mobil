@@ -131,16 +131,39 @@ function evrakKarti(a, tur) {
   return kap;
 }
 
+const bos = (v) => (String(v ?? "").trim() && String(v).trim() !== "-" ? String(v).trim() : "-");
+const belgeTarihi = (v) => { const s = bos(v); const d = s === "-" ? null : tarihCoz(s); return d ? tarihYaz(d) : s; };
+
+// Masaüstündeki "Genel Araç Bilgileri" grubunun aynısı: aynı alanlar, aynı sıra, boş olanlar "-".
+function genelBilgiler(a) {
+  const t = a.belgeTarihleri;
+  return kart(h("h3", {}, mb("qgroupbox_genel_arac_bilgileri")), h("div", { class: "bilgi-grid" },
+    [["plaka_lbl", a.plaka], ["firma_lbl", a.firma], ["kurum_lbl", a.kurum], ["vergi_tc_lbl", a.vergiNo], ["sofor_lbl", a.sofor], ["sofor_tel_lbl", a.soforTel], ["marka_lbl", a.marka], ["model_lbl", a.model],
+      ["model_yili_lbl", a.yil], ["yakit_tipi_lbl", a.yakit], ["vites_tipi_lbl", a.vites], ["guncel_km_lbl", a.km], ["sasi_no_lbl", a.sasi], ["utts_durumu_lbl", a.utts], ["hgs_durumu_lbl", a.hgs]]
+      .map(([k, d]) => bilgiSatiri(me(k), bos(d))),
+    [["muayene_bitis_lbl", t.muayene], ["trafik_bitis_lbl", t.trafik], ["kasko_bitis_lbl", t.kasko], ["koltuk_sigortasi_lbl", t.koltuk], ["guzergah_belge_lbl", t.guzergah]]
+      .map(([k, d]) => bilgiSatiri(me(k), belgeTarihi(d))),
+    bilgiSatiri(me("ruhsat_belge_no_lbl"), bos(a.ruhsatNo))));
+}
+
+function soforKarti(a) {
+  const satirYap = (ad, telefon, ek) => {
+    const tel = telefonTemizle(telefon);
+    return h("div", { class: "telefon" },
+      h("span", { class: "satir-metin" }, h("span", { class: "satir-baslik" }, ad), h("span", { class: "satir-alt" }, [telefon, ek].filter(Boolean).join(" · "))),
+      tel && h("a", { class: "ikon-dugme dolu", href: "tel:" + tel, "aria-label": "Şoförü ara" }, ikon("telefon", 20)));
+  };
+  return kart(h("h3", {}, mb("hr_sofor")), a.sofor && satirYap(a.sofor, a.soforTel, ""),
+    a.ekSoforler.length > 0 && h("div", {}, h("p", { class: "kart-etiket" }, me("ek_soforler_lbl")), a.ekSoforler.map((e) => satirYap(e.ad, e.tel, e.not))));
+}
+
 function aracDetay(a) {
-  const tel = telefonTemizle(a.soforTel);
   const yaz = veri.yazabilir("arac");
   const duzenleKayit = (tur, k) => (yaz ? () => duz.aracKayitFormu(a.id, tur, k.id) : undefined);
   return h("div", { class: "sayfa" },
-    kart(h("p", { class: "soluk" }, a.firma), h("p", { class: "buyuk-sayi baslik" }, `${a.marka} ${a.model}`.trim() || a.plaka),
-      h("div", { class: "bilgi-grid" }, bilgiSatiri(me("model_yili_lbl"), a.yil), bilgiSatiri(mb("hr_yakit"), a.yakit), bilgiSatiri(mb("hr_km"), a.km))),
-    a.sofor && kart(h("h3", {}, mb("hr_sofor")), h("div", { class: "telefon" },
-      h("span", { class: "satir-metin" }, h("span", { class: "satir-baslik" }, a.sofor), h("span", { class: "satir-alt" }, a.soforTel)),
-      tel && h("a", { class: "ikon-dugme dolu", href: "tel:" + tel, "aria-label": "Şoförü ara" }, ikon("telefon", 20)))),
+    kart(h("p", { class: "soluk" }, a.firma), h("p", { class: "buyuk-sayi baslik" }, `${a.marka} ${a.model}`.trim() || a.plaka)),
+    genelBilgiler(a),
+    (a.sofor || a.ekSoforler.length > 0) && soforKarti(a),
     kart(h("h3", {}, mb("tab_muayene__sigor")), a.belgeler.length
       ? h("div", { class: "liste" }, a.belgeler.map((b) => satir({ baslik: b.ad, alt: `${b.bakim ? "Sonraki: " : "Bitiş: "}${tarihYaz(b.son)}`, sag: kalanYaz(b.gun), ton: belgeTonu(b.seviye) })))
       : bosDurum("Belge tarihi girilmemiş.")),
