@@ -10,8 +10,47 @@ let rozet = null;
 let sonZaman = null;      // bu oturumda görülen en yeni bildirimin zamanı (yeni gelen için toast)
 let sonSorgu = 0;
 let tabloYok = false;
+let git = () => {};       // bildirimin ilgili ekranına gider (uygulama.js kaydeder)
+export const bildirimGitAyarla = (f) => { git = f; };
 
 export const sahipMi = () => Boolean(veri.baglam.uye) && veri.baglam.uye.rol === "sahip";
+
+// Bildirim kategorisinden (Fatura, Okul, ...) açılacak ana ekran; sw.js içindeki aynı eşlemeyle tutarlı kalmalı.
+const HEDEFLER = [[/fatura/, "fatura"], [/ara[cç]/, "arac"], [/esnaf/, "esnaf"], [/akaryak/, "petrol"], [/i[çc] hizmet/, "ic_hizmet"], [/okul|servis|öğrenci|mobil/, "okul"], [/evrak/, "sirket_evrak"], [/ayarlar|giriş/, "ayarlar"]];
+export const bildirimHedefi = (kategori) => {
+  const k = String(kategori || "").toLocaleLowerCase("tr");
+  const b = HEDEFLER.find(([rx]) => rx.test(k));
+  return b ? b[1] : "";
+};
+
+// Uygulama açıkken yeni bildirim gelince çalan zil sesi (iki notalı kısa çınlama) ve titreşim. Tarayıcılar sesi ilk dokunuştan sonra serbest bırakır.
+let sesBaglami = null;
+function sesHazirla() {
+  const A = window.AudioContext || window.webkitAudioContext;
+  if (!A) return null;
+  if (!sesBaglami) sesBaglami = new A();
+  if (sesBaglami.state === "suspended") sesBaglami.resume().catch(() => {});
+  return sesBaglami;
+}
+document.addEventListener("pointerdown", () => { try { sesHazirla(); } catch { /* ses desteklenmiyor */ } }, { once: true });
+function zilCal() {
+  try {
+    const c = sesHazirla();
+    if (c && c.state === "running") {
+      const t0 = c.currentTime;
+      [880, 1320].forEach((frekans, i) => {
+        const o = c.createOscillator(), g = c.createGain(), t = t0 + i * 0.18;
+        o.type = "sine"; o.frequency.value = frekans;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.3, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+        o.connect(g); g.connect(c.destination);
+        o.start(t); o.stop(t + 0.6);
+      });
+    }
+    if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
+  } catch { /* ses çalınamadı; toast yine de görünür */ }
+}
 
 function rozetYaz(adet) {
   if (!rozet) return;
@@ -43,7 +82,7 @@ export async function okunmamisTazele() {
     const son = await okumaZamani();
     const l = await bildirimSorgusu(son ? `&olusturma=gt.${encodeURIComponent(son)}` : "");
     rozetYaz(l.length);
-    if (l.length && sonZaman && Date.parse(l[0].olusturma) > Date.parse(sonZaman)) toast(`${l[0].kullanici_ad}: ${l[0].mesaj}`);
+    if (l.length && sonZaman && Date.parse(l[0].olusturma) > Date.parse(sonZaman)) { toast(`${l[0].kullanici_ad}: ${l[0].mesaj}`); zilCal(); }
     if (l.length) sonZaman = l[0].olusturma;
     else if (!sonZaman) sonZaman = new Date().toISOString();
   } catch (e) {
@@ -118,7 +157,7 @@ function pushDugmesi() {
 
 async function listePaneli() {
   const icerik = h("div", { class: "form" }, h("p", { class: "soluk" }, "Yükleniyor"));
-  panelAc("Bildirimler", icerik);
+  const panel = panelAc("Bildirimler", icerik);
   try {
     const son = await okumaZamani().catch(() => null);
     const l = await bildirimSorgusu();
@@ -126,7 +165,11 @@ async function listePaneli() {
     icerik.replaceChildren(
       pushDugmesi(),
       l.length
-        ? kart(l.map((b) => satir({ baslik: b.kullanici_ad || "Kullanıcı", alt: b.kategori ? `${b.kategori}: ${b.mesaj}` : b.mesaj, sag: zamanMetni(b.olusturma), ton: yeniMi(b) ? "yesil" : "" })))
+        ? kart(l.map((b) => {
+          const hedef = bildirimHedefi(b.kategori);
+          return satir({ baslik: b.kullanici_ad || "Kullanıcı", alt: b.kategori ? `${b.kategori}: ${b.mesaj}` : b.mesaj, sag: zamanMetni(b.olusturma), ton: yeniMi(b) ? "yesil" : "",
+            onclick: hedef ? () => { panel.kapat(); git(hedef); } : undefined });
+        }))
         : bosDurum("Bildirim yok"));
     rozetYaz(0);
     if (l.length) sonZaman = l[0].olusturma;

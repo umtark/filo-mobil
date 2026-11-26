@@ -1,5 +1,5 @@
 // Uygulama kabuğunu çevrimdışı açar. Veri (Supabase) ve oturum istekleri ASLA önbelleğe alınmaz.
-const SURUM = "filo2-v56";
+const SURUM = "filo2-v57";
 const KABUK = [
   "./", "index.html", "stil.css", "manifest.webmanifest",
   "js/uygulama.js", "js/bildirim.js", "js/xlsx_oku.js", "js/xls_oku.js", "js/surum.js", "js/ice_aktar.js", "js/api.js", "js/profil.js", "js/config.js", "js/veri.js", "js/hesap.js", "js/bicim.js", "js/ui.js", "js/dosya.js", "js/goruntuleyici.js", "js/kurulum.js", "js/ozet.js", "js/grafik.js", "js/firma_suz.js", "js/marka.js", "js/marka_normal.js", "js/kimlik.js", "js/metin.js", "js/menu.js", "js/lottie.js", "js/form.js", "js/duzenle.js", "js/rapor.js", "js/puantaj.js",
@@ -17,20 +17,30 @@ self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys().then((adlar) => Promise.all(adlar.filter((a) => a !== SURUM).map((a) => caches.delete(a)))).then(() => self.clients.claim()));
 });
 
-// Anlık bildirim (Web Push): sahibe masaüstündeki kullanıcı hareketlerini bildirir (bkz. supabase/functions/bildirim).
+// Anlık bildirim (Web Push): sahibe masaüstündeki/telefondaki kullanıcı hareketlerini bildirir (bkz. supabase/functions/bildirim).
+// Bildirimin kategorisinden (Fatura, Okul, ...) açılacak ekran bulunur; tıklayınca uygulama o ekrana gider.
+const HEDEFLER = [[/fatura/, "fatura"], [/ara[cç]/, "arac"], [/esnaf/, "esnaf"], [/akaryak/, "petrol"], [/i[çc] hizmet/, "ic_hizmet"], [/okul|servis|öğrenci|mobil/, "okul"], [/evrak/, "sirket_evrak"], [/ayarlar|giriş/, "ayarlar"]];
+const hedefBul = (kategori) => {
+  const k = String(kategori || "").toLocaleLowerCase("tr");
+  const bulunan = HEDEFLER.find(([rx]) => rx.test(k));
+  return bulunan ? bulunan[1] : "";
+};
+
 self.addEventListener("push", (e) => {
   let v = {};
   try { v = e.data ? e.data.json() : {}; } catch { v = { mesaj: e.data ? e.data.text() : "" }; }
   e.waitUntil(self.registration.showNotification(v.baslik || "Filo Muhasebe", {
     body: v.mesaj || "", tag: v.etiket || "filo", renotify: true, icon: "ikon-192.png", badge: "favicon-32.png",
+    vibrate: [200, 100, 200], silent: false, data: { hedef: hedefBul(v.etiket) },
   }));
 });
 
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
+  const hedef = (e.notification.data && e.notification.data.hedef) || "";
   e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((l) => {
-    for (const c of l) if ("focus" in c) return c.focus();
-    return self.clients.openWindow("./");
+    for (const c of l) if ("focus" in c) { c.postMessage({ tur: "git", hedef }); return c.focus(); }
+    return self.clients.openWindow("./" + (hedef ? "#" + hedef : ""));
   }));
 });
 

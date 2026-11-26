@@ -12,7 +12,7 @@ import * as filo from "./ekranlar/filo.js";
 import * as hesap from "./ekranlar/hesap.js";
 import * as evrak from "./ekranlar/evrak.js";
 import * as kullanicilar from "./ekranlar/kullanicilar.js";
-import { zilDugmesi, okunmamisTazele } from "./bildirim.js";
+import { zilDugmesi, okunmamisTazele, bildirimGitAyarla } from "./bildirim.js";
 import * as yonetim from "./ekranlar/yonetim.js";
 import { durumEkrani } from "./ekranlar/durum.js";
 import { basvuruEkrani } from "./ekranlar/basvuru.js";
@@ -407,7 +407,14 @@ document.addEventListener("visibilitychange", yetkiIzle);
 window.addEventListener("focus", yetkiIzle);
 window.addEventListener("online", yetkiIzle);
 
+// Bildirim (zil listesi ya da sistem bildirimine dokunma) ilgili ekrana götürür.
+function bildirimdenGit(id) {
+  if (kabukAcik && id && gorunenSekmeler.some((s) => s.id === id)) sekmeyeGit(id);
+}
+bildirimGitAyarla(bildirimdenGit);
+
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+  navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.tur === "git") bildirimdenGit(e.data.hedef); });
   const onceden = Boolean(navigator.serviceWorker.controller);
   let yenilendi = false;
   // Yeni sürüm devreye girince açık kalmış sayfa eski kodla çalışmasın: uygulama arka plandaysa hemen, öndeyse bir sonraki öne gelişinde yenilenir.
