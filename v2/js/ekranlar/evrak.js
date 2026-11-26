@@ -4,7 +4,7 @@ import { h, ikon, toast, kart, satir, bilgiSatiri, aramaKutusu, sayfalamali, bos
 import * as api from "../api.js";
 import * as veri from "../veri.js";
 import { tarihCoz, tarihYaz, gunFarki, eslesir, sirala } from "../bicim.js";
-import { metin, etiket } from "../metin.js";
+import { metin, etiket, duz as md } from "../metin.js";
 import { islemDugmeleri, ekleDugmesi } from "../form.js";
 import * as duz from "../duzenle.js";
 import { goruntule, indir } from "../dosya.js";
@@ -46,7 +46,7 @@ export async function ciz() {
   guncelle();
   return h("div", { class: "sayfa" },
     h("p", { class: "soluk" }, metin("sevrak_sayfa_aciklama")),
-    veri.yazabilir("sirket_evrak") && ekleDugmesi("Evrak yükle", () => duz.evrakYukle()),
+    veri.yazabilir("sirket_evrak") && ekleDugmesi(md("qpushbutton_evrak_yukle"), () => duz.evrakYukle()),
     aramaKutusu(durum.arama, (v) => { durum.arama = v; guncelle(); }, metin("sevrak_ara_ph")),
     h("div", { class: "iki-sutun" },
       secim("Firma", metin("sevrak_tum_firmalar"), firmalar, durum.firma, (v) => { durum.firma = v; guncelle(); }),

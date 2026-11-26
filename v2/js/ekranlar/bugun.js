@@ -8,7 +8,7 @@ import { durum as okulDurumu } from "./okul.js";
 import { aracAc } from "./filo.js";
 import { ciktiDugmeleri } from "../cikti.js";
 import { genelVeri, genelDurumPdf } from "../cikti_genel.js";
-import { baslik } from "../metin.js";
+import { baslik, duz } from "../metin.js";
 import { DONEMLER, VARSAYILAN_DONEM, donemAraligi, aylikSeri, kpiOzeti, filoOzeti, uyariOzeti, uyariOnceligi, hareketler, tutarYaz } from "../ozet.js";
 import { trendGrafigi, halkaGrafigi, paraSayaci, adetSayaci, sayac, canlandir } from "../grafik.js";
 
@@ -28,7 +28,7 @@ export async function ciz(sekmeyeGit) {
     sayfa.append(ciktiDugmeleri({
       dosya: "genel_durum_raporu", donem: true,
       pdf: {
-        ad: "Genel Durum Raporu", yatay: false, altSol: "Genel Durum Raporu",
+        ad: duz("btn_genel_rapor"), yatay: false, altSol: "Genel Durum Raporu",
         async uret(ctx) {
           const [faturalar, akaryakit, esnaflar, icHizmet, okul, araclar] = await Promise.all([veri.faturalar(), veri.akaryakit(), veri.esnaflar(), veri.icHizmet(), veri.okul(), veri.araclar()]);
           genelDurumPdf(ctx, genelVeri({ faturalar, akaryakit, esnaflar, icHizmet, okul, araclar }, ctx.donem));

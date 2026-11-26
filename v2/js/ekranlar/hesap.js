@@ -1,14 +1,14 @@
 // Hesap: kim giriş yapmış, lisans durumu, çıkış.
 import { h, kart, satir, bilgiSatiri, toast, detayAc } from "../ui.js";
 import * as kullanicilar from "./kullanicilar.js";
-import { metin } from "../metin.js";
+import { metin, baslik } from "../metin.js";
 import * as veri from "../veri.js";
 import * as api from "../api.js";
 import * as profil from "../profil.js";
 import { tarihCoz, tarihYaz } from "../bicim.js";
 
 const ROL = { sahip: "Sahip", yonetici: "Yönetici", kullanici: "Kullanıcı" };
-const MODUL = { okul: "Okul", sirket_evrak: "Şirket evrakları", fatura: "Faturalar", arac: "Araçlar", esnaf: "Esnaf", petrol: "Akaryakıt", ic_hizmet: "İç hizmet" };
+const MODUL = { okul: baslik("menu_okul_servis"), sirket_evrak: baslik("menu_sirket_evrak"), fatura: baslik("menu_fatura"), arac: baslik("menu_arac"), esnaf: baslik("menu_esnaf"), petrol: baslik("menu_petrol"), ic_hizmet: baslik("menu_ic_hizmet") };
 
 export async function ciz({ cikis, yenile }) {
   const u = veri.baglam.uye;

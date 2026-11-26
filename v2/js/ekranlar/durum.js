@@ -1,5 +1,6 @@
 // Tam ekran durum sayfası: şirket bloke edilmişse "Bloke edildi", platform bakımdaysa "Bakım modu", kullanıcıya hiçbir sekme izni verilmemişse "Erişim kısıtlandı".
 import { h } from "../ui.js";
+import { duz } from "../metin.js";
 
 const RESIM = { bloke: "ikon/Bloke.png", bakim: "ikon/bakim-modu.png", erisim: "ikon/Bloke.png" };
 const ERISIM_BASLIK = "Hesabınızın erişimi kısıtlandı";
@@ -15,5 +16,5 @@ export function durumEkrani({ tur, mesaj = "", yenile, cikis }) {
     h("p", { class: "durum-metin" }, bakim ? (mesaj || BAKIM_VARSAYILAN) : erisim ? ERISIM_METIN : "Hesabınıza erişim kapatıldı. Ayrıntı için yöneticinizle iletişime geçin."),
     h("div", { class: "durum-dugmeler" },
       h("button", { class: "dugme birincil genis", type: "button", onclick: yenile }, "Yenile"),
-      h("button", { class: "dugme ikincil genis", type: "button", onclick: cikis }, "Çıkış yap")));
+      h("button", { class: "dugme ikincil genis", type: "button", onclick: cikis }, duz("settings_session_logout"))));
 }

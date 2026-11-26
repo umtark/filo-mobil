@@ -3,10 +3,11 @@
 import * as api from "../api.js";
 import * as veri from "../veri.js";
 import { h, kart, satir, bosDurum, panelAc, toast, animOnay, parolaAlani, segment } from "../ui.js";
+import { baslik, duz } from "../metin.js";
 
 const IZINLER = [
-  ["dashboard", "Gösterge paneli"], ["okul", "Okul"], ["sirket_evrak", "Şirket evrakları"], ["fatura", "Faturalar"], ["arac", "Araçlar"],
-  ["esnaf", "Esnaf"], ["petrol", "Akaryakıt"], ["ic_hizmet", "İç hizmet"], ["ayarlar", "Ayarlar"],
+  ["dashboard", baslik("menu_dashboard")], ["okul", baslik("menu_okul_servis")], ["sirket_evrak", baslik("menu_sirket_evrak")], ["fatura", baslik("menu_fatura")], ["arac", baslik("menu_arac")],
+  ["esnaf", baslik("menu_esnaf")], ["petrol", baslik("menu_petrol")], ["ic_hizmet", baslik("menu_ic_hizmet")], ["ayarlar", baslik("menu_ayarlar")],
 ];
 const ETIKET = Object.fromEntries(IZINLER);
 const ROL = { sahip: "Sahip", yonetici: "Yönetici", kullanici: "Kullanıcı" };
@@ -41,7 +42,7 @@ function formPaneli(uye, yenile) {
   };
   rolCiz();
   const mesaj = h("p", { class: "hata-metin", role: "alert", hidden: true });
-  const kaydet = h("button", { class: "dugme birincil genis", type: "submit" }, yeni ? "Kullanıcı ekle" : "Kaydet");
+  const kaydet = h("button", { class: "dugme birincil genis", type: "submit" }, yeni ? duz("kullanici_ekle") : "Kaydet");
   const sil = !yeni && h("button", { class: "dugme tehlike genis", type: "button", onclick: () => {
     if (sil.dataset.onay !== "1") { sil.dataset.onay = "1"; sil.textContent = "Silmek için tekrar dokunun"; return; }
     yap(sil, mesaj, async () => {
@@ -67,7 +68,7 @@ function formPaneli(uye, yenile) {
     h("label", { class: "alan" }, h("span", {}, "Kullanıcı adı"), ad),
     h("label", { class: "alan" }, h("span", {}, "Şifre"), parolaAlani(parola)),
     rolAlani, izinAlani, mesaj, kaydet, sil);
-  const panel = panelAc(yeni ? "Yeni kullanıcı" : uye.ad, form);
+  const panel = panelAc(yeni ? duz("kullanici_yeni_ekle") : uye.ad, form);
 }
 
 // Son nabzı 2 dakikadan yeni olan (ve oturumu bu cihazda açık olan) kullanıcı çevrimiçi sayılır; masaüstü de nabız gönderir.
@@ -115,7 +116,7 @@ export async function ciz() {
     return u.salt_okunur ? `${izin} · yalnızca görüntüleme` : izin;
   };
   kap.append(
-    kart(h("button", { class: "dugme birincil genis", onclick: () => formPaneli(null, yenile) }, "Kullanıcı ekle")),
+    kart(h("button", { class: "dugme birincil genis", onclick: () => formPaneli(null, yenile) }, duz("kullanici_ekle"))),
     nabizVar && kart(h("p", { class: "kart-etiket" }, "Çevrimiçi"), h("p", { class: "buyuk-sayi yesil" }, `${liste.filter(cevrimiciMi).length} / ${liste.length}`),
       h("p", { class: "soluk" }, `Masaüstü ${liste.filter(masaustuAcik).length} · Mobil ${liste.filter(mobilAcik).length}`)),
     liste.length

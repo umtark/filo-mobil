@@ -199,7 +199,7 @@ async function seferDetay(id) {
   return h("div", { class: "sayfa" }, kart(
     h("p", { class: "kart-etiket" }, mb("ic_col_sefer")), h("p", { class: "buyuk-sayi" }, para(s.tutar)),
     bilgiSatiri(mb("hr_tarih"), `${tarihYaz(s.tarih)} ${s.saat}`.trim()), bilgiSatiri(mb("hr_plaka"), s.plaka), bilgiSatiri(mb("hr_sofor"), s.sofor), bilgiSatiri(me("ic_guzergah"), s.guzergah),
-    bilgiSatiri("Gidilen yer", s.yer), bilgiSatiri("Kişi sayısı", s.kisi ? String(s.kisi) : ""), bilgiSatiri("Personel", s.personel),
-    bilgiSatiri("Fiş no", s.fis), bilgiSatiri("Açıklama", s.aciklama)),
+    bilgiSatiri(me("ic_col_gidilen_yer"), s.yer), bilgiSatiri(me("ic_col_kisi"), s.kisi ? String(s.kisi) : ""), bilgiSatiri(me("ic_col_personel"), s.personel),
+    bilgiSatiri(me("ic_col_fis_no"), s.fis), bilgiSatiri(me("rapor_aciklama"), s.aciklama)),
     veri.yazabilir("ic_hizmet") && islemDugmeleri({ duzenle: () => duz.icHizmetFormu(id, { detaydan: true }) }));
 }
