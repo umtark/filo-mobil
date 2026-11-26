@@ -2,6 +2,7 @@
 import * as api from "./api.js";
 import * as veri from "./veri.js";
 import { h, toast } from "./ui.js";
+import { duz } from "./metin.js";
 
 const BOYUT = 256;
 const yol = () => { const k = api.kullanici(); return k && veri.baglam.isletme ? `${veri.baglam.isletme}/${k.id}.jpg` : null; };
@@ -77,7 +78,7 @@ export function fotoBolumu(ad, degisti = () => {}) {
     try { await fotoSil(); uygula(null); degisti(null); toast("Fotoğraf kaldırıldı", "basari"); } catch (e) { toast(e.message || "Fotoğraf kaldırılamadı", "hata"); }
   };
   return h("div", { class: "profil-foto" }, h("button", { class: "avatar-dugme", type: "button", "aria-label": "Profil fotoğrafı seç", onclick: () => girdi.click() }, av),
-    h("button", { class: "dugme birincil", type: "button", onclick: () => girdi.click() }, "Fotoğraf seç"), girdi, kaldir);
+    h("button", { class: "dugme birincil", type: "button", onclick: () => girdi.click() }, duz("ic_foto_sec")), girdi, kaldir);
 }
 
 export const gorunenAd = () => (veri.baglam.uye && veri.baglam.uye.ad) || (api.kullanici() && api.epostadanKullaniciAdi(api.kullanici().email)) || "";

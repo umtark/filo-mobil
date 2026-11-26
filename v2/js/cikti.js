@@ -9,7 +9,7 @@ import { baglam } from "./veri.js";
 import { ayAnahtari, bugun } from "./bicim.js";
 import { sayiTr, tl, gg, ggSaat, donemCoz } from "./cikti_yardim.js";
 import { goruntuleyiciAc } from "./goruntuleyici.js";
-import { duz } from "./metin.js";
+import { duz, baslik as mb, etiket as me } from "./metin.js";
 
 const AYAR_ANAHTARI = "filo2.cikti";
 const p2 = (n) => String(n).padStart(2, "0");
@@ -71,7 +71,7 @@ function ayarPaneli({ donem, baslik, onay, secenekler = [], firmalar = [], varsa
   function ciz() {
     yerles(
       donem && h("div", { class: "alan" }, h("span", {}, "Dönem"),
-        segment([["tumu", "Tümü"], ["bu", "Bu ay"], ["gecen", "Geçen ay"], ["ay", "Ay seç"]], durum.tur, (k) => { durum.tur = k; ciz(); }),
+        segment([["tumu", mb("export_period_all")], ["bu", mb("export_period_this_month")], ["gecen", mb("export_period_prev_month")], ["ay", mb("export_period_pick_month")]], durum.tur, (k) => { durum.tur = k; ciz(); }),
         durum.tur === "ay" && ayGirdi),
       h("label", { class: "alan" }, h("span", {}, "Firma adı"), firma),
       firmalar.length > 0 && h("div", { class: "alan" }, h("span", {}, "Dışa aktarılacak firmalar"),
@@ -80,7 +80,7 @@ function ayarPaneli({ donem, baslik, onay, secenekler = [], firmalar = [], varsa
           firmalar.map((f) => animOnay({ etiket: f, isaretli: durum.firmaSec.has(f), degisti: (a) => { if (a) durum.firmaSec.add(f); else durum.firmaSec.delete(f); } })))),
       ...secenekler.map((s) => animOnay({ etiket: s.ad, isaretli: durum.sec[s.k], degisti: (a) => { durum.sec[s.k] = a; } })),
       ozelLogoVar() && h("div", { class: "alan" }, h("span", {}, "Logo"), segment([["yok", "Yok"], ["sol", "Sol"], ["sag", "Sağ"]], durum.logo, (k) => { durum.logo = k; ciz(); })),
-      ozelLogoVar() && durum.logo !== "yok" && h("div", { class: "alan" }, h("span", {}, "Logo boyutu"), segment([["kucuk", "Küçük"], ["orta", "Orta"], ["buyuk", "Büyük"]], durum.boyut, (k) => { durum.boyut = k; ciz(); })),
+      ozelLogoVar() && durum.logo !== "yok" && h("div", { class: "alan" }, h("span", {}, me("export_logo_size")), segment([["kucuk", "Küçük"], ["orta", "Orta"], ["buyuk", "Büyük"]], durum.boyut, (k) => { durum.boyut = k; ciz(); })),
       h("button", { class: "dugme birincil genis", type: "button", onclick: () => gonder("indir") }, ikon("indir", 18), onay),
       goster && h("button", { class: "dugme ikincil genis", type: "button", onclick: () => gonder("goster") }, ikon("goz", 18), "Görüntüle"));
   }
@@ -151,7 +151,7 @@ export function ciktiDugmeleri({ dosya, donem = false, varsayilanAy = null, pdf 
     if (tanim.firmalar) {
       try { firmalar = await tanim.firmalar(); } catch (e) { return toast((e && e.message) || "Firma listesi okunamadı", "hata"); }
     }
-    ayarPaneli({ donem, baslik: tur === "pdf" ? "PDF ayarları" : "Excel ayarları", onay: tur === "pdf" ? "PDF indir" : "Excel indir", goster: tur === "pdf", secenekler: tanim.secenekler, firmalar, varsayilanAy: varsayilanAy ? varsayilanAy() : "" }, calis);
+    ayarPaneli({ donem, baslik: tur === "pdf" ? mb("export_options_pdf") : "Excel ayarları", onay: tur === "pdf" ? "PDF indir" : "Excel indir", goster: tur === "pdf", secenekler: tanim.secenekler, firmalar, varsayilanAy: varsayilanAy ? varsayilanAy() : "" }, calis);
   }
   const dugme = (tur, ad, tanim) => {
     const d = h("button", { class: "dugme ikincil kucuk", type: "button" }, ikon("indir", 16), h("span", {}, ad));

@@ -44,7 +44,7 @@ function kalemAlani(ilk) {
     aciklama.value = k.aciklama || "";
     const matrah = h("input", { class: "girdi", type: "text", inputmode: "decimal", autocomplete: "off", placeholder: "Matrah", "aria-label": "Matrah", oninput: guncelle });
     matrah.value = k.matrah ? String(k.matrah).replace(".", ",") : "";
-    const kdv = h("select", { class: "girdi", "aria-label": "KDV oranı", onchange: guncelle }, KDV_ORANLARI.map((x) => h("option", { value: x }, `KDV %${x}`)));
+    const kdv = h("select", { class: "girdi", "aria-label": me("qlabel_kdv_orani"), onchange: guncelle }, KDV_ORANLARI.map((x) => h("option", { value: x }, `KDV %${x}`)));
     const oran = k.kdv_orani === undefined || k.kdv_orani === null || k.kdv_orani === "" ? 20 : sayi(k.kdv_orani);
     if (!KDV_ORANLARI.includes(oran)) kdv.append(h("option", { value: oran }, `KDV %${oran}`));
     kdv.value = String(oran);
@@ -238,7 +238,7 @@ export async function esnafIslemFormu(esnafId, islemId, { odeme = false } = {}) 
       { ad: "tarih", etiket: "Tarih", tur: "tarih", zorunlu: true, bugun: true },
       ...(odemeMi ? [] : [{ ad: "plaka", etiket: "Plaka", buyuk: true, liste: araclar }]),
       { ad: "aciklama", etiket: "Açıklama", tur: "uzun", varsayilan: odemeMi ? "Nakit/EFT Ödeme" : "" },
-      { ad: "tutar", etiket: odemeMi ? "Ödenen tutar" : "Tutar", tur: "para", zorunlu: true, zorunluPozitif: true },
+      { ad: "tutar", etiket: odemeMi ? me("hr_odenen") : "Tutar", tur: "para", zorunlu: true, zorunluPozitif: true },
       ...(odemeMi ? [] : [{ ad: "iscilik", etiket: "İşçilik", tur: "para" }]),
     ],
     kaydet: async (g) => {
@@ -351,7 +351,7 @@ export async function odemeFormu(ogrenciId, odemeId, { detaydan = false } = {}) 
   const eski = (o.odeme_gecmisi || []).find((x) => x.id === odemeId);
   if (!eski) throw new Error("Ödeme bulunamadı.");
   formAc({
-    baslik: "Ödemeyi düzenle", deger: { ...eski, yontem: eski.yontem || "nakit" },
+    baslik: mb("petrol_odeme_duzenle"), deger: { ...eski, yontem: eski.yontem || "nakit" },
     alanlar: [
       { ad: "tutar", etiket: me("okul_tutar_lbl"), tur: "para", zorunlu: true, zorunluPozitif: true },
       { ad: "tarih", etiket: me("okul_odeme_tarih_lbl"), tur: "tarih", zorunlu: true },
@@ -458,14 +458,14 @@ export async function evrakFormu(id, { detaydan = false } = {}) {
   const [k, tumu] = await Promise.all([veri.hamKayit("sirket_evraklari", id), veri.sirketEvraklari()]);
   if (!k) throw new Error("Evrak bulunamadı.");
   formAc({
-    baslik: "Evrak bilgilerini düzenle", deger: k,
+    baslik: mb("sevrak_dlg_duzenle"), deger: k,
     alanlar: [
-      { ad: "baslik", etiket: "Başlık", zorunlu: true },
-      { ad: "firma", etiket: "Firma", liste: tekil(tumu.map((r) => r.firma)) },
-      { ad: "kategori", etiket: "Kategori", liste: tekil(tumu.map((r) => r.kategori)) },
-      { yan: [{ ad: "belge_tarihi", etiket: "Belge tarihi", tur: "tarih", bosDeger: "" }, { ad: "gecerlilik", etiket: "Geçerlilik bitişi", tur: "tarih", bosDeger: "" }] },
-      { ad: "etiketler", etiket: "Etiketler" },
-      { ad: "not", etiket: "Not", tur: "uzun" },
+      { ad: "baslik", etiket: me("sevrak_baslik_lbl"), zorunlu: true },
+      { ad: "firma", etiket: me("sevrak_firma"), liste: tekil(tumu.map((r) => r.firma)) },
+      { ad: "kategori", etiket: me("sevrak_kategori"), liste: tekil(tumu.map((r) => r.kategori)) },
+      { yan: [{ ad: "belge_tarihi", etiket: me("sevrak_belge_tarihi"), tur: "tarih", bosDeger: "" }, { ad: "gecerlilik", etiket: me("sevrak_gecerlilik"), tur: "tarih", bosDeger: "" }] },
+      { ad: "etiketler", etiket: me("sevrak_etiketler") },
+      { ad: "not", etiket: me("sevrak_not"), tur: "uzun" },
       { ad: "arsiv", etiket: "Arşivde", tur: "onay" },
     ],
     kaydet: async (g) => { await veri.kayitKaydet("sirket_evraklari", id, (v) => ({ ...v, ...g })); await sonra(); },
@@ -489,15 +489,15 @@ export async function evrakYukle() {
   const girdi = h("input", { type: "file", class: "girdi", accept: ".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,.xls,.xlsx,.txt,.csv", "aria-label": "Dosya" });
   girdi.addEventListener("change", () => { secili = girdi.files[0] || null; });
   formAc({
-    baslik: "Evrak yükle", kaydetEtiket: "Yükle",
+    baslik: mb("qpushbutton_evrak_yukle"), kaydetEtiket: "Yükle",
     alanlar: [
       { ad: "dosya", etiket: "Dosya", zorunlu: true, tur: "ozel", kur: () => ({ kok: h("label", { class: "alan" }, h("span", {}, "Dosya"), girdi), oku: () => secili, bos: () => !secili }) },
-      { ad: "baslik", etiket: "Başlık" },
-      { ad: "firma", etiket: "Firma", zorunlu: true, liste: tekil(tumu.map((r) => r.firma)) },
-      { ad: "kategori", etiket: "Kategori", zorunlu: true, liste: tekil([...EVRAK_KATEGORILERI, ...tumu.map((r) => r.kategori)]) },
-      { yan: [{ ad: "belge_tarihi", etiket: "Belge tarihi", tur: "tarih", bosDeger: "" }, { ad: "gecerlilik", etiket: "Geçerlilik bitişi", tur: "tarih", bosDeger: "" }] },
-      { ad: "etiketler", etiket: "Etiketler" },
-      { ad: "not", etiket: "Not", tur: "uzun" },
+      { ad: "baslik", etiket: me("sevrak_baslik_lbl") },
+      { ad: "firma", etiket: me("sevrak_firma"), zorunlu: true, liste: tekil(tumu.map((r) => r.firma)) },
+      { ad: "kategori", etiket: me("sevrak_kategori"), zorunlu: true, liste: tekil([...EVRAK_KATEGORILERI, ...tumu.map((r) => r.kategori)]) },
+      { yan: [{ ad: "belge_tarihi", etiket: me("sevrak_belge_tarihi"), tur: "tarih", bosDeger: "" }, { ad: "gecerlilik", etiket: me("sevrak_gecerlilik"), tur: "tarih", bosDeger: "" }] },
+      { ad: "etiketler", etiket: me("sevrak_etiketler") },
+      { ad: "not", etiket: me("sevrak_not"), tur: "uzun" },
     ],
     kaydet: async (g) => {
       const dosya = g.dosya;

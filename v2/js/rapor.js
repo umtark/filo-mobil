@@ -1,6 +1,7 @@
 // Excel'de açılan CSV dışa aktarımı (Türkçe Excel için ";" ayırıcı ve BOM) ve rapor ekranlarının ortak parçaları.
 import { h, ikon, toast } from "./ui.js";
 import { trTarih } from "./form.js";
+import { duz } from "./metin.js";
 
 const kacis = (v) => {
   if (v === null || v === undefined) return "";
@@ -24,4 +25,4 @@ export function csvIndir(dosyaAdi, sutunlar, satirlar) {
 
 // Listenin üstündeki "Excel'e aktar" düğmesi; veriyi tıklanma anında üretir (süzgeç değişse de güncel liste çıkar).
 export const aktarDugmesi = (uret) => h("button", { class: "dugme ikincil kucuk", type: "button", onclick: () => { const [ad, sutunlar, satirlar] = uret(); csvIndir(ad, sutunlar, satirlar); } },
-  ikon("indir", 16), "Excel'e aktar");
+  ikon("indir", 16), duz("okul_excel_dis"));

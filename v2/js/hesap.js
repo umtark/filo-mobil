@@ -48,7 +48,7 @@ export function servisKullanmayanListesi(satirlar) {
     .filter((o) => !String(o.id).startsWith("srv_") && !ogrenciKaydi(o).servisVar)
     .map((o) => {
       const k = ogrenciKaydi(o);
-      return { id: o.id, ad: k.ad, sinif: k.sinif, veli: k.veli, tel: k.tel, telefonlar: k.telefonlar, arama: k.arama, neden: o.servis_kullanmiyor ? "Servis kullanmıyor" : "Servise atanmamış" };
+      return { id: o.id, ad: k.ad, sinif: k.sinif, veli: k.veli, tel: k.tel, telefonlar: k.telefonlar, arama: k.arama, neden: o.servis_kullanmiyor ? baslik("okul_servis_kullanmiyor_rozet") : "Servise atanmamış" };
     })
     .sort((a, b) => sirala(a.ad, b.ad));
 }
@@ -151,7 +151,7 @@ export function aracKaydi(a, periyot) {
   const yagKayitlari = (a.yakit_kayitlari || []).map((b) => {
     const [tarihMetni, ...km] = String(b.tarih_km || "").split("/");
     return { id: b.id, tur: baslik("tab_yakt_kaytlar"), tarihKm: String(b.tarih_km || ""), tarih: tarihCoz(tarihMetni.trim().split(/\s+/)[0]), km: km.join("/").trim(), yag: b.yag_cinsi || "", litre: b.yag_lt || "", usta: b.usta || "", yaptiran: b.yaptiran || "", not: b.notlar || "",
-      degisenler: [["Hava kompresörü", b.hava_kompresoru], ["Yağ filtresi", b.yag_filtresi], ["Mazot filtresi", b.mazot_filtresi], ["Hava filtresi", b.hava_filtresi]].filter(([, d]) => String(d || "").trim()).map(([ad, d]) => `${ad}: ${d}`) };
+      degisenler: [[baslik("hava_kompresoru_hdr"), b.hava_kompresoru], [baslik("yag_filtre"), b.yag_filtresi], [baslik("mazot_filtre"), b.mazot_filtresi], [baslik("hava_filtre"), b.hava_filtresi]].filter(([, d]) => String(d || "").trim()).map(([ad, d]) => `${ad}: ${d}`) };
   }).sort(yeniden);
   const kayitlar = [...bakimKayitlari, ...harcamaKayitlari].sort(yeniden);
   return {

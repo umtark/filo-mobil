@@ -6,6 +6,7 @@ import { h, panelAc, toast } from "./ui.js";
 import { sayi, tarihCoz, isoTarih, sirala } from "./bicim.js";
 import { trTarih, yuvarla } from "./form.js";
 import { sonra } from "./duzenle.js";
+import { duz } from "./metin.js";
 
 const trBuyuk = (s) => String(s ?? "").toLocaleUpperCase("tr");
 const trKucuk = (s) => String(s ?? "").toLocaleLowerCase("tr");
@@ -519,5 +520,5 @@ export function iceAktarAc(tur, bitti = sonra) {
 // Ekranların listesinin başına konan düğme; yalnızca yazma yetkisi olanda görünür (yoksa null).
 export function iceAktarDugmesi(tur, bitti = sonra) {
   if (!veri.yazabilir(TURLER[tur].modul)) return null;
-  return h("button", { class: "dugme ikincil genis", type: "button", onclick: () => iceAktarAc(tur, bitti) }, "Excel'den içe aktar");
+  return h("button", { class: "dugme ikincil genis", type: "button", onclick: () => iceAktarAc(tur, bitti) }, duz("excel_ice_aktar_menu"));
 }

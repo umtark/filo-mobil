@@ -96,7 +96,7 @@ function hataEkrani(mesaj, tekrar) {
   kabukAcik = false;
   durumAcik = false;
   kok.replaceChildren(h("main", { class: "tam-ekran giris" }, h("h1", {}, "Açılamadı"), hataGoster({ message: mesaj }, tekrar ? baslat : null),
-    h("button", { class: "dugme ikincil", onclick: cikis }, "Çıkış yap")));
+    h("button", { class: "dugme ikincil", onclick: cikis }, duz("settings_session_logout"))));
 }
 
 function girisEkrani(hata = "") {
@@ -128,7 +128,7 @@ function girisEkrani(hata = "") {
     const sifirla = () => { dugme.disabled = false; dugme.textContent = metin("giris_yap"); };
     const hataYaz = (m) => { sifirla(); mesaj.textContent = m; mesaj.hidden = false; };
     if (!kod) return hataYaz("Şirket kodunu yazın: 6 haneli rakam. Kodu yöneticiniz verir.");
-    dugme.disabled = true; dugme.textContent = "Giriş yapılıyor"; mesaj.hidden = true;
+    dugme.disabled = true; dugme.textContent = duz("giris_yapiliyor"); mesaj.hidden = true;
     const bilgi = await sirketBilgisiYukle(kod);
     if (bilgi.durum === "yok") {
       const basvuru = await api.rpc("sirket_basvuru_durumu", { p_kod: kod }).catch(() => null);
