@@ -346,10 +346,33 @@ function odemeKayitlariYenile(v, aylar) {
   }
 }
 
+// Dekont seçici (masaüstündeki "Dekont: Dekont Ekle" satırı): PDF ya da resim, isteğe bağlı. oku() -> { dosya, kaldir }.
+export function dekontSecici(mevcutVar = false) {
+  let dosya = null, kaldir = false;
+  const girdi = h("input", { type: "file", class: "girdi", accept: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*", "aria-label": mb("okul_dekont_ekle_btn") });
+  const durum = h("p", { class: "soluk" }, mevcutVar ? "Dekont var" : mb("okul_dekont_yok"));
+  const kaldirDugmesi = mevcutVar && h("button", { class: "dugme ikincil kucuk", type: "button" }, mb("okul_dekont_kaldir"));
+  girdi.addEventListener("change", () => {
+    dosya = girdi.files[0] || null; kaldir = false;
+    durum.textContent = dosya ? dosya.name : mevcutVar ? "Dekont var" : mb("okul_dekont_yok");
+  });
+  if (kaldirDugmesi) kaldirDugmesi.addEventListener("click", () => { dosya = null; kaldir = true; girdi.value = ""; durum.textContent = mb("okul_dekont_yok"); });
+  return { kok: h("div", { class: "alan" }, h("span", {}, me("okul_dekont_lbl")), girdi, durum, kaldirDugmesi), oku: () => ({ dosya, kaldir }), bos: () => false };
+}
+
+// Dekontu Drive'a (Evraklar/Okul_Dekont/<öğrenci adı>) koyar; dönen göreli yol ödeme kaydındaki "dekont" alanına yazılır.
+export async function dekontYukle(ogrenciId, dosya) {
+  if (dosya.size > 25 * 1024 * 1024) throw new Error("Dosya 25 MB'den büyük olamaz.");
+  const r = await api.dekontDriveYukle(veri.baglam.isletme, ogrenciId, dosya);
+  if (!r || !r.yol) throw new Error("Dekont yüklenemedi.");
+  return r.yol;
+}
+
 export async function odemeFormu(ogrenciId, odemeId, { detaydan = false } = {}) {
   const o = await veri.hamKayit("okul_ogrenciler", ogrenciId);
   const eski = (o.odeme_gecmisi || []).find((x) => x.id === odemeId);
   if (!eski) throw new Error("Ödeme bulunamadı.");
+  const secici = dekontSecici(Boolean(eski.dekont));
   formAc({
     baslik: mb("petrol_odeme_duzenle"), deger: { ...eski, yontem: eski.yontem || "nakit" },
     alanlar: [
@@ -357,15 +380,20 @@ export async function odemeFormu(ogrenciId, odemeId, { detaydan = false } = {}) 
       { ad: "tarih", etiket: me("okul_odeme_tarih_lbl"), tur: "tarih", zorunlu: true },
       { ad: "yontem", etiket: me("tah_yontem_lbl"), tur: "segment", secenekler: [["nakit", mb("tah_yontem_nakit")], ["iban", mb("tah_yontem_iban")], ["kart", mb("tah_yontem_kart")]] },
       { ad: "not", etiket: mb("okul_gecmis_col_not") },
+      { ad: "dekont_alan", etiket: me("okul_dekont_lbl"), tur: "ozel", kur: () => secici },
     ],
     kaydet: async (g) => {
       const t = tarihCoz(g.tarih);
       const ay = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`;
+      const { dosya, kaldir } = g.dekont_alan;
+      const yeniYol = dosya ? await dekontYukle(ogrenciId, dosya) : null;
       await veri.kayitKaydet("okul_ogrenciler", ogrenciId, (v) => {
         const i = (v.odeme_gecmisi || []).findIndex((x) => x.id === odemeId);
         if (i < 0) throw new Error("Ödeme bulunamadı.");
         const eskiAy = v.odeme_gecmisi[i].ay;
         v.odeme_gecmisi[i] = { ...v.odeme_gecmisi[i], tutar: yuvarla(g.tutar), tarih: g.tarih, ay, yontem: g.yontem, not: g.not };
+        if (yeniYol) v.odeme_gecmisi[i].dekont = yeniYol;
+        else if (kaldir) v.odeme_gecmisi[i].dekont = "";
         odemeKayitlariYenile(v, new Set([eskiAy, ay]));
         return v;
       });
