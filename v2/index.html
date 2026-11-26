@@ -8,8 +8,13 @@
 <meta name="color-scheme" content="dark light">
 <title>Filo Muhasebe</title>
 <link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Filo Muhasebe">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="preload" href="yazi/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="stil.css">
 </head>
@@ -17,6 +22,6 @@
 <div id="uygulama"></div>
 <div id="detay" hidden></div>
 <noscript>Bu uygulama JavaScript gerektirir.</noscript>
-<script type="module" src="js/uygulama.js"></script>
+<script type="module" src="js/uygulama.js" onerror="document.getElementById('uygulama').textContent='Uygulama yüklenemedi: dosyalar eksik veya eski. Sayfayı yenileyin; sürerse yöneticiye bildirin.'"></script>
 </body>
 </html>
