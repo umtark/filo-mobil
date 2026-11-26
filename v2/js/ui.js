@@ -220,9 +220,15 @@ export function bilgiSatiri(etiket, deger, ton = "") {
 }
 
 export function cipler(secenekler, secili, sec) {
-  return h("div", { class: "cipler", role: "tablist" }, secenekler.map(([kod, ad, adet]) =>
+  const kap = h("div", { class: "cipler", role: "tablist" }, secenekler.map(([kod, ad, adet]) =>
     h("button", { class: "cip" + (kod === secili ? " secili" : ""), role: "tab", "aria-selected": kod === secili ? "true" : "false", onclick: () => sec(kod) },
       ad, adet !== undefined && h("span", { class: "cip-adet" }, adet))));
+  // Çipler her seçimde yeniden çizilir; kaydırma başa dönmesin diye seçili çip görünür alanın ortasına getirilir.
+  requestAnimationFrame(() => {
+    const s = kap.querySelector(".cip.secili");
+    if (s && kap.scrollWidth > kap.clientWidth) kap.scrollLeft = s.getBoundingClientRect().left - kap.getBoundingClientRect().left + kap.scrollLeft - (kap.clientWidth - s.offsetWidth) / 2;
+  });
+  return kap;
 }
 
 export function segment(secenekler, secili, sec) {

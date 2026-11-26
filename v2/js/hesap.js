@@ -19,7 +19,7 @@ export function ogrenciKaydi(o) {
   const odemeler = (Array.isArray(o.odeme_gecmisi) ? o.odeme_gecmisi : []).map((g) => {
     const tarih = tarihCoz(g.tarih);
     const ay = AY_RX.test(String(g.ay || "")) ? g.ay : tarih ? ayAnahtari(tarih) : "";
-    return { id: g.id, tarih, ay, tutar: sayi(g.tutar), yontem: g.yontem || "nakit", not: g.not || "", kisi: g.mobil_kullanici || "", dekont: Boolean(g.dekont), dekontYolu: String(g.dekont || "") };
+    return { id: g.id, tarih, ay, tutar: sayi(g.tutar), yontem: g.yontem || "nakit", pesin: Boolean(g.pesin), not: g.not || "", kisi: g.mobil_kullanici || "", dekont: Boolean(g.dekont), dekontYolu: String(g.dekont || "") };
   }).sort((a, b) => (b.tarih ? b.tarih.getTime() : 0) - (a.tarih ? a.tarih.getTime() : 0));
   const odenen = odemeler.reduce((t, g) => t + g.tutar, 0);
   const sonOdeme = odemeler.reduce((m, g) => (g.tarih ? Math.max(m, g.tarih.getTime()) : m), 0);

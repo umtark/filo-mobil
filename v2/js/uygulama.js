@@ -391,7 +391,18 @@ window.addEventListener("focus", yetkiIzle);
 window.addEventListener("online", yetkiIzle);
 
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+  const onceden = Boolean(navigator.serviceWorker.controller);
+  let yenilendi = false;
+  // Yeni sürüm devreye girince açık kalmış sayfa eski kodla çalışmasın: uygulama arka plandaysa hemen, öndeyse bir sonraki öne gelişinde yenilenir.
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!onceden || yenilendi) return;
+    yenilendi = true;
+    if (document.hidden) location.reload();
+    else document.addEventListener("visibilitychange", () => { if (!document.hidden) location.reload(); }, { once: true });
+  });
+  navigator.serviceWorker.register("sw.js").then((kayit) => {
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) kayit.update().catch(() => {}); });
+  }).catch(() => {});
 }
 
 baslat();
