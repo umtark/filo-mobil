@@ -1,4 +1,4 @@
-﻿// Uygulama kabuğunu çevrimdışı açar. Veri (Supabase) ve oturum istekleri ASLA önbelleğe alınmaz.
+// Uygulama kabuğunu çevrimdışı açar. Veri (Supabase) ve oturum istekleri ASLA önbelleğe alınmaz.
 const SURUM = "filo2-v45";
 const KABUK = [
   "./", "index.html", "stil.css", "manifest.webmanifest",
