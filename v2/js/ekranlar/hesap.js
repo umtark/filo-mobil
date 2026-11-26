@@ -2,6 +2,7 @@
 import { h, kart, satir, bilgiSatiri, toast, detayAc } from "../ui.js";
 import * as kullanicilar from "./kullanicilar.js";
 import { metin, baslik } from "../metin.js";
+import { UYGULAMA_SURUMU } from "../surum.js";
 import * as veri from "../veri.js";
 import * as api from "../api.js";
 import * as profil from "../profil.js";
@@ -21,9 +22,8 @@ export async function ciz({ cikis, yenile }) {
     else { lisansMetni = `${tarihYaz(tarihCoz(l.lisans_bitis))} tarihine kadar (${l.kalan_gun} gün)`; lisansTon = l.kalan_gun <= 30 ? "kehribar" : "yesil"; }
   }
   const yetkiler = ["sahip", "yonetici"].includes(u.rol) ? "Tümü" : (u.izinler || []).map((m) => MODUL[m] || m).join(", ") || "Yok";
-  // Çalışan uygulama sürümü (servis işçisinin önbellek adı): hangi sürümün açık olduğu buradan anlaşılır.
-  const surum = h("p", { class: "soluk" });
-  if (typeof caches !== "undefined") caches.keys().then((k) => { const s = k.find((x) => /^filo2-v/.test(x)); if (s) surum.textContent = "Sürüm " + s.replace("filo2-", ""); }).catch(() => {});
+  // Uygulama sürümü (js/surum.js); servis işçisinin önbellek adı (sw.js) yalnızca önbellek yenilemek içindir, kullanıcıya gösterilmez.
+  const surum = h("p", { class: "soluk" }, `Sürüm ${UYGULAMA_SURUMU}`);
   return h("div", { class: "sayfa" },
     kart(h("h3", {}, "Hesap"), profil.fotoBolumu(profil.gorunenAd()), bilgiSatiri("Kullanıcı", profil.gorunenAd()), bilgiSatiri("İşletme", veri.baglam.isletmeAdi),
       bilgiSatiri("Rol", ROL[u.rol] || u.rol), bilgiSatiri("Yetkiler", yetkiler), bilgiSatiri("Erişim", u.salt_okunur ? "Yalnızca görüntüleme" : "Görüntüleme ve ödeme girişi"),
