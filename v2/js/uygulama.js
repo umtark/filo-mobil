@@ -326,12 +326,12 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) { gizlendi = Date.now(); if (kabukAcik) veri.cevrimdisiBildir(); return; }
   if (!gizlendi || Date.now() - gizlendi < 60000 || !kabukAcik) return;
   gizlendi = 0;
-  if (document.body.classList.contains("detay-acik")) veri.onbellekTemizle();   // açık ekran bozulmasın; sonraki açılışlar güncel gelir
+  if (document.body.classList.contains("detay-acik")) veri.onbellekEskit();   // açık ekran bozulmasın; sonraki açılışlar güncel gelir
   else tazele();
 });
 window.addEventListener("pagehide", () => { if (kabukAcik) veri.cevrimdisiBildir(); });
 function tazele() {
-  veri.onbellekTemizle();
+  veri.onbellekEskit();   // veriler korunur; yalnızca değişen satırlar yeniden indirilir
   return sekmeCiz(aktif);
 }
 

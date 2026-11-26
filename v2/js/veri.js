@@ -11,7 +11,14 @@ const SURE = 5 * 60 * 1000;
 const onbellek = new Map();   // anahtar -> { t, sonuc: Promise }
 const izlenen = new Map();    // yüklü tablo -> son bilinen değişiklik zamanı (canlı güncelleme için)
 
-export function onbellekTemizle() { onbellek.clear(); izlenen.clear(); }
+const hamDepo = new Map();    // tablo -> { liste, imlec, t, tam, bayat, surucu }: tablo bir kez tamamen indirilir, sonra yalnızca değişen satırlar çekilir
+const TAM_YENILEME = 30 * 60 * 1000;
+
+// Tablo verisi bayatladı: bir sonraki okuma tamamını değil yalnızca değişenleri indirir.
+const bayatla = (...tablolar) => { for (const t of tablolar) { const d = hamDepo.get(t); if (d) d.bayat = true; izlenen.delete(t); } };
+
+export function onbellekTemizle() { onbellek.clear(); izlenen.clear(); hamDepo.clear(); }
+export const onbellekEskit = () => { for (const t of hamDepo.keys()) bayatla(t); onbellek.clear(); };   // veriler korunur, bir sonraki açılışta artımlı tazelenir
 
 function onbellekli(anahtar, getir) {
   const o = onbellek.get(anahtar);
@@ -32,7 +39,7 @@ export async function degisenTablolar() {
   await Promise.all([...izlenen].map(async ([tablo, eski]) => {
     try { const yeni = await sonDegisim(tablo); if (yeni && yeni !== eski) degisen.push(tablo); } catch { /* bir sonraki turda yeniden denenir */ }
   }));
-  for (const t of degisen) { onbellek.delete("ham:" + t); izlenen.delete(t); }
+  for (const t of degisen) bayatla(t);
   if (degisen.includes("okul_ogrenciler")) onbellek.delete("ayarlar");   // dönem geçişi öğrencileri ve seçili dönem ayarını birlikte değiştirir
   return degisen;
 }
@@ -133,13 +140,37 @@ export const lisansAcik = () => !baglam.lisans || baglam.lisans.acik !== false;
 export const izinVar = (modul) => Boolean(baglam.uye) && lisansAcik() && (["sahip", "yonetici"].includes(baglam.uye.rol) || (baglam.uye.izinler || []).includes(modul));
 export const yazabilir = (modul) => izinVar(modul) && !baglam.uye.salt_okunur;
 
-const ham = (tablo) => onbellekli("ham:" + tablo, async () => {
-  const temel = sonDegisim(tablo).catch(() => null);   // veriden ÖNCE alınır: okuma sırasındaki bir değişiklik bir sonraki kontrolde yakalanır
-  const liste = await api.hepsi(tablo, baglam.isletme);
-  const t = await temel;
-  if (t !== null) izlenen.set(tablo, t);
-  return liste;
-});
+// Tablo verisi: ilk okumada tamamı indirilir; sonra (başkası değiştirince, kendi yazımımızdan sonra, 5 dakikada bir) yalnızca değişen satırlar çekilip birleştirilir.
+// Liste her birleştirmede yeni bir dizi olur (eski dizi referansı tutan kod bozulmaz).
+async function hamYukle(tablo) {
+  let d = hamDepo.get(tablo);
+  if (!d) { d = { liste: [], imlec: null, t: 0, bayat: true, surucu: null }; hamDepo.set(tablo, d); }
+  if (d.t && !d.bayat && Date.now() - d.t < SURE) return d.liste;
+  if (d.surucu) return d.surucu;
+  d.surucu = (async () => {
+    const temel = await sonDegisim(tablo).catch(() => null);   // veriden ÖNCE alınır: okuma sırasındaki bir değişiklik bir sonraki kontrolde yakalanır
+    if (!d.t || !d.imlec || Date.now() - d.tam > TAM_YENILEME) {   // ilk okuma ve her 30 dakikada bir tam indirme (artımlı yenilemenin güvenlik ağı)
+      d.liste = await api.hepsi(tablo, baglam.isletme);
+      d.tam = Date.now();
+    } else {
+      const satirlar = await api.degisenSatirlar(tablo, baglam.isletme, d.imlec);
+      if (satirlar.length) {
+        const harita = new Map(d.liste.map((x) => [x.id, x]));
+        for (const s of satirlar) { if (s.silindi) harita.delete(s.id); else harita.set(s.id, { ...s.data, id: s.id }); }
+        d.liste = [...harita.values()];
+      }
+    }
+    d.imlec = temel || d.imlec;
+    d.bayat = false;
+    d.t = Date.now();
+    if (temel !== null) izlenen.set(tablo, temel);
+    return d.liste;
+  })();
+  try { return await d.surucu; }
+  catch (e) { if (!d.t) hamDepo.delete(tablo); throw e; }
+  finally { d.surucu = null; }
+}
+const ham = (tablo) => hamYukle(tablo);
 
 export const ayarlar = () => onbellekli("ayarlar", async () => {
   const s = await api.sorgu(`isletme_ayarlari?select=anahtar,deger&isletme_id=eq.${baglam.isletme}`);
@@ -190,7 +221,7 @@ export const araclar = async () => {
 // Kayıtlar masaüstüyle aynı biçimde (data = masaüstü kaydı) yazılır. Düzenleme sunucudaki güncel kaydı okuyup değiştirir ve
 // "surum" denetimiyle geri yazar; başkası arada değiştirmişse sessizce ezmek yerine uyarı verilir. Silme "silindi" işaretidir.
 export const yeniKimlik = (onek = "") => onek + ((crypto.randomUUID && crypto.randomUUID()) || `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`);
-export const tabloTazele = (...tablolar) => { for (const t of tablolar) { onbellek.delete("ham:" + t); izlenen.delete(t); } };
+export const tabloTazele = (...tablolar) => bayatla(...tablolar);
 const kimlikFiltresi = (id) => `isletme_id=eq.${baglam.isletme}&id=eq.${encodeURIComponent(id)}`;
 const CAKISMA = "Bu kayıt başka biri tarafından değiştirilmiş. Yenileyip tekrar deneyin.";
 

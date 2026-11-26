@@ -153,6 +153,16 @@ export async function hepsi(tablo, isletme) {
   }
 }
 
+// Artımlı yenileme: verilen zamandan beri eklenen, değişen ya da silinen satırlar (silinenler silindi:true ile gelir). Tablonun tamamını yeniden indirmez.
+export async function degisenSatirlar(tablo, isletme, imlec) {
+  const sonuc = [];
+  for (let ofset = 0; ; ofset += 1000) {
+    const sayfa = await sorgu(`${tablo}?select=id,data,silindi,guncelleme&isletme_id=eq.${isletme}&guncelleme=gte.${encodeURIComponent(imlec)}&order=guncelleme.asc,id.asc&limit=1000&offset=${ofset}`);
+    sonuc.push(...sayfa);
+    if (sayfa.length < 1000) return sonuc;
+  }
+}
+
 export async function tek(tablo, isletme, id) {
   const s = await sorgu(`${tablo}?select=id,data&isletme_id=eq.${isletme}&silindi=eq.false&id=eq.${encodeURIComponent(id)}`);
   return s.length ? { ...s[0].data, id: s[0].id } : null;
