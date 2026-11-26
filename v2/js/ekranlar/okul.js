@@ -168,7 +168,7 @@ async function ogrencilerEkrani(tahsilat) {
   }
 
   const ozet = kart(
-    h("p", { class: "kart-etiket" }, "Kalan tahsilat"),
+    h("p", { class: "kart-etiket" }, me("tah_ozet_kalan")),
     h("div", { class: "havuz-satir" },
       h("div", {}, h("p", { class: "buyuk-sayi" }, para(t.kalan)), h("p", { class: "soluk" }, `${para(t.odenen)} tahsil edildi, toplam ${para(t.ucret)} · ${t.ogrenci} öğrenci`)),
       t.ucret > 0 && havuz(t.odenen / t.ucret, { boyut: 96 })));
@@ -235,8 +235,8 @@ function odemeDetayPaneli(o, g, yazabilir) {
   const dosyaAdi = g.dekontYolu.split("/").pop();
   const blobAl = () => api.dekontDriveIndir(veri.baglam.isletme, o.id, g.dekontYolu);
   const panel = panelAc(para(g.tutar), h("div", { class: "form" },
-    h("div", { class: "kart" }, bilgiSatiri("Öğrenci", o.ad), bilgiSatiri("Tarih", tarihYaz(g.tarih)), bilgiSatiri("Yöntem", YONTEM[g.yontem] || g.yontem), g.not && bilgiSatiri("Not", g.not)),
-    h("button", { class: "dugme birincil genis", type: "button", onclick: (e) => goruntule(e.currentTarget, blobAl, dosyaAdi) }, ikon("goz", 18), "Dekontu görüntüle"),
+    h("div", { class: "kart" }, bilgiSatiri("Öğrenci", o.ad), bilgiSatiri(me("okul_odeme_tarih_lbl"), tarihYaz(g.tarih)), bilgiSatiri(me("tah_yontem_lbl"), YONTEM[g.yontem] || g.yontem), g.not && bilgiSatiri(mb("okul_gecmis_col_not"), g.not)),
+    h("button", { class: "dugme birincil genis", type: "button", onclick: (e) => goruntule(e.currentTarget, blobAl, dosyaAdi) }, ikon("goz", 18), mb("okul_dekontu_goruntule")),
     h("button", { class: "dugme ikincil genis", type: "button", onclick: (e) => indir(e.currentTarget, blobAl, dosyaAdi) }, ikon("indir", 18), "Telefona indir"),
     yazabilir && g.id && h("button", { class: "dugme ikincil genis", type: "button", onclick: () => { panel.kapat(); ed.odemeFormu(o.id, g.id); } }, "Ödemeyi düzenle")));
 }
@@ -292,10 +292,10 @@ function odemePaneli(o) {
   function hataYaz(m) { hata.textContent = m; hata.hidden = false; }
 
   const form = h("form", { class: "form", onsubmit: (e) => { e.preventDefault(); gonder(); } },
-    h("label", { class: "alan" }, h("span", {}, "Tutar"), tutar),
-    h("label", { class: "alan" }, h("span", {}, "Tarih"), tarih),
-    h("div", { class: "alan" }, h("span", {}, "Yöntem"), yontemAlani),
-    h("label", { class: "alan" }, h("span", {}, "Not"), not),
+    h("label", { class: "alan" }, h("span", {}, me("okul_tutar_lbl")), tutar),
+    h("label", { class: "alan" }, h("span", {}, me("okul_odeme_tarih_lbl")), tarih),
+    h("div", { class: "alan" }, h("span", {}, me("tah_yontem_lbl")), yontemAlani),
+    h("label", { class: "alan" }, h("span", {}, mb("okul_gecmis_col_not")), not),
     hata, kaydet);
   yontemCiz();
   etiketle();
