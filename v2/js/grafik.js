@@ -52,18 +52,15 @@ export const tl0 = (v) => para(Math.round(v));
 export const paraSayaci = (el, hedef) => sayac(el, hedef, (v) => tl0(v));
 export const adetSayaci = (el, hedef, ek = "") => sayac(el, hedef, (v) => `${sayiYaz(Math.round(v))}${ek}`, { sure: 1200 });
 
-// Grafik etiketlerinde kısaltma yok: tam tutar, binlik noktalı ("28.145.441"); para birimi okuma satırında ve halkada yazılı.
-const tamYaz = (v) => Math.round(v).toLocaleString("tr-TR");
 const guzelAdim = (x) => { const p = 10 ** Math.floor(Math.log10(Math.max(x, 1))); const f = x / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; };
 
 let sayi = 0;
 
-// Aylık gelir/gider sütunları (üstünde değer), net çizgisi ve altında gradyan alan dolgusu. Bir aya dokununca ayın tutarları üstte okunur.
+// Aylık gelir/gider sütunları, net çizgisi ve altında çok hafif alan dolgusu. Sütun üstünde yazı yok (okunaklı kalsın): bir aya dokununca ayın tutarları üstte okunur.
 // seri: [{ ay, etiket, gelir, gider, net }]
 export function trendGrafigi(seri) {
   const n = seri.length;
-  // Y ekseni yazısı yok (shadcn'in gizli YAxis'i gibi): tutarlar sütun üstünde ve dokununca okunur; kaydırmada yarım kalan etiket görünmez
-  const KOL = 46, G = Math.max(340, n * KOL + 20), Y = 276, SOL = 6, SAG = 6, UST = 74, ALT = 38;
+  const KOL = 46, G = Math.max(340, n * KOL + 20), Y = 232, SOL = 6, SAG = 6, UST = 16, ALT = 40;
   const enBuyuk = Math.max(1, ...seri.flatMap((x) => [x.gelir, x.gider]));
   const enKucuk = Math.min(0, ...seri.map((x) => x.net));
   const adim = guzelAdim((enBuyuk - enKucuk) / 3);
@@ -84,8 +81,7 @@ export function trendGrafigi(seri) {
     // üstü yuvarlak, tabanı düz sütun
     const r = Math.min(4, bw / 2, yuk);
     const yol = `M${x0},${y(0)} V${ust0 + r} Q${x0},${ust0} ${x0 + r},${ust0} H${x0 + bw - r} Q${x0 + bw},${ust0} ${x0 + bw},${ust0 + r} V${y(0)} Z`;
-    return s("g", {}, s("path", { class: `g-cubuk ${sinif}`, d: yol, style: `--i:${i}` }),
-      s("text", { class: "g-deger", transform: `rotate(-90 ${x0 + bw / 2 + 3.2} ${ust0 - 5})`, x: x0 + bw / 2 + 3.2, y: ust0 - 5 }, `${tamYaz(deger)}\u00a0₺`));
+    return s("path", { class: `g-cubuk ${sinif}`, d: yol, style: `--i:${i}` });
   };
   const kolonlar = seri.map((x, i) => {
     const yil = i === 0 || x.ay.endsWith("-01") ? `'${x.ay.slice(2, 4)}` : null;
@@ -147,21 +143,16 @@ export function trendGrafigi(seri) {
   return kap;
 }
 
-// Dönem dağılımı: gelir/gider halkası, ortada net tutar, yanında tutar ve yüzde (Tremor DonutChart düzeni).
-export function halkaGrafigi(gelir, gider) {
+// Dönem dağılımı: gelirin ve giderin payı tek yığılmış çubukta; altında tutar ve yüzde (aynı bilgiyi ikinci bir büyük grafikle tekrarlamaz).
+export function dagilimCubugu(gelir, gider) {
   const top = gelir + gider;
-  const g = (gelir / top) * 100, d = 100 - g, ayrik = g > 0 && d > 0 ? 1 : 0;
+  const g = (gelir / top) * 100;
   const yuzde = (v) => `%${((v / top) * 100).toFixed(1).replace(".", ",")}`;
-  const R = 58;
-  const dilim = (uzunluk, sinif, baslangic, gec) => uzunluk > 0 && s("circle", { class: `g-dilim ${sinif}`, cx: 80, cy: 80, r: R, fill: "none", "stroke-width": 18, pathLength: 100,
-    "stroke-dasharray": `${Math.max(0, uzunluk - ayrik)} ${100 - Math.max(0, uzunluk - ayrik)}`, transform: `rotate(${-90 + baslangic * 3.6} 80 80)`, style: `--u:${uzunluk};--gec:${gec}s` });
-  const net = gelir - gider;
-  const satir = (ad, sinif, deger) => h("div", { class: `halka-satir ${sinif}` }, h("i"), h("span", {}, ad), h("strong", {}, tl0(deger)), h("small", {}, yuzde(deger)));
-  const kap = h("div", { class: "halka-kap grafik" },
-    h("div", { class: "halka", role: "img", "aria-label": `${baslik("dash_pie_title")}: ${baslik("dash_income_label")} ${yuzde(gelir)}, ${baslik("dash_expense_label")} ${yuzde(gider)}` },
-      s("svg", { viewBox: "0 0 160 160", "aria-hidden": "true" }, s("circle", { class: "g-halka-arka", cx: 80, cy: 80, r: R, fill: "none", "stroke-width": 18 }), dilim(g, "gelir", 0, 0), dilim(d, "gider", g, 0.3)),
-      h("div", { class: "halka-orta" }, h("span", {}, baslik("dash_net_label")), h("strong", { class: net < 0 ? "kirmizi" : "yesil" }, tl0(net)))),
-    h("div", { class: "halka-lejant" }, satir(baslik("dash_income_label"), "gelir", gelir), satir(baslik("dash_expense_label"), "gider", gider)));
+  const satir = (ad, sinif, deger) => h("div", { class: `dagilim-satir ${sinif}` }, h("i"), h("span", {}, ad), h("strong", {}, tl0(deger)), h("small", {}, yuzde(deger)));
+  const kap = h("div", { class: "dagilim grafik" },
+    h("div", { class: "dagilim-cubuk", role: "img", "aria-label": `${baslik("dash_pie_title")}: ${baslik("dash_income_label")} ${yuzde(gelir)}, ${baslik("dash_expense_label")} ${yuzde(gider)}` },
+      gelir > 0 && h("i", { class: "gelir", style: `--w:${g}` }), gider > 0 && h("i", { class: "gider", style: `--w:${100 - g}` })),
+    satir(baslik("dash_income_label"), "gelir", gelir), satir(baslik("dash_expense_label"), "gider", gider));
   canlandir(kap);
   return kap;
 }

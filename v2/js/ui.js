@@ -205,6 +205,11 @@ export function havuz(oran, { boyut = 132 } = {}) {
 }
 export function kart(...cocuklar) { return h("section", { class: "kart" }, ...cocuklar); }
 
+// Kart başlığı: büyük başlık, sağda kısa bilgi ya da eylem; altında kart kenarından kenarına ince çizgi (defter cetveli gibi). meta: metin ya da öğe.
+export function kartBasligi(ad, meta = null) {
+  return h("header", { class: "kart-ust" }, h("h3", {}, ad), meta && (meta instanceof Node ? meta : h("span", { class: "kart-meta" }, meta)));
+}
+
 export function satir({ baslik, alt, sag, sagAlt, ton = "", onclick }) {
   const govde = [
     h("span", { class: "satir-metin" }, h("span", { class: "satir-baslik" }, baslik), alt && h("span", { class: "satir-alt" }, alt)),

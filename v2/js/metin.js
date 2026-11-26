@@ -262,7 +262,7 @@ const METIN = {
   "kpi_aylik_gelir": "Bu Aylık Gelirler",
   "kpi_kritik_uyari": "Kritik Uyarılar",
   "kpi_header_title": "Dönem Özeti",
-  "dash_events": "Son Hareketler (İşlemler ve Adımlar)",
+  "dash_events": "Son Hareketler",
   "dash_last_update": "Son güncelleme",
   "dash_total_invoice": "Toplam fatura",
   "dash_last_event": "Son olay",
