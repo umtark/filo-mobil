@@ -3,6 +3,7 @@ import * as api from "./api.js";
 import { markaUygula } from "./marka.js";
 import { MENU } from "./menu.js";
 import { okulListesi, servisKullanmayanListesi, servisListesi, faturaKaydi, esnafKaydi, aracKaydi, akaryakitListesi, icHizmetListesi } from "./hesap.js";
+import * as dn from "./donem.js";
 
 export const baglam = { isletme: null, uye: null, lisans: null, isletmeAdi: "", platform: false, bakim: null };
 
@@ -61,7 +62,7 @@ export async function baglamKur() {
   return true;
 }
 
-// Çalışan oturumda yetki/üyelik değişikliğini sunucudan okur: "kaldirildi" | "degisti" | "ayni".
+// Çalışan oturumda yetki/üyelik değişikliğini sunucudan okur: "kaldirildi" | "degisti" | "ad" (yalnızca kullanıcı adı) | "ayni".
 export async function yetkiKontrol() {
   const kimlik = api.kullanici();
   if (!kimlik || !baglam.isletme || !baglam.uye) return "ayni";
@@ -69,7 +70,11 @@ export async function yetkiKontrol() {
   if (!s.length) return "kaldirildi";
   const yeni = s[0], eski = baglam.uye;
   const imza = (u) => JSON.stringify([u.rol, [...(u.izinler || [])].sort(), Boolean(u.salt_okunur)]);
-  if (imza(yeni) === imza(eski)) return "ayni";
+  if (imza(yeni) === imza(eski)) {
+    if (yeni.ad === eski.ad) return "ayni";
+    baglam.uye = { ...eski, ...yeni };   // yalnızca görünen ad değişti (yönetici kullanıcıyı yeniden adlandırdı); yetkiler aynı
+    return "ad";
+  }
   baglam.uye = { ...eski, ...yeni };
   onbellekTemizle();
   return "degisti";
@@ -142,9 +147,27 @@ export const ayarlar = () => onbellekli("ayarlar", async () => {
 });
 export const ayarTazele = () => onbellek.delete("ayarlar");
 
-export const okul = () => ham("okul_ogrenciler").then(okulListesi);
-export const okulServisKullanmayan = () => ham("okul_ogrenciler").then(servisKullanmayanListesi);
-export const okulServisler = () => ham("okul_ogrenciler").then(servisListesi);
+// Okul dönemi cihaz başınadır: her kullanıcı kendi telefonunda istediği dönemi seçer (başkasının ekranı değişmez). Seçim yoksa işletmenin
+// asıl dönemi (okul_aktif_donem; masaüstünün genel dönem geçişi bunu değiştirir) gösterilir.
+const donemAnahtari = () => "filo2.okulDonem." + baglam.isletme;
+export async function okulDonemi() {
+  const layout = dn.aktifDonem(await ayarlar().catch(() => ({})));
+  let kayitli = "";
+  try { kayitli = localStorage.getItem(donemAnahtari()) || ""; } catch { /* depolama kapalı: asıl dönem */ }
+  return { secili: dn.donemGecerliMi(kayitli) ? kayitli : layout, layout };
+}
+export function okulDonemiSec(anahtar) {
+  try { if (anahtar) localStorage.setItem(donemAnahtari(), anahtar); else localStorage.removeItem(donemAnahtari()); } catch { /* depolama kapalı: seçim hatırlanmaz */ }
+}
+// Öğrenciler seçili dönemin gözüyle (servis kayıtları olduğu gibi); asıl dönem seçiliyse liste aynen döner.
+const okulGorunumu = async () => {
+  const [liste, { secili, layout }] = await Promise.all([ham("okul_ogrenciler"), okulDonemi()]);
+  return dn.gorunumListesi(liste, secili, layout);
+};
+
+export const okul = () => okulGorunumu().then(okulListesi);
+export const okulServisKullanmayan = () => okulGorunumu().then(servisKullanmayanListesi);
+export const okulServisler = () => okulGorunumu().then(servisListesi);
 export const faturalar = () => ham("faturalar").then((l) => l.map(faturaKaydi));
 export const esnaflar = () => ham("esnaflar").then((l) => l.map(esnafKaydi));
 export const akaryakit = async () => {
@@ -156,8 +179,8 @@ export const sirketEvraklari = () => ham("sirket_evraklari");
 export const icFiyatlar = () => ham("ic_hizmet_fiyatlar");
 export const icYerler = () => ham("ic_gidilen_yerler");
 export const icSoforler = () => ham("ic_soforler");
-export const hamKayit = async (tablo, id) => (await ham(tablo)).find((x) => x.id === id) || null;
-export const hamListe = (tablo) => ham(tablo);
+export const hamKayit = async (tablo, id) => (await hamListe(tablo)).find((x) => x.id === id) || null;
+export const hamListe = (tablo) => (tablo === "okul_ogrenciler" ? okulGorunumu() : ham(tablo));
 export const araclar = async () => {
   const [satirlar, ayar] = await Promise.all([ham("araclar"), ayarlar().catch(() => ({}))]);
   return satirlar.map((a) => aracKaydi(a, ayar.bakim_periyodu_gun));
@@ -195,23 +218,30 @@ function kayitBildir(tablo, eylem, kayit) {
 }
 
 // id verilmezse yeni kayıt: degistir({}) kaydı üretir ("id" alanını kendisi koymazsa atanır).
-export async function kayitKaydet(tablo, id, degistir) {
+// Öğrenci kayıtlarında degistir, cihazın seçtiği dönemin görünümünü alır ve verir; yazılırken dönem verisi asıl yerine konur (donem.js).
+// bildirimsiz: çağıran kendi bildirimini gönderiyorsa genel "kaydını güncelledi" bildirimi atlanır.
+export async function kayitKaydet(tablo, id, degistir, { bildirimsiz = false } = {}) {
+  const donemli = tablo === "okul_ogrenciler" && !String(id || "").startsWith("srv_");
   try {
+    const { secili, layout } = donemli ? await okulDonemi() : {};
     if (!id) {
-      const yeni = degistir({});
+      let yeni = degistir({});
       yeni.id = yeni.id || yeniKimlik();
+      if (donemli && !String(yeni.id).startsWith("srv_")) yeni = dn.gorunumdenDon(yeni, null, secili, layout);
       const donen = await api.ekle(tablo, { isletme_id: baglam.isletme, id: yeni.id, data: yeni });
       if (!donen || !donen.length) throw new Error("Kayıt eklenemedi.");
-      kayitBildir(tablo, "ekledi", yeni);
+      if (!bildirimsiz) kayitBildir(tablo, "ekledi", yeni);
       return yeni;
     }
     const s = await api.sorgu(`${tablo}?select=data,surum&${kimlikFiltresi(id)}&silindi=eq.false`);
     if (!s.length) throw new Error("Kayıt bulunamadı; başkası silmiş olabilir.");
-    const veri = degistir(JSON.parse(JSON.stringify(s[0].data)));
+    const orijinal = s[0].data;
+    let veri = donemli ? degistir(dn.ogrenciDonemeGetir(orijinal, secili, layout)) : degistir(JSON.parse(JSON.stringify(orijinal)));
+    if (donemli) veri = dn.gorunumdenDon(veri, orijinal, secili, layout);
     veri.id = id;
     const donen = await api.guncelle(tablo, `${kimlikFiltresi(id)}&surum=eq.${s[0].surum}`, { data: veri });
     if (!donen || !donen.length) throw new Error(CAKISMA);
-    kayitBildir(tablo, "güncelledi", veri);
+    if (!bildirimsiz) kayitBildir(tablo, "güncelledi", veri);
     return veri;
   } finally {
     tabloTazele(tablo);
@@ -221,6 +251,10 @@ export async function kayitKaydet(tablo, id, degistir) {
 // Excel içe aktarma: kayıtları 100'erli gruplar halinde ekler (her kayıt masaüstü biçiminde, id zorunlu).
 export async function topluEkle(tablo, kayitlar, ilerle = () => {}) {
   try {
+    if (tablo === "okul_ogrenciler") {   // seçili dönem asıl dönemden farklıysa içe aktarılan öğrencilerin verisi seçili döneme yazılır
+      const { secili, layout } = await okulDonemi();
+      kayitlar = kayitlar.map((k) => (String(k.id).startsWith("srv_") ? k : dn.gorunumdenDon(k, null, secili, layout)));
+    }
     for (let i = 0; i < kayitlar.length; i += 100) {
       const parca = kayitlar.slice(i, i + 100).map((k) => ({ isletme_id: baglam.isletme, id: k.id, data: k }));
       await api.ekle(tablo, parca);
@@ -263,18 +297,37 @@ export async function okulSatirlariTaze() {
   }
 }
 
-// Değişen öğrenciler ve seçili dönem ayarı sunucuda TEK işlemde yazılır (okul_donem_uygula); araya başka değişiklik girmişse hiçbiri yazılmaz.
-export async function donemUygula({ eski, hedef, kayitlar, sayi, yedek }) {
+// Dönem açma: öğrencilere yeni dönemin kaydı TEK işlemde yazılır (okul_donem_uygula); araya başka değişiklik girmişse hiçbiri yazılmaz.
+// ayarla=false: işletmenin asıl dönem ayarı (masaüstünün genel dönemi) değişmez; hangi dönemin gösterileceği cihaz başına seçilir.
+export async function donemUygula({ eski, hedef, kayitlar, sayi, yedek, ayarla = false }) {
   try {
-    return await api.rpc("okul_donem_uygula", { p_isletme: baglam.isletme, p_eski: eski, p_hedef: hedef, p_kayitlar: kayitlar, p_sayi: sayi, p_yedek: yedek });
+    return await api.rpc("okul_donem_uygula", { p_isletme: baglam.isletme, p_eski: eski, p_hedef: hedef, p_kayitlar: kayitlar, p_sayi: sayi, p_yedek: yedek, p_ayarla: ayarla });
   } finally {
     tabloTazele("okul_ogrenciler");
     ayarTazele();
   }
 }
 
+// Seçili dönem asıl dönemse ödeme sunucu fonksiyonuyla (tek adımda, çakışmasız) eklenir; başka dönemse o dönemin kaydına sürüm denetimiyle yazılır,
+// başkası arada aynı öğrenciyi değiştirirse birkaç kez yeniden denenir (aynı mobil_id ikinci kez eklenmez).
 export async function odemeEkle({ ogrenci, ad, tutar, tarih, yontem, not, mobilId }) {
-  const sonuc = await api.rpc("okul_odeme_ekle", { p_isletme: baglam.isletme, p_ogrenci: ogrenci, p_tutar: tutar, p_tarih: tarih, p_yontem: yontem, p_not: not || "", p_mobil_id: mobilId });
-  sahibeBildir("Okul", `${ad ? ad + " öğrencisinin" : "Öğrenci"} ödemesini aldı (${Math.round(tutar)} ₺)`);
+  const { secili, layout } = await okulDonemi();
+  const asil = ((await ham("okul_ogrenciler")).find((o) => o.id === ogrenci) || {}).aktif_donem || layout;
+  const donemEki = secili === layout ? "" : ` · ${dn.donemAdi(secili)}`;
+  let sonuc;
+  if (secili === asil) {
+    sonuc = await api.rpc("okul_odeme_ekle", { p_isletme: baglam.isletme, p_ogrenci: ogrenci, p_tutar: tutar, p_tarih: tarih, p_yontem: yontem, p_not: not || "", p_mobil_id: mobilId });
+  } else {
+    for (let deneme = 0; ; deneme++) {
+      try {
+        await kayitKaydet("okul_ogrenciler", ogrenci, (o) => { dn.odemeEkleGorunume(o, { id: yeniKimlik(), tarih, tutar, yontem, not, mobilId, kisi: baglam.uye.ad }); return o; }, { bildirimsiz: true });
+        break;
+      } catch (e) {
+        if (e.message !== CAKISMA || deneme >= 2) throw e;
+      }
+    }
+    sonuc = { ok: true };
+  }
+  sahibeBildir("Okul", `${ad ? ad + " öğrencisinin" : "Öğrenci"} ödemesini aldı (${Math.round(tutar)} ₺)${donemEki}`);
   return sonuc;
 }

@@ -399,6 +399,12 @@ async function yetkiIzle() {
       return girisEkrani("Hesabınızın bu işletmeye erişimi kaldırıldı.");
     }
     if (durum === "degisti") { tumDetaylariKapat(); kabuk(); toast("Yetkileriniz güncellendi"); }
+    else if (durum === "ad") {
+      // Kullanıcı adı yöneticice değiştirildi: giriş adı da yeni ada geçer; "beni hatırla" açıksa kayıtlı ad güncellenir, ekranlar yeni adı gösterir.
+      if (depoOku(KULLANICI_ANAHTARI)) depoYaz(KULLANICI_ANAHTARI, veri.baglam.uye.ad);
+      toast(`Kullanıcı adınız değiştirildi: ${veri.baglam.uye.ad}`);
+      if (!document.querySelector(".arka")) await sekmeCiz(aktif, true);
+    }
     else await canliTazele();
   } catch (e) {
     if (e.durum === 401 && !api.girisVar()) girisEkrani("Oturum süresi doldu, tekrar giriş yapın.");

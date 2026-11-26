@@ -1,7 +1,9 @@
-// Okul dönem yönetimi: masaüstündeki Dönem seçicisinin (fatura_masaustu.py: _okul_donem_*) birebir karşılığı.
+// Okul dönem yönetimi: masaüstündeki dönem düzeninin (fatura_masaustu.py: _okul_donem_*) karşılığı; fark: hangi dönemin GÖSTERİLECEĞİ cihaz başınadır.
 // Dönem anahtarı "YYYY-N": YYYY eğitim yılının başladığı yıl, N dönem (MEB takvimi: 1. Dönem Eylül–Ocak, 2. Dönem Şubat–Ağustos).
-// Seçili dönemin verisi öğrenci kaydının üst düzey alanlarındadır; diğer dönemler donem_veri[anahtar] altında saklanır.
-// Bu dosya yalnızca hesaplar (ağ ve ekran yok); sonuç sunucuya okul_donem_uygula ile tek işlemde yazılır.
+// Depolama: öğrenci kaydının üst düzey alanları o öğrencinin "asıl" döneminindir (aktif_donem ya da işletme ayarı okul_aktif_donem); diğer dönemler
+// donem_veri[anahtar] altında saklanır. Telefon istediği dönemi gösterir/yazar: kayıt o dönemin gözüyle okunur (gorunumListesi), yazılırken asıl yerine konur
+// (gorunumdenDon). Böylece biri 1. dönemde, başkası 2. dönemde ödeme girebilir; masaüstünün genel dönem geçişi de bozulmaz.
+// Bu dosya yalnızca hesaplar (ağ ve ekran yok).
 import { baslik as mb, doldur } from "./metin.js";
 
 export const ALANLAR = ["aylik_odeme", "odeme_gecmisi", "odeme_kayitlari", "servis_plaka", "servis_kullanmiyor", "liste_ucreti"];
@@ -35,13 +37,18 @@ export function donemAdi(anahtar) {
 }
 
 export const ogrencilerSuz = (ham) => ham.filter((o) => !String(o.id).startsWith("srv_"));
-const donemVerisiVar = (ogrenciler, anahtar) => ogrenciler.some((o) => nesneMi(o.donem_veri) && anahtar in o.donem_veri);
-export const ilkAcilisMi = (ogrenciler, hedef) => !donemVerisiVar(ogrenciler, hedef);
+const gecerliDonem = (o, layout) => o.aktif_donem || layout;
 
-// Veride kaydı olan dönem anahtarları (seçili dönem dahil).
-export function kayitliDonemler(ogrenciler, aktif) {
-  const kume = new Set([aktif]);
-  for (const o of ogrenciler) if (nesneMi(o.donem_veri)) for (const k of Object.keys(o.donem_veri)) if (donemGecerliMi(k)) kume.add(k);
+// Dönem herhangi bir öğrencide açık mı: ya o dönem öğrencinin üst düzey kaydıdır ya da donem_veri altında saklanıyordur.
+export const donemAcikMi = (ogrenciler, layout, anahtar) => ogrenciler.some((o) => gecerliDonem(o, layout) === anahtar || (nesneMi(o.donem_veri) && anahtar in o.donem_veri));
+
+// Veride kaydı olan dönem anahtarları.
+export function kayitliDonemler(ogrenciler, layout) {
+  const kume = new Set([layout]);
+  for (const o of ogrenciler) {
+    kume.add(gecerliDonem(o, layout));
+    if (nesneMi(o.donem_veri)) for (const k of Object.keys(o.donem_veri)) if (donemGecerliMi(k)) kume.add(k);
+  }
   return kume;
 }
 
@@ -155,39 +162,73 @@ function ikiDonemAyir(o, pay, kimlik) {
   return tasinan;
 }
 
-// Tüm öğrencilerin dönem verisini hedef döneme çevirir ve DEĞİŞENLERİ döndürür (girdiyi değiştirmez). Hedef dönem ilk kez açılıyorsa ödeme kayıtları boş başlar,
-// ücret ve servis bilgisi taşınır; önceki dönemin kayıtları silinmez, donem_veri altında saklanır. ikiDonem: { öğrenci_id: pay }.
-export function donemDegistir(ogrenciler, eski, hedef, ikiDonem = {}, kimlik = yeniKimlikVarsayilan) {
-  const ilkAcilis = ilkAcilisMi(ogrenciler, hedef);
+// Tek öğrenciyi `hedef` dönemin gözüyle döndürür (kopya): hedef dönemin alanları üst düzeye çıkar, o anki üst düzey alanlar donem_veri altına iner.
+// Hedef dönemde kaydı yoksa ücret ve servis bilgisi taşınır, ödemeler boş başlar (masaüstündeki "ilk açılış" ile aynı). İşlem tersine çevrilebilir:
+// aynı çağrıyla eski döneme dönülür (kayıt yazarken değişen görünüm bu yolla asıl yerine konur).
+export function ogrenciDonemeGetir(kaynak, hedef, layout) {
+  const o = klon(kaynak);
+  const cur = o.aktif_donem || layout;
+  if (cur === hedef) return o;
+  const dv = nesneMi(o.donem_veri) ? o.donem_veri : {};
+  dv[cur] = Object.fromEntries(ALANLAR.filter((k) => k in o).map((k) => [k, o[k]]));
+  if (hedef in dv) {
+    const snap = dv[hedef];
+    delete dv[hedef];
+    for (const k of ALANLAR) { if (k in snap) o[k] = snap[k]; else delete o[k]; }
+  } else {
+    o.odeme_gecmisi = [];
+    o.odeme_kayitlari = {};
+  }
+  o.donem_veri = dv;
+  o.aktif_donem = hedef;
+  return o;
+}
+
+// Cihazın seçtiği dönemin görünümü: öğrenciler `hedef` dönemin gözüyle gelir (servis kayıtlarına dokunulmaz). Hiçbiri değişmeyecekse listenin kendisi döner.
+export function gorunumListesi(ham, hedef, layout) {
+  if (!hedef || !ham.some((o) => !String(o.id).startsWith("srv_") && gecerliDonem(o, layout) !== hedef)) return ham;
+  return ham.map((o) => (String(o.id).startsWith("srv_") ? o : ogrenciDonemeGetir(o, hedef, layout)));
+}
+
+// Seçili dönemin görünümünde değiştirilen kaydı asıl düzenine (dönem verisi donem_veri altında) geri koyar. orijinal: sunucudaki kayıt (yeni kayıtta null).
+export function gorunumdenDon(v, orijinal, secili, layout) {
+  const asil = (orijinal && orijinal.aktif_donem) || layout;
+  if (secili === asil) return v;
+  return ogrenciDonemeGetir({ ...v, aktif_donem: secili }, asil, layout);
+}
+
+// Hiçbir öğrencide açık olmayan bir dönemi açar: her öğrenciye ücret ve servis bilgisiyle boş ödemeli dönem kaydı yazılır (kaynak dönemden taşınır),
+// ikiDonem: { öğrenci_id: pay } varsa kaynak dönemdeki peşin ödemeden pay ayrılıp yeni döneme ödenmiş yazılır. Girdi değişmez; yazılacak kayıtlar döner.
+// Cihazların hangi dönemi gösterdiğine dokunmaz.
+export function donemAc(ogrenciler, layout, kaynak, hedef, ikiDonem = {}, kimlik = yeniKimlikVarsayilan) {
   const guncel = [];
-  for (const kaynak of ogrenciler) {
-    const o = klon(kaynak);
-    const cur = o.aktif_donem || eski;
-    if (cur === hedef) {
-      if (o.aktif_donem !== hedef) { o.aktif_donem = hedef; guncel.push(o); }
-      continue;
+  for (const s of ogrenciler) {
+    const asil = gecerliDonem(s, layout);
+    const v = ogrenciDonemeGetir(s, kaynak, layout);
+    const tasinan = sayiya(ikiDonem[s.id]) > 0 ? ikiDonemAyir(v, ikiDonem[s.id], kimlik) : [];   // kaynak dönem kaydı yeni dönem anlık görüntüsünden ÖNCE düşülür
+    const yeni = Object.fromEntries(ALANLAR.filter((k) => k in v).map((k) => [k, v[k]]));
+    yeni.odeme_gecmisi = tasinan;
+    yeni.odeme_kayitlari = {};
+    if (tasinan.length) {
+      yeni.aylik_odeme = tasinan.reduce((t, k) => t + sayiya(k.tutar), 0);
+      odemeKayitlariTazele(yeni, new Set(tasinan.map((k) => k.ay)));
     }
-    const dv = nesneMi(o.donem_veri) ? o.donem_veri : {};
-    let tasinan = [];
-    if (ilkAcilis && !(hedef in dv) && sayiya(ikiDonem[o.id]) > 0) tasinan = ikiDonemAyir(o, ikiDonem[o.id], kimlik);   // 1. dönem kaydı anlık görüntüden ÖNCE düşülür
-    dv[cur] = Object.fromEntries(ALANLAR.filter((k) => k in o).map((k) => [k, o[k]]));
-    if (hedef in dv) {
-      const snap = dv[hedef];
-      delete dv[hedef];
-      for (const k of ALANLAR) { if (k in snap) o[k] = snap[k]; else delete o[k]; }
-    } else {
-      o.odeme_gecmisi = tasinan;
-      o.odeme_kayitlari = {};
-      if (tasinan.length) {
-        o.aylik_odeme = tasinan.reduce((t, k) => t + sayiya(k.tutar), 0);
-        odemeKayitlariTazele(o, new Set(tasinan.map((k) => k.ay)));
-      }
-    }
-    o.donem_veri = dv;
-    o.aktif_donem = hedef;
+    const o = ogrenciDonemeGetir(v, asil, layout);
+    o.donem_veri = { ...(nesneMi(o.donem_veri) ? o.donem_veri : {}), [hedef]: yeni };
     guncel.push(o);
   }
-  return { guncel, ilkAcilis };
+  return guncel;
+}
+
+// Dönem görünümüne bir ödeme ekler (tekrarlı gönderim mobil_id ile engellenir). Yeni eklendiyse true.
+export function odemeEkleGorunume(o, { id, tarih, tutar, yontem, not, mobilId, kisi }) {
+  const gecmis = Array.isArray(o.odeme_gecmisi) ? o.odeme_gecmisi : [];
+  if (mobilId && gecmis.some((g) => g.mobil_id === mobilId)) return false;
+  const [y, a, g] = String(tarih).split("-");
+  const ay = `${y}-${a}`;
+  o.odeme_gecmisi = [...gecmis, { id, ay, tarih: `${g}.${a}.${y}`, tutar: yuvarla2(Number(tutar)), not: String(not || "").trim() || "Mobil ödeme", yontem, mobil_id: mobilId || null, mobil_kullanici: kisi || "" }];
+  odemeKayitlariTazele(o, [ay]);
+  return true;
 }
 
 // Seçili dönem dışındaki dönemlerden kalan borçlar (yalnızca bilgi): ["2026-2027 · 1. Dönem'den kalan borç: 1.500 ₺", ...]

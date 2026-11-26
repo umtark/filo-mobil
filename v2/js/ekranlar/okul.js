@@ -48,13 +48,13 @@ async function sayfaCiz(alt) {
 }
 
 // ── Dönem (masaüstündeki üst Dönem seçicisi) ────────────────────────────────
-// Dönem geçişi tüm öğrencilerin dönem verisini değiştirir; hesap donem.js'de, yazma sunucuda tek işlemdedir (okul_donem_uygula).
+// Hangi dönemin gösterileceği bu telefona özeldir (veri.okulDonemi); başkasının ekranı ve ödeme girişi etkilenmez. Hiçbir öğrencide açık olmayan bir dönem
+// seçilirse önce açılır (okul_donem_uygula); hesap donem.js'dedir.
 async function donemSeridi() {
-  const [ham, ayar] = await Promise.all([okulHam(), veri.ayarlar().catch(() => ({}))]);
-  const aktif = dn.aktifDonem(ayar);
+  const [ham, { secili }] = await Promise.all([okulHam(), veri.okulDonemi()]);
   return h("div", { class: "donem-serit" },
-    h("span", { class: "donem-serit-metin" }, doldur("okul_donem_gosterilen", { donem: dn.donemAdi(aktif) })),
-    veri.yazabilir("okul") && h("button", { class: "dugme ikincil", type: "button", onclick: () => donemPaneli(dn.ogrencilerSuz(ham), aktif) }, "Dönemi değiştir"));
+    h("span", { class: "donem-serit-metin" }, doldur("okul_donem_gosterilen", { donem: dn.donemAdi(secili) })),
+    h("button", { class: "dugme ikincil", type: "button", onclick: () => donemPaneli(dn.ogrencilerSuz(ham), secili) }, "Dönemi değiştir"));
 }
 
 // Bir karar paneli açar; kullanıcı arka plana dokunup kapatırsa da (null) çözülür.
@@ -102,41 +102,42 @@ function donemPaneli(ogrenciler, aktif) {
     donemSecimi.value = no;
     donemSecimi.addEventListener("change", () => { no = donemSecimi.value; ciz(); });
     const etiket = ayni ? mb("okul_donem_gec_pasif") : doldur(kayitli.has(hedef) ? "okul_donem_gec_btn" : "okul_donem_yeni_btn", { donem: dn.donemAdi(hedef) });
-    const gec = h("button", { class: "dugme birincil genis", type: "button", disabled: ayni, onclick: () => donemGec(aktif, hedef, gec, hata, panel.kapat) }, etiket);
+    const gec = h("button", { class: "dugme birincil genis", type: "button", disabled: ayni, onclick: () => donemGec(hedef, gec, hata, panel.kapat) }, etiket);
     hata.hidden = true;
     kok.replaceChildren(
       h("p", { class: "soluk" }, doldur("okul_donem_gosterilen", { donem: dn.donemAdi(aktif) })),
-      h("div", { class: "iki-sutun" }, yilSecimi, donemSecimi), gec, hata, h("p", { class: "ipucu" }, mb("okul_donem_gec_tt")));
+      h("div", { class: "iki-sutun" }, yilSecimi, donemSecimi), gec, hata,
+      h("p", { class: "ipucu" }, mb("okul_donem_gec_tt")), h("p", { class: "ipucu" }, "Seçim yalnızca bu telefonu etkiler; başka kullanıcılar kendi seçtikleri dönemde çalışmaya devam eder."));
   }
   ciz();
 }
 
-async function donemGec(eskiGorunen, hedef, dugme, hata, kapat) {
+async function donemGec(hedef, dugme, hata, kapat) {
   dugme.disabled = true;
   hata.hidden = true;
   try {
     veri.ayarTazele();
-    const aktif = dn.aktifDonem(await veri.ayarlar().catch(() => ({})));
-    if (aktif !== eskiGorunen) throw new Error("Seçili dönem başka biri tarafından değiştirilmiş. Ekran yenilendi, tekrar deneyin.");
+    const { secili, layout } = await veri.okulDonemi();
     const satirlar = await veri.okulSatirlariTaze();
     const ogrenciler = satirlar.map((s) => s.data);
-    const ilkAcilis = dn.ilkAcilisMi(ogrenciler, hedef);
-    let ikiDonem = {};
-    if (ilkAcilis) {
-      if (!(await ilkAcilisOnayi(aktif, hedef))) { dugme.disabled = false; return; }
+    if (!dn.donemAcikMi(ogrenciler, layout, hedef)) {
+      if (!veri.yazabilir("okul")) throw new Error("Yeni bir dönemi yalnızca yazma yetkisi olan kullanıcılar açabilir.");
+      if (!(await ilkAcilisOnayi(secili, hedef))) { dugme.disabled = false; return; }
       // 1. dönemden aynı eğitim yılının 2. dönemine ilk geçiş: 2. dönemi de peşin ödeyenler bulunup onaylatılır
-      if (aktif.slice(0, 4) === hedef.slice(0, 4) && aktif[5] === "1" && hedef[5] === "2") {
-        const adaylar = dn.ikiDonemAdaylari(ogrenciler);
+      let ikiDonem = {};
+      if (secili.slice(0, 4) === hedef.slice(0, 4) && secili[5] === "1" && hedef[5] === "2") {
+        const adaylar = dn.ikiDonemAdaylari(dn.gorunumListesi(ogrenciler, secili, layout));
         if (adaylar.length) {
           ikiDonem = await ikiDonemDiyalogu(adaylar);
           if (ikiDonem === null) { dugme.disabled = false; return; }
         }
       }
+      const guncel = dn.donemAc(ogrenciler, layout, secili, hedef, ikiDonem);
+      const surumler = new Map(satirlar.map((s) => [s.id, s.surum]));
+      await veri.donemUygula({ eski: layout, hedef, kayitlar: guncel.map((o) => ({ id: o.id, surum: surumler.get(o.id), data: o })), sayi: satirlar.length, yedek: true });
+      veri.sahibeBildir("Okul", `${dn.donemAdi(hedef)} dönemini açtı`);
     }
-    const { guncel } = dn.donemDegistir(ogrenciler, aktif, hedef, ikiDonem);
-    const surumler = new Map(satirlar.map((s) => [s.id, s.surum]));
-    await veri.donemUygula({ eski: aktif, hedef, kayitlar: guncel.map((o) => ({ id: o.id, surum: surumler.get(o.id), data: o })), sayi: satirlar.length, yedek: ilkAcilis });
-    veri.sahibeBildir("Okul", `${dn.donemAdi(hedef)} dönemine geçti`);
+    veri.okulDonemiSec(hedef);
     kapat();
     toast(doldur("okul_donem_gecildi", { donem: dn.donemAdi(hedef) }));
   } catch (e) {
@@ -306,7 +307,7 @@ const yontemUyar = (o, y, pesin = new Set()) => !y || (y === "coklu" ? new Set(o
 
 async function ogrencilerEkrani(tahsilat) {
   const liste = await veri.okul();
-  const pesin = tahsilat ? dn.pesinIdleri(dn.ogrencilerSuz(await okulHam()), dn.aktifDonem(await veri.ayarlar().catch(() => ({})))) : new Set();
+  const pesin = tahsilat ? dn.pesinIdleri(dn.ogrencilerSuz(await okulHam()), (await veri.okulDonemi()).secili) : new Set();
   const t = okulToplam(liste);
   const sonuc = h("div");
   const cipAlani = h("div");
