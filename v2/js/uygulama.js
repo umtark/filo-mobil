@@ -141,6 +141,7 @@ function girisEkrani(hata = "") {
       depoYaz(HATIRLA_ANAHTARI, hatirla.deger() ? "1" : "0");
       depoYaz(KULLANICI_ANAHTARI, hatirla.deger() ? eposta.value.trim() : "");
       await baslat();
+      veri.sahibeBildir("Giriş", "uygulamaya giriş yaptı (mobil)");   // masaüstüyle aynı: sahip ve yöneticiler kimin girdiğini görür
     }
     catch (err) { hataYaz(err.message); }
   } }, sirketGirdisi, eposta, parolaAlani(parola), hatirla, mesaj, dugme);
@@ -177,6 +178,7 @@ function cikis() {
   cekmeceKapat(false);
   if (kabukAcik) veri.cevrimdisiBildir();
   api.cikisYap();
+  kullanicilar.cevrimiciSifirla();
   veri.onbellekTemizle();
   aktif = null;
   girisEkrani();
@@ -187,6 +189,7 @@ function kabuk() {
   cekmeceKapat(false);
   kabukAcik = true;
   durumAcik = false;
+  if (yoneticiMi()) kullanicilar.cevrimiciYukle();   // menüdeki çevrimiçi listesi, menü açılmadan önce hazırlanır
   const sekmeler = SEKMELER.filter((s) => s.goster());
   gorunenSekmeler = sekmeler;
   baslik = h("h1", {});
@@ -382,20 +385,21 @@ async function yetkiIzle() {
   try {
     if (durumAcik) {   // bloke kalkınca, bakım bitince ya da yönetici izin verince ekran kendiliğinden açılır
       if ((await veri.yetkiKontrol()) === "kaldirildi") {
-        api.cikisYap(); veri.onbellekTemizle(); aktif = null; tumDetaylariKapat();
+        api.cikisYap(); veri.onbellekTemizle(); kullanicilar.cevrimiciSifirla(); aktif = null; tumDetaylariKapat();
         return girisEkrani("Hesabınızın bu işletmeye erişimi kaldırıldı.");
       }
       if (!(await veri.durumTazele())) baslat();
       return;
     }
     veri.nabiz();
+    if (yoneticiMi()) kullanicilar.cevrimiciYukle();   // menüdeki çevrimiçi listesi açılınca hazır olsun
     okunmamisTazele();
     const durum = await veri.yetkiKontrol();
     if (!kabukAcik) return;
     const yeniDurum = await veri.durumTazele();
     if (yeniDurum) return durumGoster(yeniDurum);
     if (durum === "kaldirildi") {
-      api.cikisYap(); veri.onbellekTemizle(); aktif = null; tumDetaylariKapat();
+      api.cikisYap(); veri.onbellekTemizle(); kullanicilar.cevrimiciSifirla(); aktif = null; tumDetaylariKapat();
       return girisEkrani("Hesabınızın bu işletmeye erişimi kaldırıldı.");
     }
     if (durum === "degisti") { tumDetaylariKapat(); kabuk(); toast("Yetkileriniz güncellendi"); }

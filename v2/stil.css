@@ -569,6 +569,10 @@ button, a, [role="button"], input, select { touch-action: manipulation; }
 .donem-maddeler { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
 /* Yan menüdeki çevrimiçi kullanıcılar */
 .cevrimici { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.cevrimici.bekliyor { min-height: 88px; }   /* veri gelmeden yer ayrılır: menü içeriği sonradan kaymaz */
+.cevrimici:not(.bekliyor) { animation: cevrimici-gel .18s ease-out; }
+@keyframes cevrimici-gel { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cevrimici:not(.bekliyor) { animation: none; } }
 .cevrimici[hidden] { display: none; }
 .cevrimici-baslik { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12px; font-weight: 600; color: var(--soluk); }
 .cevrimici-liste { display: flex; flex-direction: column; gap: 8px; max-height: 148px; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }

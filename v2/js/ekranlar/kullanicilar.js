@@ -106,8 +106,21 @@ function sonGorulme(u) {
 const CEVRIMDISI_GOSTER_SN = 43200;
 const gecenYaz = (sn) => (sn < 60 ? `${Math.max(1, Math.round(sn))}s` : sn < 3600 ? `${Math.round(sn / 60)}${baslik("dk")}` : `${Math.round(sn / 3600)} sa`);
 
+// Son okunan liste bellekte tutulur: menü açılınca bölüm anında dolu çizilir (kabuk açılırken ve her 10 saniyede arka planda tazelenir), bekleme sırasında yer ayrılır.
+let sonCevrimici = null;
+let cevrimiciSurucu = null;
+export async function cevrimiciYukle() {
+  if (!veri.baglam.isletme) return;
+  if (cevrimiciSurucu) return cevrimiciSurucu;
+  cevrimiciSurucu = api.sorgu(`uyelikler?select=ad,rol,son_gorulme,son_masaustu,son_mobil&isletme_id=eq.${veri.baglam.isletme}&aktif=eq.true&son_gorulme=not.is.null`)
+    .then((l) => { sonCevrimici = l; return l; }, () => sonCevrimici)   // çevrimiçi bilgisi yoksa ya da bağlantı kopuksa eski liste kalır
+    .finally(() => { cevrimiciSurucu = null; });
+  return cevrimiciSurucu;
+}
+export const cevrimiciSifirla = () => { sonCevrimici = null; };
+
 export function cevrimiciBolumu() {
-  const kap = h("div", { class: "cevrimici", hidden: true });
+  const kap = h("div", { class: "cevrimici" + (sonCevrimici ? "" : " bekliyor") });
   const satirCiz = (u, simdi) => {
     const sn = (simdi - Date.parse(u.son_gorulme)) / 1000;
     const acik = sn < CEVRIMICI_SN;
@@ -121,23 +134,26 @@ export function cevrimiciBolumu() {
       h("span", { class: "cevrimici-sure" }, acik ? `${gecenYaz(sn)} ${baslik("once")}` : `${baslik("cevrimdisi")} · ${gecenYaz(sn)}`),
       h("span", { class: "plat-satir" }, [cip(baslik("platform_masaustu"), u.son_masaustu), cip(baslik("platform_mobil"), u.son_mobil)].filter(Boolean)));
   };
-  async function tazele() {
-    try {
-      const l = await api.sorgu(`uyelikler?select=ad,rol,son_gorulme,son_masaustu,son_mobil&isletme_id=eq.${veri.baglam.isletme}&aktif=eq.true&son_gorulme=not.is.null`);
-      const simdi = Date.now();
-      const digerleri = l.filter((u) => u.ad !== ben().ad && (simdi - Date.parse(u.son_gorulme)) / 1000 <= CEVRIMDISI_GOSTER_SN)
-        .sort((a, b) => Number(yakin(b.son_gorulme)) - Number(yakin(a.son_gorulme)) || Date.parse(b.son_gorulme) - Date.parse(a.son_gorulme));
-      const acikSayi = digerleri.filter((u) => yakin(u.son_gorulme)).length;
-      kap.replaceChildren(h("p", { class: "cevrimici-baslik" }, h("span", { class: "cevrimici-nokta acik", "aria-hidden": "true" }), `${baslik("cevrimici")} (${acikSayi})`),
-        digerleri.length > 0 && h("div", { class: "cevrimici-liste" }, digerleri.map((u) => satirCiz(u, simdi))));
-      kap.hidden = false;
-    } catch { /* çevrimiçi bilgisi yoksa ya da bağlantı kopuksa bölüm olduğu gibi kalır */ }
+  let sonImza = "";
+  function ciz() {
+    if (!sonCevrimici) return;
+    const simdi = Date.now();
+    const digerleri = sonCevrimici.filter((u) => u.ad !== ben().ad && (simdi - Date.parse(u.son_gorulme)) / 1000 <= CEVRIMDISI_GOSTER_SN)
+      .sort((a, b) => Number(yakin(b.son_gorulme)) - Number(yakin(a.son_gorulme)) || Date.parse(b.son_gorulme) - Date.parse(a.son_gorulme));
+    const acikSayi = digerleri.filter((u) => yakin(u.son_gorulme)).length;
+    const imza = JSON.stringify([acikSayi, digerleri.map((u) => [u.ad, Math.floor((simdi - Date.parse(u.son_gorulme)) / 10000), u.son_masaustu && 1, u.son_mobil && 1])]);
+    if (imza === sonImza) return;   // değişmediyse yeniden çizilmez (titreme olmaz)
+    sonImza = imza;
+    kap.replaceChildren(h("p", { class: "cevrimici-baslik" }, h("span", { class: "cevrimici-nokta acik", "aria-hidden": "true" }), `${baslik("cevrimici")} (${acikSayi})`),
+      digerleri.length > 0 && h("div", { class: "cevrimici-liste" }, digerleri.map((u) => satirCiz(u, simdi))));
+    kap.classList.remove("bekliyor");
   }
+  ciz();
+  const tazele = () => cevrimiciYukle().then(() => { if (kap.isConnected) ciz(); });
   tazele();
-  const zamanlayici = setInterval(() => { if (!kap.isConnected) return clearInterval(zamanlayici); if (!document.hidden) tazele(); }, 15000);
+  const zamanlayici = setInterval(() => { if (!kap.isConnected) return clearInterval(zamanlayici); if (!document.hidden) tazele(); }, 10000);
   return kap;
 }
-
 export async function ciz() {
   const sorgu = (alanlar) => api.sorgu(`uyelikler?select=${alanlar}&isletme_id=eq.${veri.baglam.isletme}&aktif=eq.true&order=olusturma`);
   let liste;
