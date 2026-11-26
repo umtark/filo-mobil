@@ -260,6 +260,7 @@ function odemePaneli(o) {
   const tarih = h("input", { class: "girdi", type: "date", value: isoTarih(bugun()), max: isoTarih(bugun()), "aria-label": "Tarih", oninput: etiketle });
   const not = h("input", { class: "girdi", type: "text", maxlength: "120", placeholder: "Not (isteğe bağlı)", "aria-label": "Not" });
   const hata = h("p", { class: "hata-metin", role: "alert", hidden: true });
+  const secici = ed.dekontSecici(false);
   const kaydet = h("button", { class: "dugme birincil genis", onclick: gonder }, "");
   const yontemAlani = h("div");
 
@@ -279,15 +280,30 @@ function odemePaneli(o) {
     kaydet.textContent = "Kaydediliyor";
     try {
       await veri.odemeEkle({ ogrenci: o.id, ad: o.ad, tutar: n, tarih: tarih.value, yontem, not: not.value, mobilId });
-      await veri.ogrenciTazele(o.id);
-      panel.kapat();
-      toast("Ödeme kaydedildi", "basari");
-      await detayYenile({ kok: true });
     } catch (e) {
       kaydet.disabled = false;
       etiketle();
-      hataYaz(e.message);
+      return hataYaz(e.message);
     }
+    // Ödeme kaydedildi; dekont ayrıca yüklenir. Yüklenemezse ödeme kalır, dekont ödemenin düzenleme ekranından eklenebilir.
+    let dekontHatasi = "";
+    const { dosya } = secici.oku();
+    if (dosya) {
+      try {
+        const yol = await ed.dekontYukle(o.id, dosya);
+        await veri.kayitKaydet("okul_ogrenciler", o.id, (v) => {
+          const g = (v.odeme_gecmisi || []).find((x) => x.mobil_id === mobilId);
+          if (!g) throw new Error("Ödeme bulunamadı.");
+          g.dekont = yol;
+          return v;
+        });
+      } catch (e) { dekontHatasi = e.message || "Dekont eklenemedi."; }
+    }
+    try { await veri.ogrenciTazele(o.id); } catch { /* liste bir sonraki açılışta tazelenir */ }
+    panel.kapat();
+    if (dekontHatasi) toast(`Ödeme kaydedildi, dekont eklenemedi: ${dekontHatasi}`, "hata");
+    else toast("Ödeme kaydedildi", "basari");
+    await detayYenile({ kok: true });
   }
   function hataYaz(m) { hata.textContent = m; hata.hidden = false; }
 
@@ -296,6 +312,7 @@ function odemePaneli(o) {
     h("label", { class: "alan" }, h("span", {}, me("okul_odeme_tarih_lbl")), tarih),
     h("div", { class: "alan" }, h("span", {}, me("tah_yontem_lbl")), yontemAlani),
     h("label", { class: "alan" }, h("span", {}, mb("okul_gecmis_col_not")), not),
+    secici.kok,
     hata, kaydet);
   yontemCiz();
   etiketle();
