@@ -1,5 +1,5 @@
 // .xlsx okuyucu (ek kütüphane yok): zip merkez dizini + DecompressionStream("deflate-raw"). İlk sayfayı satır dizileri olarak döndürür.
-// Tarih biçimli hücreler Date, sayılar number, metinler string olur; boş hücre null. (.xls ve şifreli dosyalar desteklenmez.)
+// Tarih biçimli hücreler Date, sayılar number, metinler string olur; boş hücre null. (Eski .xls için xls_oku.js; şifreli dosyalar desteklenmez.)
 
 const u16 = (b, i) => b[i] | (b[i + 1] << 8);
 const u32 = (b, i) => (b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24)) >>> 0;
@@ -16,7 +16,7 @@ async function ac(veri, yontem) {
 function zipDizini(b) {
   let son = -1;
   for (let i = b.length - 22; i >= Math.max(0, b.length - 66000); i--) if (u32(b, i) === 0x06054b50) { son = i; break; }
-  if (son < 0) throw new Error("Bu dosya geçerli bir .xlsx değil. Eski .xls dosyasını Excel'de .xlsx olarak kaydedin.");
+  if (son < 0) throw new Error("Bu dosya geçerli bir .xlsx değil.");
   const adet = u16(b, son + 10);
   let konum = u32(b, son + 16);
   const dizin = new Map();
@@ -45,14 +45,16 @@ function ortakMetinler(d) {
 }
 
 const YERLESIK_TARIH = new Set([14, 15, 16, 17, 18, 19, 20, 21, 22, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 45, 46, 47, 50, 51, 52, 53, 54, 55, 56, 57, 58]);
+// Biçim numarası ve (özel biçimse) biçim kodu tarih/saat gösteriyorsa true.
+export function tarihFormatiMi(id, kod = "") {
+  if (YERLESIK_TARIH.has(id)) return true;
+  const temiz = String(kod || "").replace(/"[^"]*"/g, "").replace(/\[[^\]]*\]/g, "").replace(/\\./g, "");
+  return /[dmyhs]/i.test(temiz) && !/^(general|genel)$/i.test(temiz.trim());
+}
 function tarihStilleri(d) {
   const ozel = new Map();
   for (const f of etiketler(d, "numFmt")) ozel.set(Number(f.getAttribute("numFmtId")), f.getAttribute("formatCode") || "");
-  const tarihMi = (id) => {
-    if (YERLESIK_TARIH.has(id)) return true;
-    const kod = (ozel.get(id) || "").replace(/"[^"]*"/g, "").replace(/\[[^\]]*\]/g, "").replace(/\\./g, "");
-    return /[dmyhs]/i.test(kod) && !/^(general|genel)$/i.test(kod.trim());
-  };
+  const tarihMi = (id) => tarihFormatiMi(id, ozel.get(id));
   const xfler = d.getElementsByTagName("cellXfs")[0];
   return xfler ? Array.from(xfler.getElementsByTagName("xf")).map((x) => tarihMi(Number(x.getAttribute("numFmtId") || 0))) : [];
 }

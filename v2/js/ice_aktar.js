@@ -1,7 +1,8 @@
 // Excel içe aktarma (telefon): akaryakıt ekstresi, EDM faturaları, iç hizmet seferleri. Kurallar masaüstüyle aynıdır
-// (extract_petrol_data + _PetrolDataProcessor, cmd_import_edm_excel, ic_hizmet_excel_import); yalnızca .xlsx okunur.
+// (extract_petrol_data + _PetrolDataProcessor, cmd_import_edm_excel, ic_hizmet_excel_import); masaüstü gibi .xls ve .xlsx okunur.
 import * as veri from "./veri.js";
-import { xlsxOku, seriTarih } from "./xlsx_oku.js";
+import { excelOku } from "./xls_oku.js";
+import { seriTarih } from "./xlsx_oku.js";
 import { h, panelAc, toast } from "./ui.js";
 import { sayi, tarihCoz, isoTarih, sirala } from "./bicim.js";
 import { trTarih, yuvarla } from "./form.js";
@@ -479,10 +480,10 @@ const TURLER = {
 
 export function iceAktarAc(tur, bitti = sonra) {
   const T = TURLER[tur];
-  const dosya = h("input", { class: "girdi", type: "file", accept: ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "aria-label": "Excel dosyası" });
+  const dosya = h("input", { class: "girdi", type: "file", accept: ".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "aria-label": "Excel dosyası" });
   const hata = h("p", { class: "hata-metin", role: "alert", hidden: true });
   const alan = h("div", {});
-  const kok = h("div", { class: "form" }, h("label", { class: "alan" }, h("span", {}, "Excel dosyası (.xlsx)"), dosya), hata, alan);
+  const kok = h("div", { class: "form" }, h("label", { class: "alan" }, h("span", {}, "Excel dosyası (.xls, .xlsx)"), dosya), hata, alan);
   const panel = panelAc(T.baslik, kok);
   const hataYaz = (m) => { hata.textContent = m; hata.hidden = !m; };
   dosya.addEventListener("change", async () => {
@@ -490,10 +491,10 @@ export function iceAktarAc(tur, bitti = sonra) {
     alan.replaceChildren();
     hataYaz("");
     if (!f) return;
-    if (!/\.xlsx$/i.test(f.name)) return hataYaz("Yalnızca .xlsx dosyası seçin. Eski .xls dosyasını Excel'de .xlsx olarak kaydedin.");
+    if (!/\.xlsx?$/i.test(f.name)) return hataYaz("Yalnızca .xls ya da .xlsx dosyası seçin.");
     alan.replaceChildren(h("p", { class: "soluk" }, "Okunuyor"));
     try {
-      const hazir = await T.hazirla(await xlsxOku(f), f.name);
+      const hazir = await T.hazirla(await excelOku(f), f.name);
       const dugme = h("button", { class: "dugme birincil genis", type: "button" }, "İçe aktar");
       dugme.addEventListener("click", async () => {
         hataYaz(""); dugme.disabled = true; dosya.disabled = true;
