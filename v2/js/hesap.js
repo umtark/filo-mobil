@@ -167,7 +167,7 @@ export function akaryakitListesi(satirlar, araclar) {
   const plaka = new Map(araclar.map((a) => [a.id, a.plaka]));
   return satirlar.map((r) => ({
     id: r.id, tarih: tarihCoz(r.tarih), plaka: plaka.get(r.arac_id) || r.plaka_yedek || "", istasyon: r.istasyon || "",
-    litre: sayi(r.litre), fiyat: sayi(r.fiyat), tutar: sayi(r.tutar), fis: String(r.fis_no || ""), odeme: Boolean(r.is_odeme),
+    litre: sayi(r.litre), fiyat: sayi(r.fiyat), tutar: r.is_odeme ? Math.abs(sayi(r.tutar)) : sayi(r.tutar), fis: String(r.fis_no || ""), odeme: Boolean(r.is_odeme),
   })).filter((r) => r.tarih).sort((a, b) => b.tarih - a.tarih || sirala(b.id, a.id));
 }
 

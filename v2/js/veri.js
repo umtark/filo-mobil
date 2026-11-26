@@ -61,10 +61,16 @@ export async function yetkiKontrol() {
 
 // Çevrimiçi göstergesi: açık uygulama 30 saniyede bir sunucuya "buradayım" der (nabiz.sql uygulanmamışsa sessizce atlanır).
 let sonNabiz = 0;
+function cihazEtiketi() {
+  const u = navigator.userAgent || "";
+  const os = /iPhone|iPad|iPod/.test(u) ? "iPhone" : /Android/.test(u) ? "Android" : /Windows/.test(u) ? "Windows" : /Mac/.test(u) ? "Mac" : "Diğer";
+  const tarayici = /Edg\//.test(u) ? "Edge" : /OPR\//.test(u) ? "Opera" : /Firefox\//.test(u) ? "Firefox" : /Chrome\//.test(u) ? "Chrome" : /Safari\//.test(u) ? "Safari" : "";
+  return (os + (tarayici ? " " + tarayici : "")).slice(0, 40);
+}
 export function nabiz() {
   if (!baglam.isletme || Date.now() - sonNabiz < 30000) return;
   sonNabiz = Date.now();
-  api.rpc("uye_nabiz", { p_isletme: baglam.isletme }).catch(() => {});
+  api.rpc("uye_nabiz", { p_isletme: baglam.isletme, p_platform: "mobil", p_cihaz: cihazEtiketi() }).catch(() => {});
 }
 
 // Masaüstündeki "Hesabınızın erişimi kısıtlandı": sahip/yönetici dışındaki kullanıcıya hiçbir sekme izni tanımlanmamışsa.
@@ -151,6 +157,19 @@ export async function kayitKaydet(tablo, id, degistir) {
     const donen = await api.guncelle(tablo, `${kimlikFiltresi(id)}&surum=eq.${s[0].surum}`, { data: veri });
     if (!donen || !donen.length) throw new Error(CAKISMA);
     return veri;
+  } finally {
+    tabloTazele(tablo);
+  }
+}
+
+// Excel içe aktarma: kayıtları 100'erli gruplar halinde ekler (her kayıt masaüstü biçiminde, id zorunlu).
+export async function topluEkle(tablo, kayitlar, ilerle = () => {}) {
+  try {
+    for (let i = 0; i < kayitlar.length; i += 100) {
+      const parca = kayitlar.slice(i, i + 100).map((k) => ({ isletme_id: baglam.isletme, id: k.id, data: k }));
+      await api.ekle(tablo, parca);
+      ilerle(Math.min(i + 100, kayitlar.length), kayitlar.length);
+    }
   } finally {
     tabloTazele(tablo);
   }

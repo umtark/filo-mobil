@@ -12,12 +12,14 @@ import * as filo from "./ekranlar/filo.js";
 import * as hesap from "./ekranlar/hesap.js";
 import * as evrak from "./ekranlar/evrak.js";
 import * as kullanicilar from "./ekranlar/kullanicilar.js";
+import { zilDugmesi, okunmamisTazele } from "./bildirim.js";
 import * as yonetim from "./ekranlar/yonetim.js";
 import { durumEkrani } from "./ekranlar/durum.js";
 import { basvuruEkrani } from "./ekranlar/basvuru.js";
 import { MENU, ALT_CUBUK_SIRASI } from "./menu.js";
 import * as profil from "./profil.js";
 import { metin, duz } from "./metin.js";
+import { kurulumIpucu } from "./kurulum.js";
 
 const kok = document.getElementById("uygulama");
 const HATIRLA_ANAHTARI = "filo2.hatirla";
@@ -202,11 +204,13 @@ function kabuk() {
     ustLogo.src = marka.logo;
   });
   kok.replaceChildren(
-    h("header", { class: "ust" }, menuDugmesi, h("button", { class: "ust-logo-dugme", type: "button", "aria-label": `${marka.ad} - ana sayfa`, onclick: anaSayfa }, ustLogo), baslikIkonu, baslik),
+    h("header", { class: "ust" }, menuDugmesi, h("button", { class: "ust-logo-dugme", type: "button", "aria-label": `${marka.ad} - ana sayfa`, onclick: anaSayfa }, ustLogo), baslikIkonu, baslik, zilDugmesi()),
     altCubugu, bildirim, icerik, cekGosterge);
   asagiCekYenile(icerik, cekGosterge);
   kokYenileyiciAyarla(() => sekmeCiz(aktif, true));
   if (!veri.lisansAcik()) bildirim.append(uyariKutusu("İşletmenin lisans süresi dolmuş. Veriler gösterilmiyor; lisansı yenileyin."));
+  const ipucu = kurulumIpucu();
+  if (ipucu) bildirim.append(ipucu);
   const [istenen, istenenAlt] = location.hash.slice(1).split("/");
   const ilk = ALT_CUBUK_SIRASI.map((id) => sekmeler.find((s) => s.id === id)).find(Boolean) || sekmeler[0];
   sekmeyeGit(sekmeler.some((s) => s.id === istenen) ? istenen : ilk.id, istenenAlt);
@@ -367,6 +371,7 @@ async function yetkiIzle() {
       return;
     }
     veri.nabiz();
+    okunmamisTazele();
     const durum = await veri.yetkiKontrol();
     if (!kabukAcik) return;
     const yeniDurum = await veri.durumTazele();

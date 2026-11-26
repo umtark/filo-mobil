@@ -52,6 +52,7 @@ const YOLLAR = {
   indir: "M12 4v11M7 11l5 5 5-5M5 20h14",
   goz: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
   kapat: "M6 6l12 12M18 6L6 18",
+  zil: "M6 16v-5a6 6 0 0 1 12 0v5l2 2H4l2-2zM10 21h4",
 };
 
 export function ikon(ad, boyut = 22) {
