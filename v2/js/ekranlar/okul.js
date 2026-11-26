@@ -1,12 +1,13 @@
 // Okul: servis kullanan öğrencilerin tahsilat takibi. Telefondan yapılabilen tek yazma işlemi ödeme eklemektir.
-import { h, ikon, havuz, kart, satir, bilgiSatiri, cipler, aramaKutusu, ayCubugu, sayfalamali, bosDurum, panelAc, detayAc, detayYenile, toast, segment } from "../ui.js";
+import { h, ikon, havuz, kart, satir, bilgiSatiri, cipler, aramaKutusu, ayCubugu, sayfalamali, bosDurum, panelAc, detayAc, detayYenile, toast, segment, animOnay } from "../ui.js";
 import * as veri from "../veri.js";
 import * as api from "../api.js";
+import * as dn from "../donem.js";
 import { goruntule, indir } from "../dosya.js";
 import { okulToplam, yontemToplami, tahsilatSirasi } from "../hesap.js";
 import { animasyon } from "../lottie.js";
-import { duz, doldur, baslik as mb, etiket as me } from "../metin.js";
-import { para, paraKesin, sayi, tarihYaz, tarihCoz, ayAdi, ayAnahtari, ayEkle, eslesir, aramaEslesir, aramaHazirla, sirala, isoTarih, bugun, telefonTemizle } from "../bicim.js";
+import { duz, doldur, metin, baslik as mb, etiket as me } from "../metin.js";
+import { para, paraKesin, sayi, sayiYaz, tarihYaz, tarihCoz, ayAdi, ayAnahtari, ayEkle, eslesir, aramaEslesir, aramaHazirla, sirala, isoTarih, bugun, telefonTemizle } from "../bicim.js";
 import { ekleDugmesi, islemDugmeleri } from "../form.js";
 import * as ed from "../duzenle.js";
 import { ciktiDugmeleri } from "../cikti.js";
@@ -32,12 +33,147 @@ function tahsilatCiktilari(liste) {
     ciktiDugmeleri({ dosya: "indirim_analizi", pdf: { ad: mb("tah_ic_kayip"), yatay: false, altSol: "İndirim Analizi", uret: async (c) => indirimPdf(c, await okulHam()) } }));
 }
 
-// Masaüstündeki Okul sekmeleri: Öğrenciler, Servis Kullanmayanlar, Servisler, Tahsilat Raporu.
+// Masaüstündeki Okul sekmeleri: Öğrenciler, Servis Kullanmayanlar, Servisler, Tahsilat Raporu. Üstte masaüstündeki gibi seçili dönem ve dönem geçişi durur.
 export async function ciz(alt = "ogrenciler") {
+  const [sayfa, serit] = await Promise.all([sayfaCiz(alt), donemSeridi()]);
+  sayfa.prepend(serit);
+  return sayfa;
+}
+
+async function sayfaCiz(alt) {
   if (alt === "kullanmayan") return h("div", { class: "sayfa" }, await kullanmayanEkrani());
   if (alt === "servisler") return h("div", { class: "sayfa" }, await servislerEkrani());
   if (alt === "puantaj") return h("div", { class: "sayfa" }, await puantajEkrani());
   return ogrencilerEkrani(alt === "tahsilat");
+}
+
+// ── Dönem (masaüstündeki üst Dönem seçicisi) ────────────────────────────────
+// Dönem geçişi tüm öğrencilerin dönem verisini değiştirir; hesap donem.js'de, yazma sunucuda tek işlemdedir (okul_donem_uygula).
+async function donemSeridi() {
+  const [ham, ayar] = await Promise.all([okulHam(), veri.ayarlar().catch(() => ({}))]);
+  const aktif = dn.aktifDonem(ayar);
+  return h("div", { class: "donem-serit" },
+    h("span", { class: "donem-serit-metin" }, doldur("okul_donem_gosterilen", { donem: dn.donemAdi(aktif) })),
+    veri.yazabilir("okul") && h("button", { class: "dugme ikincil", type: "button", onclick: () => donemPaneli(dn.ogrencilerSuz(ham), aktif) }, "Dönemi değiştir"));
+}
+
+// Bir karar paneli açar; kullanıcı arka plana dokunup kapatırsa da (null) çözülür.
+function kararPaneli(baslik, govdeKur) {
+  return new Promise((coz) => {
+    let bitti = false;
+    const bitir = (deger) => { if (bitti) return; bitti = true; gozlem.disconnect(); panel.kapat(); coz(deger); };
+    const panel = panelAc(baslik, govdeKur(bitir));
+    const gozlem = new MutationObserver(() => { if (!panel.arka.isConnected) bitir(null); });
+    gozlem.observe(document.body, { childList: true });
+  });
+}
+
+function donemPaneli(ogrenciler, aktif) {
+  const kayitli = dn.kayitliDonemler(ogrenciler, aktif);
+  const yillar = new Set([...kayitli].map((k) => Number(k.slice(0, 4))));
+  let yil = Number(aktif.slice(0, 4)), no = aktif[5];
+  const kok = h("div", { class: "form" });
+  const hata = h("p", { class: "hata-metin", role: "alert", hidden: true });
+  const panel = panelAc(me("okul_donem_label"), kok);
+
+  function yeniYilSor() {
+    const girdi = h("input", { class: "girdi", type: "text", inputmode: "numeric", maxlength: "4", value: String(yil - 1), "aria-label": mb("okul_donem_baska_yil_baslik") });
+    const uyari = h("p", { class: "hata-metin", role: "alert", hidden: true });
+    kok.replaceChildren(
+      h("label", { class: "alan" }, h("span", {}, mb("okul_donem_baska_yil_soru")), girdi), uyari,
+      h("button", { class: "dugme birincil genis", type: "button", onclick: () => {
+        if (!/^\d{4}$/.test(girdi.value.trim())) { uyari.textContent = mb("okul_donem_baska_yil_soru"); uyari.hidden = false; return; }
+        yil = Number(girdi.value.trim());
+        yillar.add(yil);
+        ciz();
+      } }, mb("okul_donem_baska_yil_baslik")),
+      h("button", { class: "dugme ikincil genis", type: "button", onclick: ciz }, mb("iptal_btn")));
+    girdi.focus();
+  }
+
+  function ciz() {
+    const hedef = `${yil}-${no}`;
+    const ayni = hedef === aktif;
+    const yilSecimi = h("select", { class: "girdi", "aria-label": me("okul_donem_label") },
+      [...yillar].sort((a, b) => b - a).map((y) => h("option", { value: String(y) }, `${y}-${y + 1}`)), h("option", { value: "yeni" }, mb("okul_donem_baska_yil")));
+    yilSecimi.value = String(yil);
+    yilSecimi.addEventListener("change", () => { if (yilSecimi.value === "yeni") yeniYilSor(); else { yil = Number(yilSecimi.value); ciz(); } });
+    const donemSecimi = h("select", { class: "girdi", "aria-label": me("okul_donem_label") }, ["1", "2"].map((n) => h("option", { value: n }, mb("okul_donem_" + n))));
+    donemSecimi.value = no;
+    donemSecimi.addEventListener("change", () => { no = donemSecimi.value; ciz(); });
+    const etiket = ayni ? mb("okul_donem_gec_pasif") : doldur(kayitli.has(hedef) ? "okul_donem_gec_btn" : "okul_donem_yeni_btn", { donem: dn.donemAdi(hedef) });
+    const gec = h("button", { class: "dugme birincil genis", type: "button", disabled: ayni, onclick: () => donemGec(aktif, hedef, gec, hata, panel.kapat) }, etiket);
+    hata.hidden = true;
+    kok.replaceChildren(
+      h("p", { class: "soluk" }, doldur("okul_donem_gosterilen", { donem: dn.donemAdi(aktif) })),
+      h("div", { class: "iki-sutun" }, yilSecimi, donemSecimi), gec, hata, h("p", { class: "ipucu" }, mb("okul_donem_gec_tt")));
+  }
+  ciz();
+}
+
+async function donemGec(eskiGorunen, hedef, dugme, hata, kapat) {
+  dugme.disabled = true;
+  hata.hidden = true;
+  try {
+    veri.ayarTazele();
+    const aktif = dn.aktifDonem(await veri.ayarlar().catch(() => ({})));
+    if (aktif !== eskiGorunen) throw new Error("Seçili dönem başka biri tarafından değiştirilmiş. Ekran yenilendi, tekrar deneyin.");
+    const satirlar = await veri.okulSatirlariTaze();
+    const ogrenciler = satirlar.map((s) => s.data);
+    const ilkAcilis = dn.ilkAcilisMi(ogrenciler, hedef);
+    let ikiDonem = {};
+    if (ilkAcilis) {
+      if (!(await ilkAcilisOnayi(aktif, hedef))) { dugme.disabled = false; return; }
+      // 1. dönemden aynı eğitim yılının 2. dönemine ilk geçiş: 2. dönemi de peşin ödeyenler bulunup onaylatılır
+      if (aktif.slice(0, 4) === hedef.slice(0, 4) && aktif[5] === "1" && hedef[5] === "2") {
+        const adaylar = dn.ikiDonemAdaylari(ogrenciler);
+        if (adaylar.length) {
+          ikiDonem = await ikiDonemDiyalogu(adaylar);
+          if (ikiDonem === null) { dugme.disabled = false; return; }
+        }
+      }
+    }
+    const { guncel } = dn.donemDegistir(ogrenciler, aktif, hedef, ikiDonem);
+    const surumler = new Map(satirlar.map((s) => [s.id, s.surum]));
+    await veri.donemUygula({ eski: aktif, hedef, kayitlar: guncel.map((o) => ({ id: o.id, surum: surumler.get(o.id), data: o })), sayi: satirlar.length, yedek: ilkAcilis });
+    veri.sahibeBildir("Okul", `${dn.donemAdi(hedef)} dönemine geçti`);
+    kapat();
+    toast(doldur("okul_donem_gecildi", { donem: dn.donemAdi(hedef) }));
+  } catch (e) {
+    hata.textContent = doldur("okul_donem_gecis_hata", { e: String(e.message).replace(/^cakisma: /, "") });
+    hata.hidden = false;
+    dugme.disabled = false;
+  }
+  await detayYenile({ kok: true });
+}
+
+function ilkAcilisOnayi(eski, hedef) {
+  const satirlar = metin("okul_donem_ilk_acilis_detay").split("\n").map((s) => s.trim()).filter(Boolean);
+  const maddeler = satirlar.filter((s) => s.startsWith("•")), soru = satirlar.filter((s) => !s.startsWith("•")).pop() || "";
+  return kararPaneli(mb("okul_donem_gecis_baslik"), (bitir) => h("div", { class: "form" },
+    h("p", {}, h("strong", {}, doldur("okul_donem_ilk_acilis_baslik", { hedef: dn.donemAdi(hedef) }))),
+    h("ul", { class: "donem-maddeler" }, maddeler.map((s) => h("li", {}, s.replace(/^•\s*/, "").replace("{eski}", dn.donemAdi(eski))))),
+    h("p", {}, soru),
+    h("button", { class: "dugme birincil genis", type: "button", onclick: () => bitir(true) }, "Devam et"),
+    h("button", { class: "dugme ikincil genis", type: "button", onclick: () => bitir(false) }, mb("iptal_btn")))).then(Boolean);
+}
+
+// Dönüş: { öğrenci_id: 2. dönem payı }; "Aktarmadan devam" -> {}; kapatılırsa null.
+function ikiDonemDiyalogu(adaylar) {
+  return kararPaneli(mb("okul_iki_donem_baslik"), (bitir) => {
+    const satirlar = adaylar.map((a) => {
+      const onay = animOnay({ etiket: a.ogrenci.ad_soyad || "", isaretli: a.guclu });
+      const pay = h("input", { class: "girdi", type: "text", inputmode: "numeric", value: String(Math.round(a.pay)), "aria-label": mb("okul_iki_donem_col_pay") });
+      return { a, onay, pay, kok: h("section", { class: "kart" }, onay,
+        h("p", { class: "soluk" }, `${me("okul_iki_donem_col_ucret")}: ${para(a.ucret)} · ${me("okul_iki_donem_col_odenen")}: ${para(a.odenen)}`), h("p", { class: "soluk" }, a.neden),
+        h("label", { class: "alan" }, h("span", {}, me("okul_iki_donem_col_pay")), pay)) };
+    });
+    const secilen = () => Object.fromEntries(satirlar.filter((s) => s.onay.deger() && sayi(s.pay.value) > 0).map((s) => [s.a.ogrenci.id, Math.min(sayi(s.pay.value), s.a.odenen)]));
+    return h("div", { class: "form" }, h("p", { class: "soluk" }, mb("okul_iki_donem_aciklama")), satirlar.map((s) => s.kok),
+      h("button", { class: "dugme birincil genis", type: "button", onclick: () => bitir(secilen()) }, mb("okul_iki_donem_aktar")),
+      h("button", { class: "dugme ikincil genis", type: "button", onclick: () => bitir({}) }, mb("okul_iki_donem_aktarma")),
+      h("button", { class: "dugme ikincil genis", type: "button", onclick: () => bitir(null) }, mb("iptal_btn")));
+  });
 }
 
 async function kullanmayanEkrani() {
@@ -164,12 +300,13 @@ function secimAlani(etiket, secenekler, deger, degisti) {
 }
 const tekil = (liste) => [...new Set(liste.filter(Boolean))].sort(sirala);
 
-// Masaüstündeki "Ödeme Yöntemi" filtresi: yöntem, birden fazla yöntem (pozitif tutarlı ödemelerde 2+ farklı yöntem) ve 2. dönemi peşin ödeyenler.
-const yontemUyar = (o, y) => !y || (y === "coklu" ? new Set(o.odemeler.filter((x) => x.tutar > 0).map((x) => x.yontem)).size > 1
-  : y === "pesin" ? o.odemeler.some((x) => x.pesin) : o.odemeler.some((x) => x.yontem === y));
+// Masaüstündeki "Ödeme Yöntemi" filtresi: yöntem, birden fazla yöntem (pozitif tutarlı ödemelerde 2+ farklı yöntem) ve 2. dönemi peşin ödeyenler (donem.js: pesinIdleri).
+const yontemUyar = (o, y, pesin = new Set()) => !y || (y === "coklu" ? new Set(o.odemeler.filter((x) => x.tutar > 0).map((x) => x.yontem)).size > 1
+  : y === "pesin" ? pesin.has(o.id) : o.odemeler.some((x) => x.yontem === y));
 
 async function ogrencilerEkrani(tahsilat) {
   const liste = await veri.okul();
+  const pesin = tahsilat ? dn.pesinIdleri(dn.ogrencilerSuz(await okulHam()), dn.aktifDonem(await veri.ayarlar().catch(() => ({})))) : new Set();
   const t = okulToplam(liste);
   const sonuc = h("div");
   const cipAlani = h("div");
@@ -191,7 +328,7 @@ async function ogrencilerEkrani(tahsilat) {
   function guncelle() {
     // Durum çiplerinin sayıları, diğer filtrelerle (servis, sınıf, yöntem, arama) daraltılmış listeye göredir.
     const temel = liste.filter((o) => (!durum.arama || aramaEslesir(o.arama, durum.arama))
-      && (tahsilat ? yontemUyar(o, durum.yontem) && (!durum.tahServis || o.plaka === durum.tahServis) : (!durum.ogrServis || o.plaka === durum.ogrServis) && (!durum.ogrSinif || o.sinif === durum.ogrSinif)));
+      && (tahsilat ? yontemUyar(o, durum.yontem, pesin) && (!durum.tahServis || o.plaka === durum.tahServis) : (!durum.ogrServis || o.plaka === durum.ogrServis) && (!durum.ogrSinif || o.sinif === durum.ogrSinif)));
     const tt = okulToplam(temel);
     cipAlani.replaceChildren(cipler([["hepsi", mb("tah_ozet_servis_ogrenci"), temel.length], ["odendi", mb("tah_ozet_tam_odeyen"), tt.odendi], ["kismi", mb("tah_ozet_kismi_odeyen"), tt.kismi], ["bekliyor", mb("tah_ozet_hic_odemeyen"), tt.bekliyor]],
       durum.filtre, (k) => { durum.filtre = k; guncelle(); }));
@@ -241,12 +378,13 @@ function ogrenciSatiri(o, tahsilat = false) {
 
 export function ogrenciAc(id, ad) {
   detayAc(ad, async () => {
-    const o = (await veri.okul()).find((x) => x.id === id);
-    return o ? detay(o) : bosDurum("Öğrenci bulunamadı.");
+    const [liste, ham] = await Promise.all([veri.okul(), okulHam()]);
+    const o = liste.find((x) => x.id === id);
+    return o ? detay(o, dn.oncekiDonemBorclari(ham.find((x) => x.id === id) || {}, sayiYaz)) : bosDurum("Öğrenci bulunamadı.");
   });
 }
 
-function detay(o) {
+function detay(o, oncekiBorclar = []) {
   const yazabilir = veri.yazabilir("okul");
   const ucretYok = o.ucret <= 0;
   return h("div", { class: "sayfa" },
@@ -257,6 +395,7 @@ function detay(o) {
       !ucretYok && h("div", { class: "havuz-ortala" }, havuz(o.odenen / o.ucret, { boyut: 144 })),
       h("div", { class: "bilgi-grid" }, bilgiSatiri(mb("tah_col_donem"), para(o.ucret)), bilgiSatiri(mb("tah_col_odenen"), para(o.odenen))),
       yazabilir && h("button", { class: "dugme birincil genis", onclick: () => odemePaneli(o) }, ikon("arti", 18), "Ödeme ekle")),
+    oncekiBorclar.length > 0 && kart(h("p", { class: "donem-borc" }, oncekiBorclar.join(" · ")), h("p", { class: "ipucu" }, mb("okul_onceki_donem_borc_tt"))),
     o.telefonlar.length > 0 && kart(h("h3", {}, o.veli ? `Ulaş · ${o.veli}` : "Ulaş"), o.telefonlar.map(([kim, tel]) => telefonSatiri(kim, tel))),
     ciktiDugmeleri({ dosya: "odeme_gecmisi", pdf: { ad: "Ödeme geçmişi PDF", yatay: false, altSol: "Ödeme Geçmişi Raporu", uret: (c) => ogrenciOdemePdf(c, o) } }),
     kart(h("h3", {}, mb("tah_panel_odeme_gecmisi")),

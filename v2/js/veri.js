@@ -32,6 +32,7 @@ export async function degisenTablolar() {
     try { const yeni = await sonDegisim(tablo); if (yeni && yeni !== eski) degisen.push(tablo); } catch { /* bir sonraki turda yeniden denenir */ }
   }));
   for (const t of degisen) { onbellek.delete("ham:" + t); izlenen.delete(t); }
+  if (degisen.includes("okul_ogrenciler")) onbellek.delete("ayarlar");   // dönem geçişi öğrencileri ve seçili dönem ayarını birlikte değiştirir
   return degisen;
 }
 
@@ -88,6 +89,14 @@ export function nabiz() {
   api.rpc("uye_nabiz", { p_isletme: baglam.isletme, p_platform: "mobil", p_cihaz: cihazEtiketi() }).catch(() => {});
 }
 
+// Uygulama arka plana atılınca ya da kapanınca bu cihaz hemen çevrimdışı görünür (beklemeden 2 dakikalık zaman aşımı dolmasın);
+// öne dönünce nabız hemen yeniden atılır. donem_nabiz.sql uygulanmamışsa çağrı sessizce başarısız olur.
+export function cevrimdisiBildir() {
+  if (!baglam.isletme) return;
+  sonNabiz = 0;
+  api.rpcArka("uye_cikis", { p_isletme: baglam.isletme, p_platform: "mobil" });
+}
+
 // Masaüstündeki "Hesabınızın erişimi kısıtlandı": sahip/yönetici dışındaki kullanıcıya hiçbir sekme izni tanımlanmamışsa.
 export function erisimYok() {
   const u = baglam.uye;
@@ -131,6 +140,7 @@ export const ayarlar = () => onbellekli("ayarlar", async () => {
   const s = await api.sorgu(`isletme_ayarlari?select=anahtar,deger&isletme_id=eq.${baglam.isletme}`);
   return Object.fromEntries(s.map((r) => [r.anahtar, r.deger]));
 });
+export const ayarTazele = () => onbellek.delete("ayarlar");
 
 export const okul = () => ham("okul_ogrenciler").then(okulListesi);
 export const okulServisKullanmayan = () => ham("okul_ogrenciler").then(servisKullanmayanListesi);
@@ -241,6 +251,26 @@ export async function ogrenciTazele(id) {
   const i = liste.findIndex((o) => o.id === id);
   if (yeni && i >= 0) liste[i] = yeni;
   try { izlenen.set("okul_ogrenciler", await sonDegisim("okul_ogrenciler")); } catch { /* eski zaman kalır; bir sonraki kontrol listeyi tazeler */ }   // kendi ödememiz tam yenileme tetiklemesin
+}
+
+// Dönem geçişi: öğrencilerin sunucudaki güncel hali (sürüm numaralarıyla, servis kayıtları hariç); önbellekten okunmaz.
+export async function okulSatirlariTaze() {
+  const sonuc = [];
+  for (let ofset = 0; ; ofset += 1000) {
+    const sayfa = await api.sorgu(`okul_ogrenciler?select=id,surum,data&isletme_id=eq.${baglam.isletme}&silindi=eq.false&order=id&limit=1000&offset=${ofset}`);
+    for (const s of sayfa) if (!String(s.id).startsWith("srv_")) sonuc.push({ id: s.id, surum: s.surum, data: { ...s.data, id: s.id } });
+    if (sayfa.length < 1000) return sonuc;
+  }
+}
+
+// Değişen öğrenciler ve seçili dönem ayarı sunucuda TEK işlemde yazılır (okul_donem_uygula); araya başka değişiklik girmişse hiçbiri yazılmaz.
+export async function donemUygula({ eski, hedef, kayitlar, sayi, yedek }) {
+  try {
+    return await api.rpc("okul_donem_uygula", { p_isletme: baglam.isletme, p_eski: eski, p_hedef: hedef, p_kayitlar: kayitlar, p_sayi: sayi, p_yedek: yedek });
+  } finally {
+    tabloTazele("okul_ogrenciler");
+    ayarTazele();
+  }
 }
 
 export async function odemeEkle({ ogrenci, ad, tutar, tarih, yontem, not, mobilId }) {

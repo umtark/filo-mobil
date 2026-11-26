@@ -38,12 +38,10 @@ const EKRANLAR = {
   petrol: () => muhasebe.akaryakitSayfasi(),
   ic_hizmet: () => filo.icHizmetSayfasi(),
   okul: (alt) => okul.ciz(alt),
-  ayarlar: (alt) => (alt === "kullanicilar" ? kullanicilar.ciz() : hesap.ciz({ cikis, yenile: tazele })),
+  ayarlar: (alt) => (alt === "kullanicilar" ? kullanicilar.ciz() : alt === "yonetim" && veri.baglam.platform ? yonetim.ciz({ yenile: yeniden }) : hesap.ciz({ cikis, yenile: tazele })),
 };
-const SEKMELER = [
-  ...MENU.map((m) => ({ ...m, goster: () => veri.izinVar(m.izin), ciz: EKRANLAR[m.id] })),
-  { id: "yonetim", ad: "Yönetim", ikon: "yonetim", goster: () => veri.baglam.platform, ciz: () => yonetim.ciz({ yenile: yeniden }) },
-];
+// Yönetim (yalnızca platform yöneticisi) Ayarlar'ın üçüncü alt sekmesidir: Hesap, Kullanıcılar, Yönetim.
+const SEKMELER = MENU.map((m) => ({ ...m, goster: m.id === "ayarlar" ? () => veri.izinVar(m.izin) || veri.baglam.platform : () => veri.izinVar(m.izin), ciz: EKRANLAR[m.id] }));
 const simge = (s, boyut) => (s.resim ? h("img", { class: "menu-resim", src: s.resim, alt: "", width: boyut, height: boyut, draggable: "false" }) : ikon(s.ikon, boyut));
 
 let aktif = null;
@@ -54,7 +52,7 @@ let kabukAcik = false;
 let durumAcik = false;   // bloke / bakım ekranı gösteriliyor
 let cekmece = null;
 const yoneticiMi = () => ["sahip", "yonetici"].includes(veri.baglam.uye && veri.baglam.uye.rol);
-const altlar = (s) => (s.alt || []).filter(([k]) => k !== "kullanicilar" || yoneticiMi());
+const altlar = (s) => (s.alt || []).filter(([k]) => (k !== "kullanicilar" || yoneticiMi()) && (k !== "yonetim" || veri.baglam.platform));
 const altSecimi = (s) => { const l = altlar(s); return (l.find(([k]) => k === aktifAlt[s.id]) || l[0] || [])[0]; };
 
 // ── Açılış ──────────────────────────────────────────────────────────────────
@@ -177,6 +175,7 @@ function profilPaneli(ad) {
 }
 function cikis() {
   cekmeceKapat(false);
+  if (kabukAcik) veri.cevrimdisiBildir();
   api.cikisYap();
   veri.onbellekTemizle();
   aktif = null;
@@ -211,7 +210,8 @@ function kabuk() {
   if (!veri.lisansAcik()) bildirim.append(uyariKutusu("İşletmenin lisans süresi dolmuş. Veriler gösterilmiyor; lisansı yenileyin."));
   const ipucu = kurulumIpucu();
   if (ipucu) bildirim.append(ipucu);
-  const [istenen, istenenAlt] = location.hash.slice(1).split("/");
+  const [hamIstenen, hamAlt] = location.hash.slice(1).split("/");
+  const [istenen, istenenAlt] = hamIstenen === "yonetim" ? ["ayarlar", "yonetim"] : [hamIstenen, hamAlt];   // eski bağlantılar: #yonetim artık Ayarlar > Yönetim
   const ilk = ALT_CUBUK_SIRASI.map((id) => sekmeler.find((s) => s.id === id)).find(Boolean) || sekmeler[0];
   sekmeyeGit(sekmeler.some((s) => s.id === istenen) ? istenen : ilk.id, istenenAlt);
 }
@@ -251,6 +251,7 @@ function cekmeceAc() {
     h("div", { class: "cekmece-alt-kisim" },
       h("button", { class: "cekmece-kullanici", type: "button", "aria-label": "Profil fotoğrafını değiştir", onclick: () => profilPaneli(ad) }, avatarOlustur(ad),
         h("span", { class: "satir-metin" }, h("span", { class: "satir-baslik" }, ad), h("span", { class: "satir-alt" }, rol))),
+      yoneticiMi() && kullanicilar.cevrimiciBolumu(),
       h("button", { class: "dugme tehlike genis", onclick: cikis }, metin("settings_session_logout"))));
   const arka = h("div", { class: "cekmece-arka", onclick: (e) => { if (e.target === arka) cekmeceKapat(); } }, panel);
   const tus = (e) => { if (e.key === "Escape") cekmeceKapat(); };
@@ -319,12 +320,13 @@ function asagiCekYenile(alan, gosterge) {
 
 let gizlendi = 0;
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) { gizlendi = Date.now(); return; }
+  if (document.hidden) { gizlendi = Date.now(); if (kabukAcik) veri.cevrimdisiBildir(); return; }
   if (!gizlendi || Date.now() - gizlendi < 60000 || !kabukAcik) return;
   gizlendi = 0;
   if (document.body.classList.contains("detay-acik")) veri.onbellekTemizle();   // açık ekran bozulmasın; sonraki açılışlar güncel gelir
   else tazele();
 });
+window.addEventListener("pagehide", () => { if (kabukAcik) veri.cevrimdisiBildir(); });
 function tazele() {
   veri.onbellekTemizle();
   return sekmeCiz(aktif);

@@ -7,7 +7,7 @@ const ALT = {
   fatura: [["tum", baslik("tab_tm_kaytlar")], ["gelen", baslik("tab_gelen_faturalar")], ["giden", baslik("tab_giden_faturalar")], ["ozet", "Aylık Özet"]],
   arac: [["liste", "Araç Listesi"], ["yag", baslik("tab_yakt_kaytlar")], ["bakim", baslik("tab_bakm__servis")], ["harcama", baslik("tab_harcamalar")]],
   okul: [["ogrenciler", baslik("okul_tab_ogrenciler")], ["kullanmayan", baslik("okul_tab_srv_kullanmayan")], ["servisler", baslik("okul_tab_servisler")], ["tahsilat", baslik("okul_tab_tahsilat")], ["puantaj", baslik("okul_tab_puantaj")]],
-  ayarlar: [["hesap", "Hesap"], ["kullanicilar", "Kullanıcılar"]],
+  ayarlar: [["hesap", "Hesap"], ["kullanicilar", "Kullanıcılar"], ["yonetim", "Yönetim"]],
 };
 
 export const MENU = [

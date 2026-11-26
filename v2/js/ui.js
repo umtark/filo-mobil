@@ -97,7 +97,7 @@ export function panelAc(baslik, icerik) {
   document.addEventListener("keydown", tus);
   const ilk = arka.querySelector("input, select, textarea");
   if (ilk) setTimeout(() => ilk.focus(), 60);
-  return { kapat };
+  return { kapat, arka };
 }
 
 // ── Detay ekranı yığını (tarayıcı geri tuşuyla uyumlu) ─────────────────────

@@ -131,6 +131,13 @@ export async function depoBaglantisi(kova, yol, saniye = 600) {
   return `${SUPABASE_URL}/storage/v1${v.signedURL}`;
 }
 export const rpc = (ad, govde) => cagir("/rest/v1/rpc/" + ad, { yontem: "POST", govde });
+// Sayfa arka plana atılırken / kapanırken bile tamamlanan (keepalive) tek yönlü çağrı; yanıt beklenmez, hata yutulur.
+export function rpcArka(ad, govde) {
+  if (!oturum || !oturum.access_token) return;
+  try {
+    fetch(SUPABASE_URL + "/rest/v1/rpc/" + ad, { method: "POST", keepalive: true, headers: { apikey: ANON_KEY, Authorization: `Bearer ${oturum.access_token}`, "Content-Type": "application/json" }, body: JSON.stringify(govde) }).catch(() => {});
+  } catch { /* gönderilemezse sunucu zaman aşımıyla çevrimdışı sayar */ }
+}
 export const fonksiyon = (ad, govde) => cagir("/functions/v1/" + ad, { yontem: "POST", govde });
 const DONUS = { Prefer: "return=representation" };
 export const ekle = (tablo, satir) => cagir("/rest/v1/" + tablo, { yontem: "POST", govde: satir, ust: DONUS });

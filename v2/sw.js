@@ -1,8 +1,8 @@
 // Uygulama kabuğunu çevrimdışı açar. Veri (Supabase) ve oturum istekleri ASLA önbelleğe alınmaz.
-const SURUM = "filo2-v59";
+const SURUM = "filo2-v60";
 const KABUK = [
   "./", "index.html", "stil.css", "manifest.webmanifest",
-  "js/uygulama.js", "js/bildirim.js", "js/xlsx_oku.js", "js/xls_oku.js", "js/surum.js", "js/ice_aktar.js", "js/api.js", "js/profil.js", "js/config.js", "js/veri.js", "js/hesap.js", "js/bicim.js", "js/ui.js", "js/dosya.js", "js/goruntuleyici.js", "js/kurulum.js", "js/ozet.js", "js/grafik.js", "js/firma_suz.js", "js/marka.js", "js/marka_normal.js", "js/kimlik.js", "js/metin.js", "js/menu.js", "js/lottie.js", "js/form.js", "js/duzenle.js", "js/rapor.js", "js/puantaj.js",
+  "js/uygulama.js", "js/bildirim.js", "js/xlsx_oku.js", "js/xls_oku.js", "js/surum.js", "js/donem.js", "js/ice_aktar.js", "js/api.js", "js/profil.js", "js/config.js", "js/veri.js", "js/hesap.js", "js/bicim.js", "js/ui.js", "js/dosya.js", "js/goruntuleyici.js", "js/kurulum.js", "js/ozet.js", "js/grafik.js", "js/firma_suz.js", "js/marka.js", "js/marka_normal.js", "js/kimlik.js", "js/metin.js", "js/menu.js", "js/lottie.js", "js/form.js", "js/duzenle.js", "js/rapor.js", "js/puantaj.js",
   "js/cikti.js", "js/cikti_pdf.js", "js/cikti_xlsx.js", "js/cikti_yardim.js", "js/cikti_muhasebe.js", "js/cikti_filo.js", "js/cikti_okul.js", "js/cikti_genel.js",
   "js/ekranlar/bugun.js", "js/ekranlar/okul.js", "js/ekranlar/muhasebe.js", "js/ekranlar/filo.js", "js/ekranlar/evrak.js", "js/ekranlar/hesap.js", "js/ekranlar/yonetim.js", "js/ekranlar/kullanicilar.js", "js/ekranlar/basvuru.js", "js/ekranlar/durum.js",
   "yazi/Nunito-Regular.ttf", "yazi/Nunito-Bold.ttf", "yazi/manrope-latin.woff2", "yazi/manrope-latin-ext.woff2", "ikon/onay-animasyon.png", "ikon/goz-acik.png", "ikon/goz-kapali.png", "ikon/bakim-modu.png", "ikon/Bloke.png", "ikon-192.png", "ikon-512.png", "favicon-32.png", "apple-touch-icon.png",

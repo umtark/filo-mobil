@@ -101,6 +101,43 @@ function sonGorulme(u) {
   return sa < 24 ? `${sa} sa önce` : `${Math.round(sa / 24)} gün önce`;
 }
 
+// Yan menüdeki "Çevrimiçi" bölümü (masaüstündeki yan menü gibi): kimler çevrimiçi, hangi platformdan (Masaüstü / Mobil); çevrimdışı olanlar 12 saat daha gri kalır.
+// Liste menü açıkken 15 saniyede bir tazelenir. Başkalarının üyeliğini yalnızca sahip ve yönetici okuyabilir; çevrimiçi bilgisi (nabiz.sql) yoksa bölüm gösterilmez.
+const CEVRIMDISI_GOSTER_SN = 43200;
+const gecenYaz = (sn) => (sn < 60 ? `${Math.max(1, Math.round(sn))}s` : sn < 3600 ? `${Math.round(sn / 60)}${baslik("dk")}` : `${Math.round(sn / 3600)} sa`);
+
+export function cevrimiciBolumu() {
+  const kap = h("div", { class: "cevrimici", hidden: true });
+  const satirCiz = (u, simdi) => {
+    const sn = (simdi - Date.parse(u.son_gorulme)) / 1000;
+    const acik = sn < CEVRIMICI_SN;
+    const cip = (ad, z) => {
+      if (!z || (simdi - Date.parse(z)) / 1000 > CEVRIMDISI_GOSTER_SN) return null;
+      return h("span", { class: "plat-cip" + ((simdi - Date.parse(z)) / 1000 < CEVRIMICI_SN ? " acik" : "") }, ad);
+    };
+    return h("div", { class: "cevrimici-satir" + (acik ? " acik" : "") },
+      h("span", { class: "cevrimici-nokta", "aria-hidden": "true" }),
+      h("span", { class: "cevrimici-ad" }, u.ad),
+      h("span", { class: "cevrimici-sure" }, acik ? `${gecenYaz(sn)} ${baslik("once")}` : `${baslik("cevrimdisi")} · ${gecenYaz(sn)}`),
+      h("span", { class: "plat-satir" }, [cip(baslik("platform_masaustu"), u.son_masaustu), cip(baslik("platform_mobil"), u.son_mobil)].filter(Boolean)));
+  };
+  async function tazele() {
+    try {
+      const l = await api.sorgu(`uyelikler?select=ad,rol,son_gorulme,son_masaustu,son_mobil&isletme_id=eq.${veri.baglam.isletme}&aktif=eq.true&son_gorulme=not.is.null`);
+      const simdi = Date.now();
+      const digerleri = l.filter((u) => u.ad !== ben().ad && (simdi - Date.parse(u.son_gorulme)) / 1000 <= CEVRIMDISI_GOSTER_SN)
+        .sort((a, b) => Number(yakin(b.son_gorulme)) - Number(yakin(a.son_gorulme)) || Date.parse(b.son_gorulme) - Date.parse(a.son_gorulme));
+      const acikSayi = digerleri.filter((u) => yakin(u.son_gorulme)).length;
+      kap.replaceChildren(h("p", { class: "cevrimici-baslik" }, h("span", { class: "cevrimici-nokta acik", "aria-hidden": "true" }), `${baslik("cevrimici")} (${acikSayi})`),
+        digerleri.length > 0 && h("div", { class: "cevrimici-liste" }, digerleri.map((u) => satirCiz(u, simdi))));
+      kap.hidden = false;
+    } catch { /* çevrimiçi bilgisi yoksa ya da bağlantı kopuksa bölüm olduğu gibi kalır */ }
+  }
+  tazele();
+  const zamanlayici = setInterval(() => { if (!kap.isConnected) return clearInterval(zamanlayici); if (!document.hidden) tazele(); }, 15000);
+  return kap;
+}
+
 export async function ciz() {
   const sorgu = (alanlar) => api.sorgu(`uyelikler?select=${alanlar}&isletme_id=eq.${veri.baglam.isletme}&aktif=eq.true&order=olusturma`);
   let liste;
