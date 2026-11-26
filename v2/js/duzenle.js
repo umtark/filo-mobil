@@ -117,11 +117,11 @@ export async function aracFormu(id, { detaydan = false } = {}) {
   const k = id ? await veri.hamKayit("araclar", id) : null;
   const tumu = await veri.araclar();
   const alanlar = [
-    { ad: "plaka", etiket: "Plaka", zorunlu: true, buyuk: true, uzunluk: 20 },
+    { ad: "plaka", etiket: me("plaka_lbl"), zorunlu: true, buyuk: true, uzunluk: 20 },
     { ad: "firma", etiket: me("firma_sahibi_lbl"), liste: tekil(tumu.map((a) => a.firma)) },
-    { yan: [{ ad: "marka", etiket: "Marka" }, { ad: "model", etiket: "Model" }] },
+    { yan: [{ ad: "marka", etiket: me("marka_lbl") }, { ad: "model", etiket: me("model_lbl") }] },
     { yan: [{ ad: "yil", etiket: me("model_yili_lbl"), uzunluk: 4 }, { ad: "km", etiket: me("hr_km"), uzunluk: 12 }] },
-    { yan: [{ ad: "yakit", etiket: "Yakıt", tur: "secim", secenekler: ["Dizel", "Benzin", "LPG", "Elektrik", "Hibrit"] }, { ad: "vites", etiket: me("vites_tipi_lbl"), tur: "secim", secenekler: ["Manuel", "Otomatik", "Yarı Otomatik"] }] },
+    { yan: [{ ad: "yakit", etiket: me("yakit_tipi_lbl"), tur: "secim", secenekler: ["Dizel", "Benzin", "LPG", "Elektrik", "Hibrit"] }, { ad: "vites", etiket: me("vites_tipi_lbl"), tur: "secim", secenekler: ["Manuel", "Otomatik", "Yarı Otomatik"] }] },
     { yan: [{ ad: "utts", etiket: me("utts_durumu_lbl"), tur: "secim", secenekler: ["Var", "Yok"], bos: false }, { ad: "hgs", etiket: me("hgs_durumu_lbl"), tur: "secim", secenekler: ["Var", "Yok"], bos: false }] },
     { ad: "sofor", etiket: me("sofor_lbl") },
     { ad: "sofor_tel", etiket: me("sofor_tel_lbl"), tur: "tel" },

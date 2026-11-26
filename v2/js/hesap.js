@@ -157,6 +157,9 @@ export function aracKaydi(a, periyot) {
   return {
     id: a.id, plaka: a.plaka || "", firma: String(a.firma || "").split(/\s+/).join(" "), kurum: String(a.kurum || "").trim(), marka: a.marka || "", model: a.model || "", yil: String(a.yil || ""),
     yakit: a.yakit || "", sofor: a.sofor && a.sofor !== "-" ? a.sofor : "", soforTel: String(a.sofor_tel || "").trim(), km: String(a.km || ""), belgeler, kayitlar, bakimKayitlari, harcamaKayitlari, yagKayitlari,
+    vites: a.vites || "", utts: a.utts || "", hgs: a.hgs || "", vergiNo: String(a.vergi_no || ""), ruhsatNo: String(a.ruhsat_no || ""), sasi: String(a.sasi || ""),
+    belgeTarihleri: { muayene: a.muayene_tarihi, trafik: a.trafik_tarihi, kasko: a.kasko_tarihi, koltuk: a.koltuk_sigortasi, guzergah: a.guzergah_tarihi },
+    ekSoforler: (Array.isArray(a.ek_soforler) ? a.ek_soforler : []).map((e) => ({ ad: String(e.sofor || "").trim(), tel: String(e.tel || "").trim(), not: String(e.not || "").trim() })).filter((e) => e.ad),
     olaylar: (Array.isArray(a.olaylar) ? a.olaylar : []).map((o) => ({ tarih: tarihCoz(o.tarih), mesaj: String(o.mesaj || "").trim(), tip: String(o.tip || ""), p1: String(o.p1 || ""), p2: String(o.p2 || ""), tutar: sayi(o.tutar) })),
     enYakin: belgeler.filter((b) => !b.bakim)[0] || belgeler[0] || null,
   };
