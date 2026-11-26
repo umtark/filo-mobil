@@ -161,7 +161,7 @@ async function ogrencilerEkrani(tahsilat) {
   const cipAlani = h("div");
 
   function guncelle() {
-    cipAlani.replaceChildren(cipler([["hepsi", mb("okul_tum_odemeler"), liste.length], ["bekliyor", mb("okul_bekliyor"), t.bekliyor], ["kismi", mb("okul_kismi_odendi"), t.kismi], ["odendi", mb("okul_odendi"), t.odendi]],
+    cipAlani.replaceChildren(cipler([["hepsi", mb("tah_ozet_servis_ogrenci"), liste.length], ["odendi", mb("tah_ozet_tam_odeyen"), t.odendi], ["kismi", mb("tah_ozet_kismi_odeyen"), t.kismi], ["bekliyor", mb("tah_ozet_hic_odemeyen"), t.bekliyor]],
       durum.filtre, (k) => { durum.filtre = k; guncelle(); }));
     const g = liste.filter((o) => (durum.filtre === "hepsi" || o.durum === durum.filtre) && (!durum.yontem || o.odemeler.some((x) => x.yontem === durum.yontem)) && (!durum.arama || aramaEslesir(o.arama, durum.arama)));
     sonuc.replaceChildren(g.length ? sayfalamali(g, ogrenciSatiri) : bosDurum("Bu filtreyle eşleşen öğrenci yok."));
@@ -278,7 +278,7 @@ function odemePaneli(o) {
     kaydet.disabled = true;
     kaydet.textContent = "Kaydediliyor";
     try {
-      await veri.odemeEkle({ ogrenci: o.id, tutar: n, tarih: tarih.value, yontem, not: not.value, mobilId });
+      await veri.odemeEkle({ ogrenci: o.id, ad: o.ad, tutar: n, tarih: tarih.value, yontem, not: not.value, mobilId });
       await veri.ogrenciTazele(o.id);
       panel.kapat();
       toast("Ödeme kaydedildi", "basari");
