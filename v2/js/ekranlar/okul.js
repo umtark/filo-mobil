@@ -154,16 +154,48 @@ async function puantajEkrani() {
   return kap;
 }
 
+// Masaüstündeki gibi açılır filtre (Sınıf, Servis, Ödeme Yöntemi): etiket + seçim kutusu.
+function secimAlani(etiket, secenekler, deger, degisti) {
+  const s = h("select", { class: "girdi", "aria-label": etiket }, secenekler.map(([k, ad]) => h("option", { value: k }, ad)));
+  s.value = deger;
+  if (s.selectedIndex < 0) s.selectedIndex = 0;
+  s.addEventListener("change", () => degisti(s.value));
+  return { kok: h("label", { class: "alan" }, h("span", {}, etiket), s), sec: (v) => { s.value = v; if (s.selectedIndex < 0) s.selectedIndex = 0; } };
+}
+const tekil = (liste) => [...new Set(liste.filter(Boolean))].sort(sirala);
+
+// Masaüstündeki "Ödeme Yöntemi" filtresi: yöntem, birden fazla yöntem (pozitif tutarlı ödemelerde 2+ farklı yöntem) ve 2. dönemi peşin ödeyenler.
+const yontemUyar = (o, y) => !y || (y === "coklu" ? new Set(o.odemeler.filter((x) => x.tutar > 0).map((x) => x.yontem)).size > 1
+  : y === "pesin" ? o.odemeler.some((x) => x.pesin) : o.odemeler.some((x) => x.yontem === y));
+
 async function ogrencilerEkrani(tahsilat) {
   const liste = await veri.okul();
   const t = okulToplam(liste);
   const sonuc = h("div");
   const cipAlani = h("div");
+  const servisSecenekleri = [["", mb("okul_tum_servisler")], ...tekil(liste.map((o) => o.plaka)).map((p) => [p, p])];
+  const sinifSecenekleri = [["", mb("okul_tum_siniflar")], ...tekil(liste.map((o) => o.sinif)).map((s) => [s, s])];
+  const gecerli = (secenekler, v) => (secenekler.some(([k]) => k === v) ? v : "");
+  const servisAnahtar = tahsilat ? "tahServis" : "ogrServis";
+  durum[servisAnahtar] = gecerli(servisSecenekleri, durum[servisAnahtar] || "");
+  durum.ogrSinif = gecerli(sinifSecenekleri, durum.ogrSinif || "");
+  const servisKutusu = secimAlani(mb(tahsilat ? "tah_servis_lbl" : "okul_servis_label"), servisSecenekleri, durum[servisAnahtar], (v) => { durum[servisAnahtar] = v; guncelle(); });
+  const sinifKutusu = !tahsilat && secimAlani(me("okul_sinif_label"), sinifSecenekleri, durum.ogrSinif, (v) => { durum.ogrSinif = v; guncelle(); });
+  const yontemKutusu = tahsilat && secimAlani(mb("tah_yontem_lbl"), [["", mb("tah_yontem_hepsi")], ["nakit", mb("tah_yontem_nakit")], ["iban", mb("tah_yontem_iban")], ["kart", mb("tah_yontem_kart")], ["coklu", mb("tah_yontem_coklu")], ["pesin", mb("tah_yontem_pesin")]],
+    durum.yontem, (v) => { durum.yontem = v; yontemKartlariniEsitle(); guncelle(); });
+  let yontemKartlari = null;
+  const yontemKartlariniEsitle = () => {
+    if (yontemKartlari) for (const d of yontemKartlari.children) d.setAttribute("aria-pressed", String(d.dataset.yontem === durum.yontem));
+  };
 
   function guncelle() {
-    cipAlani.replaceChildren(cipler([["hepsi", mb("tah_ozet_servis_ogrenci"), liste.length], ["odendi", mb("tah_ozet_tam_odeyen"), t.odendi], ["kismi", mb("tah_ozet_kismi_odeyen"), t.kismi], ["bekliyor", mb("tah_ozet_hic_odemeyen"), t.bekliyor]],
+    // Durum çiplerinin sayıları, diğer filtrelerle (servis, sınıf, yöntem, arama) daraltılmış listeye göredir.
+    const temel = liste.filter((o) => (!durum.arama || aramaEslesir(o.arama, durum.arama))
+      && (tahsilat ? yontemUyar(o, durum.yontem) && (!durum.tahServis || o.plaka === durum.tahServis) : (!durum.ogrServis || o.plaka === durum.ogrServis) && (!durum.ogrSinif || o.sinif === durum.ogrSinif)));
+    const tt = okulToplam(temel);
+    cipAlani.replaceChildren(cipler([["hepsi", mb("tah_ozet_servis_ogrenci"), temel.length], ["odendi", mb("tah_ozet_tam_odeyen"), tt.odendi], ["kismi", mb("tah_ozet_kismi_odeyen"), tt.kismi], ["bekliyor", mb("tah_ozet_hic_odemeyen"), tt.bekliyor]],
       durum.filtre, (k) => { durum.filtre = k; guncelle(); }));
-    const g = liste.filter((o) => (durum.filtre === "hepsi" || o.durum === durum.filtre) && (!durum.yontem || o.odemeler.some((x) => x.yontem === durum.yontem)) && (!durum.arama || aramaEslesir(o.arama, durum.arama)));
+    const g = temel.filter((o) => durum.filtre === "hepsi" || o.durum === durum.filtre);
     if (tahsilat) g.sort(tahsilatSirasi);
     sonuc.replaceChildren(g.length ? sayfalamali(g, (o) => ogrenciSatiri(o, tahsilat)) : bosDurum("Bu filtreyle eşleşen öğrenci yok."));
   }
@@ -175,10 +207,11 @@ async function ogrencilerEkrani(tahsilat) {
       t.ucret > 0 && havuz(t.odenen / t.ucret, { boyut: 96 })));
 
   const yt = yontemToplami(liste);
-  const yontemKartlari = h("div", { class: "yontem-izgara" }, YONTEM_KARTLARI.map(([k, ad, anim, durak]) => {
+  yontemKartlari = h("div", { class: "yontem-izgara" }, YONTEM_KARTLARI.map(([k, ad, anim, durak]) => {
     const dugme = h("button", { class: "yontem-kart", type: "button", "aria-pressed": String(durum.yontem === k), title: duz("tah_kpi_tikla"), onclick: () => {
       durum.yontem = durum.yontem === k ? "" : k;
-      for (const d of yontemKartlari.children) d.setAttribute("aria-pressed", String(d.dataset.yontem === durum.yontem));
+      yontemKartlariniEsitle();
+      if (yontemKutusu) yontemKutusu.sec(durum.yontem);
       guncelle();
     } },
       animasyon(anim, 96, durak), h("span", { class: "yontem-ad" }, duz(ad)), h("strong", { class: "yontem-tutar" }, para(yt[k].tutar)), h("span", { class: "yontem-sayi" }, doldur("tah_kpi_ogrenci", { n: yt[k].ogrenci })));
@@ -189,9 +222,11 @@ async function ogrencilerEkrani(tahsilat) {
   guncelle();
   const arama = aramaKutusu(durum.arama, (v) => { durum.arama = v; guncelle(); }, mb("okul_arama_placeholder"));
   const yeni = !tahsilat && veri.yazabilir("okul") && ekleDugmesi(duz("okul_yeni_ogrenci"), () => ed.ogrenciFormu(null));
-  if (!tahsilat) return h("div", { class: "sayfa" }, yeni, ciktiDugmeleri({ dosya: "ogrenci_listesi", xlsx: { uret: async (c) => ogrenciListesiXlsx(c, await okulHam()) } }), arama, cipAlani, sonuc);
+  if (!tahsilat) return h("div", { class: "sayfa" }, yeni, ciktiDugmeleri({ dosya: "ogrenci_listesi", xlsx: { uret: async (c) => ogrenciListesiXlsx(c, await okulHam()) } }), arama,
+    h("div", { class: "iki-sutun" }, sinifKutusu.kok, servisKutusu.kok), cipAlani, sonuc);
   const aktar = tahsilatCiktilari(liste);
-  return h("div", { class: "sayfa" }, ozet, yontemKartlari, aktar, h("p", { class: "ipucu" }, duz("tah_kpi_not_tekil")), arama, cipAlani, sonuc);
+  return h("div", { class: "sayfa" }, ozet, yontemKartlari, aktar, h("p", { class: "ipucu" }, duz("tah_kpi_not_tekil")), arama,
+    h("div", { class: "iki-sutun" }, servisKutusu.kok, yontemKutusu.kok), cipAlani, sonuc);
 }
 
 function ogrenciSatiri(o, tahsilat = false) {

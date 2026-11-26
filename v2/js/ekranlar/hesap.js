@@ -21,11 +21,14 @@ export async function ciz({ cikis, yenile }) {
     else { lisansMetni = `${tarihYaz(tarihCoz(l.lisans_bitis))} tarihine kadar (${l.kalan_gun} gün)`; lisansTon = l.kalan_gun <= 30 ? "kehribar" : "yesil"; }
   }
   const yetkiler = ["sahip", "yonetici"].includes(u.rol) ? "Tümü" : (u.izinler || []).map((m) => MODUL[m] || m).join(", ") || "Yok";
+  // Çalışan uygulama sürümü (servis işçisinin önbellek adı): hangi sürümün açık olduğu buradan anlaşılır.
+  const surum = h("p", { class: "soluk" });
+  if (typeof caches !== "undefined") caches.keys().then((k) => { const s = k.find((x) => /^filo2-v/.test(x)); if (s) surum.textContent = "Sürüm " + s.replace("filo2-", ""); }).catch(() => {});
   return h("div", { class: "sayfa" },
     kart(h("h3", {}, "Hesap"), profil.fotoBolumu(profil.gorunenAd()), bilgiSatiri("Kullanıcı", profil.gorunenAd()), bilgiSatiri("İşletme", veri.baglam.isletmeAdi),
       bilgiSatiri("Rol", ROL[u.rol] || u.rol), bilgiSatiri("Yetkiler", yetkiler), bilgiSatiri("Erişim", u.salt_okunur ? "Yalnızca görüntüleme" : "Görüntüleme ve ödeme girişi"),
       bilgiSatiri("Lisans", lisansMetni, lisansTon)),
     ["sahip", "yonetici"].includes(u.rol) && kart(satir({ baslik: "Kullanıcılar", onclick: () => detayAc("Kullanıcılar", () => kullanicilar.ciz()) })),
     kart(h("button", { class: "dugme ikincil genis", onclick: () => { yenile(); toast("Veriler yenilendi"); } }, "Verileri yenile"),
-      h("button", { class: "dugme tehlike genis", onclick: cikis }, metin("settings_session_logout"))));
+      h("button", { class: "dugme tehlike genis", onclick: cikis }, metin("settings_session_logout")), surum));
 }
