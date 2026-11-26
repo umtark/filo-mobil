@@ -122,6 +122,7 @@ const METIN = {
   "kullanici_ekle": "Kullanıcı Ekle",
   "kullanici_yeni_ekle": "Yeni Kullanıcı Ekle",
   "giris_yapiliyor": "Giriş yapılıyor...",
+  "tah_col_son_odeme": "Son Ödeme",
   "okul_odeme_durum": "Durum",
   "okul_dekont_lbl": "Dekont:",
   "okul_dekont_ekle_btn": "Dekont Ekle",

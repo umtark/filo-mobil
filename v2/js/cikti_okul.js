@@ -1,7 +1,7 @@
 // Masaüstündeki okul çıktılarının karşılığı: öğrenci/servis listeleri, servis puantajı, tahsilat raporları, indirim analizi.
 import { sayiTr, tl, gg, matris, genislikler, toplamla } from "./cikti_yardim.js";
 import { tarihCoz, sayi, ayAnahtari, ayEkle, ayAdi, bugun } from "./bicim.js";
-import { ogrenciKaydi } from "./hesap.js";
+import { ogrenciKaydi, tahsilatSirasi } from "./hesap.js";
 import { ayGunSayisi, gelmeyenGunler, servisAyGecerli, odenecekTutar } from "./puantaj.js";
 
 const YOK = "Dışa aktarılacak kayıt yok.";
@@ -162,7 +162,7 @@ export function puantajPdf(ctx, ham, ayar, ay) {
 const DURUM_AD = { odendi: "Tam", kismi: "Kısmi", bekliyor: "Ödemedi" };
 
 function tahsilatListesi(liste) {
-  const l = [...liste].filter((o) => o.servisVar !== false).sort((a, c) => sirala(a.ad, c.ad));
+  const l = [...liste].filter((o) => o.servisVar !== false).sort(tahsilatSirasi);
   if (!l.length) throw new Error(YOK);
   return l;
 }

@@ -22,17 +22,21 @@ export function ogrenciKaydi(o) {
     return { id: g.id, tarih, ay, tutar: sayi(g.tutar), yontem: g.yontem || "nakit", not: g.not || "", kisi: g.mobil_kullanici || "", dekont: Boolean(g.dekont), dekontYolu: String(g.dekont || "") };
   }).sort((a, b) => (b.tarih ? b.tarih.getTime() : 0) - (a.tarih ? a.tarih.getTime() : 0));
   const odenen = odemeler.reduce((t, g) => t + g.tutar, 0);
+  const sonOdeme = odemeler.reduce((m, g) => (g.tarih ? Math.max(m, g.tarih.getTime()) : m), 0);
   const kalan = Math.max(0, ucret - odenen);
   const durum = odenen <= 0 ? "bekliyor" : ucret > 0 && kalan > 0.01 ? "kismi" : "odendi";
   const tel = ["veli_tel", "anne_tel", "baba_tel", "ogrenci_tel"].map((k) => o[k]).find((t) => String(t || "").trim()) || "";
   return {
     id: o.id, ad: o.ad_soyad || "", sinif: o.sinif || "", plaka: (o.servis_plaka || "").trim(), sira: sayi(o.sira_no),
-    ucret, odenen, kalan, durum, odemeler, tel: String(tel).trim(), veli: o.veli_adi || "",
+    ucret, odenen, kalan, durum, odemeler, sonOdeme, tel: String(tel).trim(), veli: o.veli_adi || "",
     telefonlar: [[etiket("okul_col_veli_tel"), o.veli_tel], [etiket("okul_col_anne_tel"), o.anne_tel], [etiket("okul_col_baba_tel"), o.baba_tel], [etiket("okul_col_ogrenci_tel"), o.ogrenci_tel]].filter(([, t]) => String(t || "").trim()),
     servisVar: !o.servis_kullanmiyor && Boolean((o.servis_plaka || "").trim()),
     arama: ogrenciArama(o),
   };
 }
+
+// Masaüstündeki Tahsilat Raporu sırası: ödeme yapanlar önce, son ödeme tarihi yeni olan üstte; hiç ödemeyenler sonda (kendi sıra numarasıyla).
+export const tahsilatSirasi = (a, b) => (b.odenen > 0) - (a.odenen > 0) || (a.odenen > 0 ? b.sonOdeme - a.sonOdeme : 0) || a.sira - b.sira;
 
 export function okulListesi(satirlar) {
   return satirlar
