@@ -3,9 +3,13 @@
 import * as api from "./api.js";
 import * as veri from "./veri.js";
 import { VAPID_ANAHTARI } from "./config.js";
-import { h, ikon, kart, satir, panelAc, toast, bosDurum } from "./ui.js";
+import { h, ikon, kart, satir, panelAc, toast, bosDurum, animOnay } from "./ui.js";
 
 const SAYFA = 50;
+const SESSIZ_ANAHTARI = "filo2.bildirimSessiz";
+// Kullanıcı bildirimleri bu cihazda susturabilir (ses, titreşim ve uyarı yazısı kapanır); zildeki okunmamış sayısı her zaman görünür.
+const sessizMi = () => { try { return localStorage.getItem(SESSIZ_ANAHTARI) === "1"; } catch { return false; } };
+const sessizYaz = (acik) => { try { if (acik) localStorage.setItem(SESSIZ_ANAHTARI, "1"); else localStorage.removeItem(SESSIZ_ANAHTARI); } catch { /* depolama kapalı */ } };
 let rozet = null;
 let sonZaman = null;      // bu oturumda görülen en yeni bildirimin zamanı (yeni gelen için toast)
 let sonSorgu = 0;
@@ -89,7 +93,7 @@ export async function okunmamisTazele() {
     const son = await okumaZamani();
     const l = await bildirimSorgusu(son ? `&olusturma=gt.${encodeURIComponent(son)}` : "");
     rozetYaz(l.length);
-    if (l.length && sonZaman && Date.parse(l[0].olusturma) > Date.parse(sonZaman)) { toast(`${l[0].kullanici_ad}: ${l[0].mesaj}`); zilCal(); }
+    if (l.length && sonZaman && Date.parse(l[0].olusturma) > Date.parse(sonZaman) && !sessizMi()) { toast(`${l[0].kullanici_ad}: ${l[0].mesaj}`); zilCal(); }
     if (l.length) sonZaman = l[0].olusturma;
     else if (!sonZaman) sonZaman = new Date().toISOString();
   } catch (e) {
@@ -144,7 +148,10 @@ async function pushEsitle() {
 
 // ── Arayüz ──────────────────────────────────────────────────────────────────
 function pushDugmesi() {
-  if (!pushDestekli()) return h("p", { class: "soluk" }, "Anlık bildirim için uygulamayı ana ekrana ekleyin.");
+  // Uygulama içi ses ve uyarı: yalnızca bu cihazı etkiler; kapalıyken de zildeki sayı güncellenir.
+  const sesAnahtari = animOnay({ etiket: "Uygulamada ses ve uyarı", isaretli: !sessizMi(), degisti: (acik) => sessizYaz(!acik) });
+  const sesAlani = h("div", {}, sesAnahtari, h("p", { class: "ipucu" }, "Kapalıyken bildirimler sessiz gelir; zilin üstündeki sayı yine görünür."));
+  if (!pushDestekli()) return h("div", { class: "form" }, h("p", { class: "soluk" }, "Anlık bildirim için uygulamayı ana ekrana ekleyin."), sesAlani);
   const dugme = h("button", { class: "dugme ikincil genis", type: "button" });
   const mesaj = h("p", { class: "hata-metin", role: "alert", hidden: true });
   const ciz = async () => {
@@ -159,7 +166,7 @@ function pushDugmesi() {
     finally { dugme.disabled = false; ciz(); }
   });
   ciz();
-  return h("div", { class: "form" }, dugme, mesaj);
+  return h("div", { class: "form" }, dugme, mesaj, sesAlani);
 }
 
 async function listePaneli() {
