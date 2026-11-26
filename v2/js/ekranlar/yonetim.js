@@ -243,6 +243,30 @@ function bakimKarti(durum, yenile) {
     h("p", { class: "soluk" }, "Açıkken sizin dışınızdaki tüm kullanıcılar Bakım ekranını görür."), metin, mesaj, dugme);
 }
 
+// Duyuru: platform yöneticisi tüm şirketlere ya da seçtiği şirkete telefon bildirimi ve duyuru gönderir (yeni sürüm, bakım vb.).
+// Başka bir şirketin verisi asla gönderilmez; yalnızca burada yazdığınız metin gider.
+function duyuruKarti(sirketler) {
+  const mesaj = h("p", { class: "hata-metin", role: "alert", hidden: true });
+  const baslikGirdisi = h("input", { class: "girdi", type: "text", maxlength: "80", placeholder: "Başlık (örn. Yeni sürüm yayında)", "aria-label": "Duyuru başlığı" });
+  const metin = h("textarea", { class: "girdi metin-alani", rows: "3", maxlength: "300", placeholder: "Duyuru metni", "aria-label": "Duyuru metni" });
+  const hedef = h("select", { class: "girdi", "aria-label": "Duyurunun gideceği şirket" }, [["", "Tüm şirketler"], ...sirketler.map((s) => [s.kod, `${s.ad} (${s.kod})`])].map(([k, ad]) => h("option", { value: k }, ad)));
+  const dugme = h("button", { class: "dugme birincil genis", type: "button" }, "Duyuruyu gönder");
+  dugme.onclick = () => {
+    if (!metin.value.trim()) { mesaj.textContent = "Duyuru metnini yazın."; mesaj.hidden = false; return; }
+    mesaj.hidden = true;
+    if (dugme.dataset.onay !== "1") { dugme.dataset.onay = "1"; dugme.textContent = hedef.value ? "Göndermek için tekrar dokunun" : "Tüm şirketlere göndermek için tekrar dokunun"; return; }
+    dugme.dataset.onay = "";
+    dugme.textContent = "Duyuruyu gönder";
+    yap(dugme, mesaj, async () => {
+      const s = await api.fonksiyon("duyuru", { baslik: baslikGirdisi.value.trim(), mesaj: metin.value.trim(), kod: hedef.value });
+      metin.value = ""; baslikGirdisi.value = "";
+      toast(`Duyuru gönderildi (${s.gonderilen || 0} cihaza bildirim)`, "basari");
+    });
+  };
+  return kart(h("h3", {}, "Duyuru gönder"), h("p", { class: "soluk" }, "Seçtiğiniz şirketlerin tüm kullanıcılarının zil listesine eklenir; bildirimi açık telefonlara anlık bildirim gider."),
+    hedef, baslikGirdisi, metin, mesaj, dugme);
+}
+
 export async function ciz({ yenile }) {
   const [basvurular, sirketler, bakim] = await Promise.all([api.rpc("platform_basvurular"), api.rpc("platform_isletmeler"), api.rpc("bakim_durumu").catch(() => null)]);
   const bekleyen = basvurular.filter((b) => b.durum === "bekliyor");
@@ -250,6 +274,7 @@ export async function ciz({ yenile }) {
   const DURUM = { onaylandi: "Onaylandı", reddedildi: "Reddedildi" };
   return h("div", { class: "sayfa" },
     bakimKarti(bakim, yenile),
+    duyuruKarti(sirketler),
     kart(h("button", { class: "dugme birincil genis", onclick: () => yeniSirketPaneli(yenile) }, "Yeni şirket aç")),
     kart(h("h3", {}, `Bekleyen başvurular (${bekleyen.length})`),
       bekleyen.length ? bekleyen.map((b) => satir({ baslik: b.ad, alt: `${b.yetkili} · ${b.kod}`, sag: tarihMetni(b.olusturma), onclick: () => basvuruPaneli(b, yenile) }))

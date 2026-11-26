@@ -1,5 +1,5 @@
-// Sahip bildirimleri: masaüstündeki kullanıcı hareketleri zil listesinde ve (açıksa) anlık bildirim olarak görünür.
-// Yalnızca işletmenin sahibine gösterilir; sunucu da yalnızca sahibe okuma izni verir (supabase/bildirim.sql).
+// Bildirimler: işletmede alıcı seçilmiş kullanıcıların (varsayılan sahip ve yöneticiler) yetkili olduğu modüllerdeki başkalarının işlemleri ve platform duyuruları;
+// zil listesinde ve (açıksa) anlık bildirim olarak görünür. Kimin ne göreceğini sunucu (supabase/bildirim2.sql) belirler.
 import * as api from "./api.js";
 import * as veri from "./veri.js";
 import { VAPID_ANAHTARI } from "./config.js";
@@ -13,7 +13,7 @@ let tabloYok = false;
 let git = () => {};       // bildirimin ilgili ekranına gider (uygulama.js kaydeder)
 export const bildirimGitAyarla = (f) => { git = f; };
 
-export const sahipMi = () => Boolean(veri.baglam.uye) && veri.baglam.uye.rol === "sahip";
+export const uyeMi = () => Boolean(veri.baglam.uye);
 
 // Bildirim kategorisinden (Fatura, Okul, ...) açılacak ana ekran; sw.js içindeki aynı eşlemeyle tutarlı kalmalı.
 const HEDEFLER = [[/fatura/, "fatura"], [/ara[cç]/, "arac"], [/esnaf/, "esnaf"], [/akaryak/, "petrol"], [/i[çc] hizmet/, "ic_hizmet"], [/okul|servis|öğrenci|mobil/, "okul"], [/evrak/, "sirket_evrak"], [/ayarlar|giriş/, "ayarlar"]];
@@ -71,12 +71,19 @@ async function okumaZamani() {
   return (o[0] && o[0].son_okuma) || null;
 }
 
-const bildirimSorgusu = (filtre = "") =>
-  api.sorgu(`bildirimler?select=id,kullanici_ad,kategori,mesaj,olusturma&isletme_id=eq.${veri.baglam.isletme}${filtre}&order=olusturma.desc&limit=${SAYFA}`);
+// İşletme bildirimleri (sunucu yalnızca bu kullanıcının alıcı olduğu ve yetkisi olduğu modüllerin kayıtlarını verir) ile platform duyuruları birlikte, yeniden eskiye.
+async function bildirimSorgusu(filtre = "") {
+  const [b, d] = await Promise.all([
+    api.sorgu(`bildirimler?select=id,kullanici_ad,kategori,mesaj,olusturma&isletme_id=eq.${veri.baglam.isletme}${filtre}&order=olusturma.desc&limit=${SAYFA}`),
+    api.sorgu(`duyurular?select=id,baslik,mesaj,olusturma${filtre}&order=olusturma.desc&limit=${SAYFA}`).catch(() => []),
+  ]);
+  return [...b, ...d.map((x) => ({ id: x.id, kullanici_ad: x.baslik || "Duyuru", kategori: "Duyuru", mesaj: x.mesaj, olusturma: x.olusturma }))]
+    .sort((x, y) => Date.parse(y.olusturma) - Date.parse(x.olusturma)).slice(0, SAYFA);
+}
 
 // Okunmamış sayısını günceller; oturum açıkken yeni bir bildirim gelirse kısa bir uyarı gösterir. Çağıran en sık 20 saniyede bir çağırabilir.
 export async function okunmamisTazele() {
-  if (!sahipMi() || tabloYok || !rozet || Date.now() - sonSorgu < 20000) return;
+  if (!uyeMi() || tabloYok || !rozet || Date.now() - sonSorgu < 20000) return;
   sonSorgu = Date.now();
   try {
     const son = await okumaZamani();
@@ -179,9 +186,9 @@ async function listePaneli() {
   }
 }
 
-// Başlık çubuğundaki zil düğmesi; yalnızca sahipte vardır (başkasında null).
+// Başlık çubuğundaki zil düğmesi; her işletme üyesinde vardır (alıcı değilse liste boş kalır, duyurular yine görünür).
 export function zilDugmesi() {
-  if (!sahipMi() || tabloYok) return null;
+  if (!uyeMi() || tabloYok) return null;
   rozet = h("span", { class: "zil-rozet", hidden: true });
   const dugme = h("button", { class: "ikon-dugme zil-dugme", type: "button", "aria-label": "Bildirimler", onclick: listePaneli }, ikon("zil", 24), rozet);
   sonSorgu = 0;

@@ -33,6 +33,10 @@ function formPaneli(uye, yenile) {
   const izinKutulari = IZINLER.map(([kod, etiket]) => animOnay({ etiket, isaretli: secili.has(kod), degisti: (a) => { if (a) secili.add(kod); else secili.delete(kod); } }));
   const izinKap = h("div", { class: "kart" }, izinKutulari);
   const salt = animOnay({ etiket: "Yalnızca görüntüleme", isaretli: !yeni && Boolean(uye.salt_okunur) });
+  // Bildirim alıcısı: açıksa bu kişi, yetkisi olduğu modüllerde başkalarının yaptığı işlemlerin bildirimini (telefonda zil + anlık bildirim) alır.
+  const bildirimIlk = yeni ? false : (uye.bildirim_al ?? uye.rol !== "kullanici");
+  const bildirim = animOnay({ etiket: "Bildirim al", isaretli: bildirimIlk });
+  const bildirimAlani = h("div", {}, bildirim, h("p", { class: "ipucu" }, "Açıksa bu kişi, yetkisi olduğu modüllerde başkalarının yaptığı işlemlerin bildirimini alır."));
   const rolAlani = h("div", {});
   const izinAlani = h("div", {}, izinKap, salt);
   const rolCiz = () => {
@@ -60,6 +64,7 @@ function formPaneli(uye, yenile) {
         p_izinler: rol === "yonetici" ? [] : IZINLER.map(([k]) => k).filter((k) => secili.has(k)),
         p_salt_okunur: rol === "yonetici" ? false : salt.deger(), p_eski_ad: yeni ? null : uye.ad,
       });
+      if (bildirim.deger() !== bildirimIlk) await api.rpc("bildirim_tercih_yaz", { p_isletme: veri.baglam.isletme, p_ad: ad.value.trim(), p_al: bildirim.deger() });
       panel.kapat();
       toast(yeni ? "Kullanıcı eklendi" : "Kullanıcı güncellendi");
       yenile();
@@ -67,7 +72,7 @@ function formPaneli(uye, yenile) {
   } },
     h("label", { class: "alan" }, h("span", {}, "Kullanıcı adı"), ad),
     h("label", { class: "alan" }, h("span", {}, "Şifre"), parolaAlani(parola)),
-    rolAlani, izinAlani, mesaj, kaydet, sil);
+    rolAlani, izinAlani, bildirimAlani, mesaj, kaydet, sil);
   const panel = panelAc(yeni ? duz("kullanici_yeni_ekle") : uye.ad, form);
 }
 
@@ -99,10 +104,14 @@ function sonGorulme(u) {
 export async function ciz() {
   const sorgu = (alanlar) => api.sorgu(`uyelikler?select=${alanlar}&isletme_id=eq.${veri.baglam.isletme}&aktif=eq.true&order=olusturma`);
   let liste;
-  try { liste = await sorgu("ad,rol,izinler,salt_okunur,son_gorulme,son_masaustu,son_mobil,masaustu_id"); }
+  try { liste = await sorgu("ad,rol,izinler,salt_okunur,son_gorulme,son_masaustu,son_mobil,masaustu_id,bildirim_al"); }
   catch (e) {
-    if (e.durum !== 400) throw e;   // nabiz.sql henüz uygulanmamış: çevrimiçi bilgisi olmadan devam edilir
-    liste = await sorgu("ad,rol,izinler,salt_okunur");
+    if (e.durum !== 400) throw e;   // bildirim2.sql henüz uygulanmamış: bildirim seçimi olmadan devam edilir
+    try { liste = await sorgu("ad,rol,izinler,salt_okunur,son_gorulme,son_masaustu,son_mobil,masaustu_id"); }
+    catch (e2) {
+      if (e2.durum !== 400) throw e2;   // nabiz.sql henüz uygulanmamış: çevrimiçi bilgisi olmadan devam edilir
+      liste = await sorgu("ad,rol,izinler,salt_okunur");
+    }
   }
   const nabizVar = liste.some((u) => "son_gorulme" in u);
   const kap = h("div", { class: "sayfa" });
@@ -122,7 +131,7 @@ export async function ciz() {
   const ozet = (u) => {
     if (u.rol !== "kullanici") return ROL[u.rol] || u.rol;
     const izin = (u.izinler || []).map((m) => ETIKET[m] || m).join(", ") || "İzin yok";
-    return u.salt_okunur ? `${izin} · yalnızca görüntüleme` : izin;
+    return (u.salt_okunur ? `${izin} · yalnızca görüntüleme` : izin) + (u.bildirim_al ? " · bildirim açık" : "");
   };
   kap.append(...[
     kart(h("button", { class: "dugme birincil genis", onclick: () => formPaneli(null, yenile) }, duz("kullanici_ekle"))),

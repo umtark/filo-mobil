@@ -161,8 +161,8 @@ export const tabloTazele = (...tablolar) => { for (const t of tablolar) { onbell
 const kimlikFiltresi = (id) => `isletme_id=eq.${baglam.isletme}&id=eq.${encodeURIComponent(id)}`;
 const CAKISMA = "Bu kayıt başka biri tarafından değiştirilmiş. Yenileyip tekrar deneyin.";
 
-// Telefondan yapılan işlem, masaüstündeki gibi işletme sahibine bildirilir (zil listesi + anlık bildirim). Sahibin kendi işlemi bildirilmez;
-// bildirim gitmese de işlem etkilenmez.
+// Telefondan yapılan işlem, işletmede bildirim alıcısı seçilmiş kişilere bildirilir (zil listesi + anlık bildirim); kimlerin alacağını sunucu belirler
+// (işlemi yapan kişi kendi bildirimini almaz). Bildirim gitmese de işlem etkilenmez.
 const BILDIRIM = {
   faturalar: ["Fatura", (k) => k.Firma],
   araclar: ["Araç", (k) => k.plaka],
@@ -174,7 +174,7 @@ const BILDIRIM = {
 };
 
 export function sahibeBildir(kategori, mesaj) {
-  if (!baglam.isletme || !baglam.uye || baglam.uye.rol === "sahip") return;
+  if (!baglam.isletme || !baglam.uye) return;
   api.fonksiyon("bildirim", { isletme: baglam.isletme, kategori, mesaj, kaynak: "mobil" }).catch(() => {});
 }
 
