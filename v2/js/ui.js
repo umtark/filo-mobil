@@ -295,17 +295,24 @@ export function parolaAlani(girdi) {
   return h("div", { class: "parola-alani" }, girdi, dugme);
 }
 
+// Canlı yenilemede, kullanıcının "Daha fazla göster" ile açtığı kayıt sayısı korunur: yenilemeden önce DOM'daki sayılar okunur, yeni listeler sırayla bunları kullanır.
+let hatirlananSayilar = null;
+export function sayfalamaHatirla(kok) { hatirlananSayilar = [...kok.querySelectorAll("[data-gosterilen]")].map((e) => Number(e.dataset.gosterilen) || 0); }
+export function sayfalamaBirak() { hatirlananSayilar = null; }
+
 export function sayfalamali(liste, olustur, adim = 60) {
   const kap = h("div", { class: "liste" });
   let gosterilen = 0;
+  const onceki = hatirlananSayilar && hatirlananSayilar.length ? hatirlananSayilar.shift() : 0;
   const dahaFazla = h("button", { class: "dugme ikincil genis", onclick: () => ekleSonraki() }, "");
-  function ekleSonraki() {
-    liste.slice(gosterilen, gosterilen + adim).forEach((r) => kap.insertBefore(olustur(r), dahaFazla));
-    gosterilen = Math.min(liste.length, gosterilen + adim);
+  function ekleSonraki(hedef = gosterilen + adim) {
+    liste.slice(gosterilen, hedef).forEach((r) => kap.insertBefore(olustur(r), dahaFazla));
+    gosterilen = Math.min(liste.length, Math.max(gosterilen, hedef));
+    kap.dataset.gosterilen = String(gosterilen);
     dahaFazla.hidden = gosterilen >= liste.length;
     dahaFazla.textContent = `Daha fazla göster (${liste.length - gosterilen} kayıt kaldı)`;
   }
   kap.append(dahaFazla);
-  ekleSonraki();
+  ekleSonraki(Math.max(adim, onceki));
   return kap;
 }

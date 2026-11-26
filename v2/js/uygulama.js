@@ -4,7 +4,7 @@ import * as veri from "./veri.js";
 import { marka, markaDinle, markaOnbellektenYukle, sirketBaslangici, sirketBilgisiYukle, sirketKaydet } from "./marka.js";
 import { sirketKodunuNormalle } from "./kimlik.js";
 import { VARSAYILAN_MARKA } from "./marka_normal.js";
-import { h, ikon, toast, panelAc, yukleniyor, hataGoster, kokYenileyiciAyarla, tumDetaylariKapat, detayYenile, uyariKutusu, animOnay, parolaAlani, cipler, telif } from "./ui.js";
+import { h, ikon, toast, panelAc, yukleniyor, hataGoster, kokYenileyiciAyarla, tumDetaylariKapat, detayYenile, sayfalamaHatirla, sayfalamaBirak, uyariKutusu, animOnay, parolaAlani, cipler, telif } from "./ui.js";
 import * as bugun from "./ekranlar/bugun.js";
 import * as okul from "./ekranlar/okul.js";
 import * as muhasebe from "./ekranlar/muhasebe.js";
@@ -343,6 +343,7 @@ async function sekmeCiz(id, kaydirmayiKoru = false) {
   altCubugu.hidden = altListe.length < 2;
   altCubugu.replaceChildren(...(altListe.length > 1 ? [cipler(altListe, alt, (k) => sekmeyeGit(id, k))] : []));
   if (!kaydirmayiKoru) icerik.replaceChildren(yukleniyor());
+  else sayfalamaHatirla(icerik);   // canlı yenilemede "Daha fazla göster" ile açılan kayıt sayısı korunur
   try {
     const dugum = await sekme.ciz(alt);
     if (sira !== cizimSirasi) return;
@@ -352,6 +353,8 @@ async function sekmeCiz(id, kaydirmayiKoru = false) {
     if (sira !== cizimSirasi) return;
     if (e.durum === 401 && !api.girisVar()) return girisEkrani("Oturum süresi doldu, tekrar giriş yapın.");
     icerik.replaceChildren(hataGoster(e, () => sekmeCiz(id)));
+  } finally {
+    sayfalamaBirak();
   }
 }
 
