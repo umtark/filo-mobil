@@ -14,6 +14,15 @@ export function rastgeleParola(uzunluk = 14) {
 
 const baglanti = (kod) => `${location.origin}${location.pathname}?i=${kod}`;
 const tarihMetni = (iso) => (iso ? tarihYaz(tarihCoz(String(iso).slice(0, 10))) : "");
+// Son bağlantı zamanı: gün.ay.yıl ss:dd (cihazın saatine göre); 2 dakikadan yakınsa "Çevrimiçi".
+const baglantiMetni = (iso) => {
+  if (!iso) return "";
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return "";
+  if (Date.now() - t.getTime() < 120000) return "Çevrimiçi";
+  const iki = (n) => String(n).padStart(2, "0");
+  return `${iki(t.getDate())}.${iki(t.getMonth() + 1)}.${t.getFullYear()} ${iki(t.getHours())}:${iki(t.getMinutes())}`;
+};
 const lisansMetni = (s) => {
   if (s.omur_boyu) return "süresiz";
   const kalan = Math.round((new Date(s.lisans_bitis + "T00:00:00") - new Date(new Date().toDateString())) / 86400000);
@@ -152,7 +161,9 @@ function uyePaneli(s, u, listeyiYenile, yenile) {
   durumDugmesi.onclick = () => uygula(durumDugmesi, { p_aktif: !u.aktif }, u.aktif ? "Kullanıcı kapatıldı" : "Kullanıcı açıldı");
   const bilgi = (e, d) => h("div", { class: "bilgi" }, h("span", { class: "bilgi-etiket" }, e), h("span", { class: "bilgi-deger" }, d));
   const panel = panelAc(u.ad, h("div", { class: "form" },
-    h("div", { class: "kart" }, bilgi("Kullanıcı adı", u.giris), bilgi("Rol", ROL[u.rol] || u.rol), bilgi("Durum", u.aktif ? "Açık" : "Kapalı"), bilgi("Erişim süresi", uyeSuresi(u))),
+    h("div", { class: "kart" }, bilgi("Kullanıcı adı", u.giris), bilgi("Rol", ROL[u.rol] || u.rol), bilgi("Durum", u.aktif ? "Açık" : "Kapalı"), bilgi("Erişim süresi", uyeSuresi(u)),
+      u.masaustu_id && bilgi("Masaüstü PC ID", u.masaustu_id), u.son_masaustu && bilgi("Son masaüstü", baglantiMetni(u.son_masaustu)),
+      u.son_mobil && bilgi("Son mobil", baglantiMetni(u.son_mobil) + (u.mobil_cihaz ? ` · ${u.mobil_cihaz}` : ""))),
     h("div", { class: "alan" }, h("span", {}, "Erişim süresini uzat"), h("div", { class: "dugme-sirasi" }, artir(30), artir(90), artir(365), suredugme("Süresiz yap", { p_sure_kaldir: true }, "Süre sınırı kaldırıldı"))),
     h("div", { class: "dugme-sirasi" }, ozel, ozelDugme),
     mesaj, durumDugmesi, u.benim && h("p", { class: "soluk" }, "Kendi hesabınızı kapatamaz ya da süreye bağlayamazsınız.")));
@@ -166,7 +177,7 @@ async function kullanicilarPaneli(s, yenile) {
       const liste = await api.rpc("platform_uyeler", { p_isletme: s.id });
       icerik.replaceChildren(liste.length
         ? kart(liste.map((u) => satir({
-          baslik: u.ad, alt: `${ROL[u.rol] || u.rol} · ${u.giris}`, sag: u.aktif ? (uyeSuresiDoldu(u) ? "Süresi doldu" : "") : "Kapalı", sagAlt: u.aktif ? uyeSuresi(u) : "",
+          baslik: u.ad, alt: `${ROL[u.rol] || u.rol} · ${u.giris}${u.masaustu_id ? ` · PC ID ${u.masaustu_id}` : ""}`, sag: u.aktif ? (uyeSuresiDoldu(u) ? "Süresi doldu" : "") : "Kapalı", sagAlt: u.aktif ? uyeSuresi(u) : "",
           ton: !u.aktif || uyeSuresiDoldu(u) ? "kirmizi" : "", onclick: () => uyePaneli(s, u, doldur, yenile),
         })))
         : bosDurum("Kullanıcı yok."));

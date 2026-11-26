@@ -72,7 +72,20 @@ function formPaneli(uye, yenile) {
 
 // Son nabzı 2 dakikadan yeni olan (ve oturumu bu cihazda açık olan) kullanıcı çevrimiçi sayılır; masaüstü de nabız gönderir.
 const CEVRIMICI_SN = 120;
-const cevrimiciMi = (u) => u.ad === ben().ad || Boolean(u.son_gorulme && (Date.now() - Date.parse(u.son_gorulme)) / 1000 < CEVRIMICI_SN);
+const yakin = (t) => Boolean(t && (Date.now() - Date.parse(t)) / 1000 < CEVRIMICI_SN);
+const cevrimiciMi = (u) => u.ad === ben().ad || yakin(u.son_gorulme);
+// Hangi platformda çevrimiçi: masaüstü ve mobil ayrı ayrı; kendi satırım bu cihazda (mobil) açık sayılır.
+const masaustuAcik = (u) => yakin(u.son_masaustu);
+const mobilAcik = (u) => u.ad === ben().ad || yakin(u.son_mobil);
+function platformSatiri(u) {
+  const cip = (ad, acik, hic) => (acik || hic) && h("span", { class: "plat-cip" + (acik ? " acik" : "") }, ad);
+  const etiketler = [
+    cip("Masaüstü", masaustuAcik(u), Boolean(u.son_masaustu)),
+    cip("Mobil", mobilAcik(u), Boolean(u.son_mobil)),
+    u.masaustu_id && h("span", { class: "plat-id" }, `PC ID: ${u.masaustu_id}`),
+  ].filter(Boolean);
+  return etiketler.length ? h("span", { class: "plat-satir" }, etiketler) : null;
+}
 function sonGorulme(u) {
   if (cevrimiciMi(u)) return "Çevrimiçi";
   if (!u.son_gorulme) return "";
@@ -85,7 +98,7 @@ function sonGorulme(u) {
 export async function ciz() {
   const sorgu = (alanlar) => api.sorgu(`uyelikler?select=${alanlar}&isletme_id=eq.${veri.baglam.isletme}&aktif=eq.true&order=olusturma`);
   let liste;
-  try { liste = await sorgu("ad,rol,izinler,salt_okunur,son_gorulme"); }
+  try { liste = await sorgu("ad,rol,izinler,salt_okunur,son_gorulme,son_masaustu,son_mobil,masaustu_id"); }
   catch (e) {
     if (e.durum !== 400) throw e;   // nabiz.sql henüz uygulanmamış: çevrimiçi bilgisi olmadan devam edilir
     liste = await sorgu("ad,rol,izinler,salt_okunur");
@@ -103,9 +116,10 @@ export async function ciz() {
   };
   kap.append(
     kart(h("button", { class: "dugme birincil genis", onclick: () => formPaneli(null, yenile) }, "Kullanıcı ekle")),
-    nabizVar && kart(h("p", { class: "kart-etiket" }, "Çevrimiçi"), h("p", { class: "buyuk-sayi yesil" }, `${liste.filter(cevrimiciMi).length} / ${liste.length}`)),
+    nabizVar && kart(h("p", { class: "kart-etiket" }, "Çevrimiçi"), h("p", { class: "buyuk-sayi yesil" }, `${liste.filter(cevrimiciMi).length} / ${liste.length}`),
+      h("p", { class: "soluk" }, `Masaüstü ${liste.filter(masaustuAcik).length} · Mobil ${liste.filter(mobilAcik).length}`)),
     liste.length
-      ? kart(liste.map((u) => satir({ baslik: u.ad, alt: ozet(u), sag: nabizVar ? sonGorulme(u) : u.rol === "kullanici" ? "" : ROL[u.rol], ton: nabizVar && cevrimiciMi(u) ? "yesil" : "",
+      ? kart(liste.map((u) => satir({ baslik: u.ad, alt: h("span", { class: "satir-alt-kap" }, ozet(u), nabizVar && platformSatiri(u)), sag: nabizVar ? sonGorulme(u) : u.rol === "kullanici" ? "" : ROL[u.rol], ton: nabizVar && cevrimiciMi(u) ? "yesil" : "",
         onclick: yonetilebilir(u) ? () => formPaneli(u, yenile) : undefined })))
       : bosDurum("Kullanıcı yok"));
   return kap;

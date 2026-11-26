@@ -6,6 +6,7 @@ import { goruntule } from "../dosya.js";
 import { aylaraGore } from "../hesap.js";
 import { ekleDugmesi, islemDugmeleri } from "../form.js";
 import * as duz from "../duzenle.js";
+import { iceAktarDugmesi } from "../ice_aktar.js";
 import { ciktiDugmeleri } from "../cikti.js";
 import { aracPdf, aracXlsx, icHizmetPdf, icHizmetXlsx } from "../cikti_filo.js";
 import { aracFirmaSecenekleri, aracFirmaSuz } from "../firma_suz.js";
@@ -160,7 +161,7 @@ async function icHizmetEkrani() {
   const aylar = aylaraGore(liste);
   const sirali = [...aylar.keys()].sort().reverse();
   const d = durum.ic;
-  const yeni = veri.yazabilir("ic_hizmet") && ekleDugmesi(md("ic_yeni_sefer"), () => duz.icHizmetFormu(null));
+  const yeni = veri.yazabilir("ic_hizmet") && h("div", { class: "form" }, ekleDugmesi(md("ic_yeni_sefer"), () => duz.icHizmetFormu(null)), iceAktarDugmesi("ic_hizmet"));
   if (!sirali.length) return h("div", {}, yeni, bosDurum("İç hizmet kaydı yok."));
   const bu = ayAnahtari(bugun());
   if (!sirali.includes(d.ay)) d.ay = sirali.includes(bu) ? bu : sirali[0];

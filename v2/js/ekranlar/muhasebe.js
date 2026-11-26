@@ -4,6 +4,7 @@ import * as veri from "../veri.js";
 import { aylaraGore } from "../hesap.js";
 import { ekleDugmesi, islemDugmeleri } from "../form.js";
 import * as duz from "../duzenle.js";
+import { iceAktarDugmesi } from "../ice_aktar.js";
 import { ciktiDugmeleri } from "../cikti.js";
 import { faturaPdf, faturaXlsx, esnafPdf, esnafXlsx, esnaflarPdf, esnaflarXlsx, petrolPdf, petrolXlsx } from "../cikti_muhasebe.js";
 import { baslik as mb, etiket as me, duz as md } from "../metin.js";
@@ -33,7 +34,7 @@ async function faturaEkrani(alt = "tum") {
     sonuc.replaceChildren(g.length ? sayfalamali(g, faturaSatiri) : bosDurum("Fatura bulunamadı."));
   }
   guncelle();
-  return h("div", {}, veri.yazabilir("fatura") && ekleDugmesi(md("yeni_fatura_ekle"), () => duz.faturaFormu(null)),
+  return h("div", {}, veri.yazabilir("fatura") && ekleDugmesi(md("yeni_fatura_ekle"), () => duz.faturaFormu(null)), iceAktarDugmesi("fatura"),
     aramaKutusu(d.arama, (v) => { d.arama = v; guncelle(); }, mb("flt_arama_placeholder")), h("div", { class: "ozet-sira" }, ozet, aktar), sonuc);
 }
 
@@ -138,7 +139,7 @@ async function akaryakitEkrani() {
   const sirali = [...aylar.keys()].sort().reverse();
   const d = durum.petrol;
   const bu = ayAnahtari(bugun());
-  const yeni = veri.yazabilir("petrol") && ekleDugmesi(mb("petrol_yeni_alim_ekle"), () => duz.akaryakitFormu(null));
+  const yeni = veri.yazabilir("petrol") && h("div", { class: "form" }, ekleDugmesi(mb("petrol_yeni_alim_ekle"), () => duz.akaryakitFormu(null)), iceAktarDugmesi("akaryakit"));
   if (!sirali.length) return h("div", {}, yeni, bosDurum("Akaryakıt kaydı yok."));
   if (!sirali.includes(d.ay)) d.ay = sirali.includes(bu) ? bu : sirali[0];
 
