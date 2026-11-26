@@ -110,18 +110,28 @@ export async function ciz() {
     const t = await ciz();
     kap.replaceWith(t);
   };
+  // Çevrimiçi durumu zamanla değişir: ekran açıkken liste 15 saniyede bir kendiliğinden tazelenir (arka plandaysa beklenir; ekran kapanınca durur).
+  const tazeleyici = setInterval(async () => {
+    if (!kap.isConnected) return clearInterval(tazeleyici);
+    if (document.hidden) return;
+    try {
+      const t = await ciz();
+      if (kap.isConnected) kap.replaceWith(t);
+    } catch { /* bir sonraki turda yeniden denenir */ }
+  }, 15000);
   const ozet = (u) => {
     if (u.rol !== "kullanici") return ROL[u.rol] || u.rol;
     const izin = (u.izinler || []).map((m) => ETIKET[m] || m).join(", ") || "İzin yok";
     return u.salt_okunur ? `${izin} · yalnızca görüntüleme` : izin;
   };
-  kap.append(
+  kap.append(...[
     kart(h("button", { class: "dugme birincil genis", onclick: () => formPaneli(null, yenile) }, duz("kullanici_ekle"))),
     nabizVar && kart(h("p", { class: "kart-etiket" }, "Çevrimiçi"), h("p", { class: "buyuk-sayi yesil" }, `${liste.filter(cevrimiciMi).length} / ${liste.length}`),
       h("p", { class: "soluk" }, `Masaüstü ${liste.filter(masaustuAcik).length} · Mobil ${liste.filter(mobilAcik).length}`)),
     liste.length
       ? kart(liste.map((u) => satir({ baslik: u.ad, alt: h("span", { class: "satir-alt-kap" }, ozet(u), nabizVar && platformSatiri(u)), sag: nabizVar ? sonGorulme(u) : u.rol === "kullanici" ? "" : ROL[u.rol], ton: nabizVar && cevrimiciMi(u) ? "yesil" : "",
         onclick: yonetilebilir(u) ? () => formPaneli(u, yenile) : undefined })))
-      : bosDurum("Kullanıcı yok"));
+      : bosDurum("Kullanıcı yok"),
+  ].filter(Boolean));
   return kap;
 }
