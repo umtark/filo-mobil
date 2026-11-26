@@ -8,8 +8,9 @@ export const baglam = { isletme: null, uye: null, lisans: null, isletmeAdi: "", 
 
 const SURE = 5 * 60 * 1000;
 const onbellek = new Map();   // anahtar -> { t, sonuc: Promise }
+const izlenen = new Map();    // yüklü tablo -> son bilinen değişiklik zamanı (canlı güncelleme için)
 
-export function onbellekTemizle() { onbellek.clear(); }
+export function onbellekTemizle() { onbellek.clear(); izlenen.clear(); }
 
 function onbellekli(anahtar, getir) {
   const o = onbellek.get(anahtar);
@@ -18,6 +19,20 @@ function onbellekli(anahtar, getir) {
   onbellek.set(anahtar, { t: Date.now(), sonuc });
   sonuc.catch(() => onbellek.delete(anahtar));
   return sonuc;
+}
+
+// Tablonun son değişiklik zamanı (tek satırlık sorgu; guncelleme sütunu her ekleme/güncellemede sunucuda yenilenir, silme de güncelleme sayılır).
+const sonDegisim = async (tablo) => ((await api.sorgu(`${tablo}?select=guncelleme&isletme_id=eq.${baglam.isletme}&order=guncelleme.desc&limit=1`))[0] || {}).guncelleme || "";
+
+// Yüklü tablolardan başkası tarafından (masaüstü ya da başka telefon) değiştirilenleri bulur, önbelleklerini düşürür ve adlarını döndürür.
+export async function degisenTablolar() {
+  if (!baglam.isletme) return [];
+  const degisen = [];
+  await Promise.all([...izlenen].map(async ([tablo, eski]) => {
+    try { const yeni = await sonDegisim(tablo); if (yeni && yeni !== eski) degisen.push(tablo); } catch { /* bir sonraki turda yeniden denenir */ }
+  }));
+  for (const t of degisen) { onbellek.delete("ham:" + t); izlenen.delete(t); }
+  return degisen;
 }
 
 export async function baglamKur() {
@@ -104,7 +119,13 @@ export const lisansAcik = () => !baglam.lisans || baglam.lisans.acik !== false;
 export const izinVar = (modul) => Boolean(baglam.uye) && lisansAcik() && (["sahip", "yonetici"].includes(baglam.uye.rol) || (baglam.uye.izinler || []).includes(modul));
 export const yazabilir = (modul) => izinVar(modul) && !baglam.uye.salt_okunur;
 
-const ham = (tablo) => onbellekli("ham:" + tablo, () => api.hepsi(tablo, baglam.isletme));
+const ham = (tablo) => onbellekli("ham:" + tablo, async () => {
+  const temel = sonDegisim(tablo).catch(() => null);   // veriden ÖNCE alınır: okuma sırasındaki bir değişiklik bir sonraki kontrolde yakalanır
+  const liste = await api.hepsi(tablo, baglam.isletme);
+  const t = await temel;
+  if (t !== null) izlenen.set(tablo, t);
+  return liste;
+});
 
 export const ayarlar = () => onbellekli("ayarlar", async () => {
   const s = await api.sorgu(`isletme_ayarlari?select=anahtar,deger&isletme_id=eq.${baglam.isletme}`);
@@ -136,7 +157,7 @@ export const araclar = async () => {
 // Kayıtlar masaüstüyle aynı biçimde (data = masaüstü kaydı) yazılır. Düzenleme sunucudaki güncel kaydı okuyup değiştirir ve
 // "surum" denetimiyle geri yazar; başkası arada değiştirmişse sessizce ezmek yerine uyarı verilir. Silme "silindi" işaretidir.
 export const yeniKimlik = (onek = "") => onek + ((crypto.randomUUID && crypto.randomUUID()) || `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`);
-export const tabloTazele = (...tablolar) => { for (const t of tablolar) onbellek.delete("ham:" + t); };
+export const tabloTazele = (...tablolar) => { for (const t of tablolar) { onbellek.delete("ham:" + t); izlenen.delete(t); } };
 const kimlikFiltresi = (id) => `isletme_id=eq.${baglam.isletme}&id=eq.${encodeURIComponent(id)}`;
 const CAKISMA = "Bu kayıt başka biri tarafından değiştirilmiş. Yenileyip tekrar deneyin.";
 
@@ -219,6 +240,7 @@ export async function ogrenciTazele(id) {
   const yeni = await api.tek("okul_ogrenciler", baglam.isletme, id);
   const i = liste.findIndex((o) => o.id === id);
   if (yeni && i >= 0) liste[i] = yeni;
+  try { izlenen.set("okul_ogrenciler", await sonDegisim("okul_ogrenciler")); } catch { /* eski zaman kalır; bir sonraki kontrol listeyi tazeler */ }   // kendi ödememiz tam yenileme tetiklemesin
 }
 
 export async function odemeEkle({ ogrenci, ad, tutar, tarih, yontem, not, mobilId }) {

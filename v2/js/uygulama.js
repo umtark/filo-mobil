@@ -4,7 +4,7 @@ import * as veri from "./veri.js";
 import { marka, markaDinle, markaOnbellektenYukle, sirketBaslangici, sirketBilgisiYukle, sirketKaydet } from "./marka.js";
 import { sirketKodunuNormalle } from "./kimlik.js";
 import { VARSAYILAN_MARKA } from "./marka_normal.js";
-import { h, ikon, toast, panelAc, yukleniyor, hataGoster, kokYenileyiciAyarla, tumDetaylariKapat, uyariKutusu, animOnay, parolaAlani, cipler, telif } from "./ui.js";
+import { h, ikon, toast, panelAc, yukleniyor, hataGoster, kokYenileyiciAyarla, tumDetaylariKapat, detayYenile, uyariKutusu, animOnay, parolaAlani, cipler, telif } from "./ui.js";
 import * as bugun from "./ekranlar/bugun.js";
 import * as okul from "./ekranlar/okul.js";
 import * as muhasebe from "./ekranlar/muhasebe.js";
@@ -355,6 +355,19 @@ async function sekmeCiz(id, kaydirmayiKoru = false) {
   }
 }
 
+// ── Canlı veri ──────────────────────────────────────────────────────────────
+// Masaüstünde ya da başka telefonda yapılan değişiklik, bu ekran açıkken 10 saniye içinde görünür (yetkiIzle her 10 saniyede çalışır).
+// Form/panel açıksa yazılanlar bozulmasın diye yenileme panel kapanana kadar bekler.
+let yenilemeBekliyor = false;
+async function canliTazele() {
+  if ((await veri.degisenTablolar()).length) yenilemeBekliyor = true;
+  const yaziliyor = /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || "");   // arama kutusunda yazarken ekran yenilenip klavye kapanmasın
+  if (!yenilemeBekliyor || !kabukAcik || document.querySelector(".arka") || yaziliyor) return;
+  yenilemeBekliyor = false;
+  if (document.body.classList.contains("detay-acik")) await detayYenile({ kok: true });
+  else await sekmeCiz(aktif, true);
+}
+
 // ── Yetki izleme ────────────────────────────────────────────────────────────
 // Yönetici yetkiyi değiştirince ya da hesabı kaldırınca açık oturum yeniden giriş beklemeden güncellenir.
 let yetkiKontrolSuruyor = false;
@@ -381,6 +394,7 @@ async function yetkiIzle() {
       return girisEkrani("Hesabınızın bu işletmeye erişimi kaldırıldı.");
     }
     if (durum === "degisti") { tumDetaylariKapat(); kabuk(); toast("Yetkileriniz güncellendi"); }
+    else await canliTazele();
   } catch (e) {
     if (e.durum === 401 && !api.girisVar()) girisEkrani("Oturum süresi doldu, tekrar giriş yapın.");
   } finally { yetkiKontrolSuruyor = false; }
