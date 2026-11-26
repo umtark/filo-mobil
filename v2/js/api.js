@@ -81,7 +81,11 @@ async function yenile() {
   if (!oturum) return;
   yenileniyor = yenileniyor || cagir("/auth/v1/token?grant_type=refresh_token", { yontem: "POST", govde: { refresh_token: oturum.refresh_token }, jetonlu: false })
     .then(oturumAyarla)
-    .catch(() => { oturumKaydet(null); throw new ApiHatasi("Oturum süresi doldu, tekrar giriş yapın.", 401); })
+    .catch((e) => {
+      // Oturum yalnızca sunucu yenileme jetonunu reddederse silinir; bağlantı kopması ya da geçici sunucu hatasında kullanıcı çıkış yapmış olmaz ("Beni hatırla").
+      if ([400, 401, 403].includes(e.durum)) { oturumKaydet(null); throw new ApiHatasi("Oturum süresi doldu, tekrar giriş yapın.", 401); }
+      throw e;
+    })
     .finally(() => { yenileniyor = null; });
   return yenileniyor;
 }
