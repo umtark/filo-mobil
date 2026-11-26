@@ -3,7 +3,7 @@ import { h, ikon, havuz, kart, satir, bilgiSatiri, cipler, aramaKutusu, ayCubugu
 import * as veri from "../veri.js";
 import * as api from "../api.js";
 import { goruntule, indir } from "../dosya.js";
-import { okulToplam, yontemToplami } from "../hesap.js";
+import { okulToplam, yontemToplami, tahsilatSirasi } from "../hesap.js";
 import { animasyon } from "../lottie.js";
 import { duz, doldur, baslik as mb, etiket as me } from "../metin.js";
 import { para, paraKesin, sayi, tarihYaz, tarihCoz, ayAdi, ayAnahtari, ayEkle, eslesir, aramaEslesir, aramaHazirla, sirala, isoTarih, bugun, telefonTemizle } from "../bicim.js";
@@ -164,7 +164,8 @@ async function ogrencilerEkrani(tahsilat) {
     cipAlani.replaceChildren(cipler([["hepsi", mb("tah_ozet_servis_ogrenci"), liste.length], ["odendi", mb("tah_ozet_tam_odeyen"), t.odendi], ["kismi", mb("tah_ozet_kismi_odeyen"), t.kismi], ["bekliyor", mb("tah_ozet_hic_odemeyen"), t.bekliyor]],
       durum.filtre, (k) => { durum.filtre = k; guncelle(); }));
     const g = liste.filter((o) => (durum.filtre === "hepsi" || o.durum === durum.filtre) && (!durum.yontem || o.odemeler.some((x) => x.yontem === durum.yontem)) && (!durum.arama || aramaEslesir(o.arama, durum.arama)));
-    sonuc.replaceChildren(g.length ? sayfalamali(g, ogrenciSatiri) : bosDurum("Bu filtreyle eşleşen öğrenci yok."));
+    if (tahsilat) g.sort(tahsilatSirasi);
+    sonuc.replaceChildren(g.length ? sayfalamali(g, (o) => ogrenciSatiri(o, tahsilat)) : bosDurum("Bu filtreyle eşleşen öğrenci yok."));
   }
 
   const ozet = kart(
@@ -193,10 +194,11 @@ async function ogrencilerEkrani(tahsilat) {
   return h("div", { class: "sayfa" }, ozet, yontemKartlari, aktar, h("p", { class: "ipucu" }, duz("tah_kpi_not_tekil")), arama, cipAlani, sonuc);
 }
 
-function ogrenciSatiri(o) {
+function ogrenciSatiri(o, tahsilat = false) {
   const ucretYok = o.ucret <= 0;
+  const sonOdeme = tahsilat && o.sonOdeme > 0 ? `${me("tah_col_son_odeme")}: ${tarihYaz(new Date(o.sonOdeme))}` : "";
   return satir({
-    baslik: o.ad, alt: [o.sinif, o.plaka].filter(Boolean).join(" · "), ton: ucretYok ? "" : TON[o.durum],
+    baslik: o.ad, alt: [o.sinif, o.plaka, sonOdeme].filter(Boolean).join(" · "), ton: ucretYok ? "" : TON[o.durum],
     sag: ucretYok ? "Ücret yok" : o.durum === "odendi" ? mb("okul_odendi") : para(o.kalan), sagAlt: ucretYok ? (o.odenen ? `${para(o.odenen)} ödendi` : "") : `${para(o.odenen)} / ${para(o.ucret)}`,
     onclick: () => ogrenciAc(o.id, o.ad),
   });
