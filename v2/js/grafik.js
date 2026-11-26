@@ -58,7 +58,7 @@ let sayi = 0;
 
 // Aylık gelir/gider sütunları, net çizgisi ve altında çok hafif alan dolgusu. Sütun üstünde yazı yok (okunaklı kalsın): bir aya dokununca ayın tutarları üstte okunur.
 // seri: [{ ay, etiket, gelir, gider, net }]
-export function trendGrafigi(seri) {
+export function trendGrafigi(seri, secildi = null) {
   const n = seri.length;
   const KOL = 46, G = Math.max(340, n * KOL + 20), Y = 232, SOL = 6, SAG = 6, UST = 16, ALT = 40;
   const enBuyuk = Math.max(1, ...seri.flatMap((x) => [x.gelir, x.gider]));
@@ -116,11 +116,11 @@ export function trendGrafigi(seri) {
     noktaEl.forEach((k, j) => k.classList.toggle("secili", j === i));
   }
   kolonEl.forEach((k, i) => {
-    k.addEventListener("click", () => sec(i));
+    k.addEventListener("click", () => { sec(i); if (secildi) secildi(seri[i]); });
     k.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sec(i); }
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sec(i); if (secildi) secildi(seri[i]); }
       // shadcn accessibilityLayer gibi: ok tuşlarıyla aylar arasında gezinilir
-      else if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); const j = Math.min(n - 1, Math.max(0, i + (e.key === "ArrowRight" ? 1 : -1))); kolonEl[j].focus(); sec(j); }
+      else if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); const j = Math.min(n - 1, Math.max(0, i + (e.key === "ArrowRight" ? 1 : -1))); kolonEl[j].focus(); sec(j); if (secildi) secildi(seri[j]); }
     });
   });
   sec(secili);

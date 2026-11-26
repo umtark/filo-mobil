@@ -469,7 +469,11 @@ button, a, [role="button"], input, select { touch-action: manipulation; }
 .filo-ust { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
 .filo-ust > div { display: flex; flex-direction: column; gap: 2px; }
 .firma-siralama { display: flex; flex-direction: column; gap: 14px; padding-top: 6px; }
-.firma-satir { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 6px 12px; }
+.firma-satir { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 6px 12px; width: 100%; padding: 6px 0; background: none; border: 0; border-radius: 8px; color: inherit; text-align: start; font: inherit; }
+.firma-satir:active { background: var(--yuzey2); }
+.firma-filtre { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; min-height: 40px; padding: 0 12px 0 14px; border-radius: 10px; border: 1px solid var(--cizgi); background: var(--yuzey2); color: var(--yazi); font-size: 14px; font-weight: 500; }
+.dagilim-baslik { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dagilim-sifirla { flex: none; min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--cizgi); background: var(--yuzey2); color: var(--yazi); font-size: 13px; }
 .firma-ad { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .firma-satir strong { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .firma-bar { grid-column: 1 / -1; display: block; height: 4px; border-radius: 2px; background: var(--yuzey2); overflow: hidden; }

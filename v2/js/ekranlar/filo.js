@@ -1,5 +1,5 @@
 // Araç Yönetimi (belge bitişleri, bakım) ve İç Hizmetler ekranları. Bu ilk sürümde yalnızca görüntüleme.
-import { h, kart, satir, bilgiSatiri, cipler, segment, aramaKutusu, ayCubugu, sayfalamali, bosDurum, detayAc, ikon, yukleniyor, hataGoster } from "../ui.js";
+import { h, kart, satir, bilgiSatiri, cipler, segment, aramaKutusu, ayCubugu, sayfalamali, bosDurum, detayAc, detayYenile, ikon, yukleniyor, hataGoster } from "../ui.js";
 import * as veri from "../veri.js";
 import * as api from "../api.js";
 import { goruntule } from "../dosya.js";
@@ -13,7 +13,7 @@ import { aracFirmaSecenekleri, aracFirmaSuz } from "../firma_suz.js";
 import { baslik as mb, etiket as me, duz as md } from "../metin.js";
 import { para, sayiYaz, tarihYaz, tarihKisa, ayAdi, ayAnahtari, bugun, eslesir, sirala, telefonTemizle, tarihCoz } from "../bicim.js";
 
-const durum = { arac: { arama: "", filtre: "hepsi" }, ic: { arama: "", ay: null }, kayit: { arama: "" } };
+const durum = { arac: { arama: "", filtre: "hepsi", firma: "" }, ic: { arama: "", ay: null }, kayit: { arama: "" } };
 export const kalanYaz = (gun) => (gun === 0 ? "Bugün bitiyor" : gun > 0 ? `${gun} gün kaldı` : `${-gun} gün geçti`);
 export const belgeTonu = (seviye) => ({ gecmis: "kirmizi", yakin: "kehribar", iyi: "yesil" })[seviye];
 
@@ -26,12 +26,20 @@ const ARAC_SECENEK = [{ k: "bakim", ad: mb("export_include_bakim_harcama"), v: f
 const aracFirmalari = async () => aracFirmaSecenekleri(await veri.hamListe("araclar"));
 const aracCiktisi = async (c) => aracFirmaSuz(await veri.hamListe("araclar"), c.firmaSecim);
 
+// Ana sayfadaki Filo Özeti firma satırı buraya gelir: liste o firmanın araçlarıyla açılır (firma, özetteki gruplamayla aynı biçimde karşılaştırılır).
+export const aracDurumu = durum.arac;
+const firmaAnahtari = (a) => String(a.firma || a.kurum || "").split(/\s+/).join(" ").trim().toLocaleLowerCase("tr");
+
 async function aracEkrani() {
-  const liste = (await veri.araclar()).slice().sort((a, b) => sirala(a.plaka, b.plaka));
-  const sorunlu = (a) => a.belgeler.some((b) => b.seviye !== "iyi");
   const d = durum.arac;
+  const secili = d.firma === mb("belirtilmemis") ? "" : d.firma.toLocaleLowerCase("tr");
+  const tumListe = (await veri.araclar()).slice().sort((a, b) => sirala(a.plaka, b.plaka));
+  const liste = d.firma ? tumListe.filter((a) => firmaAnahtari(a) === secili) : tumListe;
+  const sorunlu = (a) => a.belgeler.some((b) => b.seviye !== "iyi");
   const sonuc = h("div");
   const cipAlani = h("div");
+  const firmaCipi = d.firma && h("button", { class: "firma-filtre", type: "button", "aria-label": `${d.firma} süzgecini kaldır`, onclick: () => { d.firma = ""; detayYenile({ kok: true }); } },
+    h("span", {}, d.firma), ikon("kapat", 16));
 
   function guncelle() {
     cipAlani.replaceChildren(cipler([["hepsi", mb("flt_tip_tumu"), liste.length], ["sorunlu", "Süresi yaklaşan", liste.filter(sorunlu).length]], d.filtre, (k) => { d.filtre = k; guncelle(); }));
@@ -44,7 +52,7 @@ async function aracEkrani() {
     ciktiDugmeleri({ dosya: "arac_kayitlari",
       pdf: { yatay: true, altSol: "Araç Kayıtları Analiz Raporu", secenekler: ARAC_SECENEK, firmalar: aracFirmalari, uret: async (c) => aracPdf(c, await aracCiktisi(c)) },
       xlsx: { secenekler: ARAC_SECENEK, firmalar: aracFirmalari, uret: async (c) => aracXlsx(c, await aracCiktisi(c)) } }),
-    cipAlani, sonuc);
+    firmaCipi, cipAlani, sonuc);
 }
 
 // Masaüstündeki Yağ Bakımı / Genel Tamir-Bakım / Harcamalar sekmeleri: tüm araçların kayıtları tek listede (plaka ile).

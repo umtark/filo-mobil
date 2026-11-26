@@ -3,9 +3,9 @@
 import { h, kart, kartBasligi, satir, cipler, bosDurum, yukleniyor, hataGoster, sayfalamali } from "../ui.js";
 import * as veri from "../veri.js";
 import { aylikGelirGider, okulToplam } from "../hesap.js";
-import { para, bugun, tarihYaz } from "../bicim.js";
+import { para, bugun, tarihYaz, ayAdi } from "../bicim.js";
 import { durum as okulDurumu } from "./okul.js";
-import { aracAc } from "./filo.js";
+import { aracAc, aracDurumu } from "./filo.js";
 import { ciktiDugmeleri } from "../cikti.js";
 import { genelVeri, genelDurumPdf } from "../cikti_genel.js";
 import { baslik, duz } from "../metin.js";
@@ -40,7 +40,7 @@ export async function ciz(sekmeyeGit) {
   }
   if (finansIzni() || veri.izinVar("arac")) sayfa.append(blok(() => donemOzeti(rapor)));
   if (finansIzni()) sayfa.append(blok(trendKarti));
-  if (veri.izinVar("arac")) sayfa.append(blok(filoKarti));
+  if (veri.izinVar("arac")) sayfa.append(blok(() => filoKarti(sekmeyeGit)));
   if (veri.izinVar("okul")) sayfa.append(blok(() => tahsilat(sekmeyeGit)));
   if (veri.izinVar("arac")) sayfa.append(blok(uyarilar));
   if (veri.izinVar("fatura") || veri.izinVar("arac")) sayfa.append(blok(sonHareketler));
@@ -112,14 +112,16 @@ async function donemOzeti(rapor) {
 
 // ── Filo özeti ──────────────────────────────────────────────────────────────
 // Firmalar araç sayısına göre sıralı; ince çubuk en kalabalık firmaya oranı gösterir.
-async function filoKarti() {
+async function filoKarti(sekmeyeGit) {
   const { toplam, firmalar } = filoOzeti(await veri.araclar());
   if (!toplam) return kart(kartBasligi(baslik("filo_istatistikleri")), bosDurum(baslik("sistemde_arac_yok")));
   const adet = h("strong", { class: "buyuk-sayi" });
   adetSayaci(adet, toplam);
   const enCok = Math.max(...firmalar.map(([, n]) => n));
+  const git = (firma) => { aracDurumu.firma = firma; aracDurumu.filtre = "hepsi"; aracDurumu.arama = ""; sekmeyeGit("arac", "liste"); };
   const liste = h("div", { class: "firma-siralama grafik" }, firmalar.map(([ad, sayi], i) =>
-    h("div", { class: "firma-satir", style: `--w:${(sayi / enCok).toFixed(3)};--i:${i}` }, h("span", { class: "firma-ad", title: ad }, ad), h("strong", {}, sayi), h("span", { class: "firma-bar" }, h("i")))));
+    h("button", { class: "firma-satir", type: "button", "aria-label": `${ad}: ${sayi} araç`, style: `--w:${(sayi / enCok).toFixed(3)};--i:${i}`, onclick: () => git(ad) },
+      h("span", { class: "firma-ad", title: ad }, ad), h("strong", {}, sayi), h("span", { class: "firma-bar" }, h("i")))));
   canlandir(liste);
   return kart(kartBasligi(baslik("filo_istatistikleri"), `${firmalar.length} ${baslik("toplam_firma")}`),
     h("div", { class: "filo-ust" }, h("div", {}, h("span", { class: "kart-etiket" }, baslik("toplam_arac")), adet)),
@@ -130,12 +132,22 @@ async function filoKarti() {
 async function trendKarti() {
   const aylik = await aylikVeri();
   const grafikAlani = h("div"), dagilimAlani = h("div", { class: "dagilim-alan" }), donemAdi = h("span", { class: "kart-meta" });
+  let seri = [], secilenAy = null;   // secilenAy: grafikte dokunulan ay; yoksa tüm dönemin toplamı gösterilir
+  const dagilimCiz = () => {
+    const x = secilenAy && seri.find((s) => s.ay === secilenAy.ay);
+    const gelir = x ? x.gelir : seri.reduce((t, s) => t + s.gelir, 0), gider = x ? x.gider : seri.reduce((t, s) => t + s.gider, 0);
+    const donem = baslik((DONEMLER.find(([kod]) => kod === durum.donem) || DONEMLER[0])[1]);
+    const baslikSatiri = h("div", { class: "dagilim-baslik" }, h("h4", {}, `${baslik("dash_pie_title")} · ${x ? ayAdi(x.ay) : donem}`),
+      x && h("button", { class: "dagilim-sifirla", type: "button", onclick: () => { secilenAy = null; dagilimCiz(); } }, donem));
+    dagilimAlani.replaceChildren(baslikSatiri, gelir + gider > 0 ? dagilimCubugu(gelir, gider) : bosDurum(baslik("dash_chart_no_data")));
+  };
   function guncelle() {
-    const seri = aylikSeri(aylik, donemAraligi(durum.donem, aylik));
+    seri = aylikSeri(aylik, donemAraligi(durum.donem, aylik));
+    secilenAy = null;
     const gelir = seri.reduce((t, x) => t + x.gelir, 0), gider = seri.reduce((t, x) => t + x.gider, 0);
     donemAdi.textContent = baslik((DONEMLER.find(([kod]) => kod === durum.donem) || DONEMLER[0])[1]);
-    grafikAlani.replaceChildren(gelir + gider > 0 ? trendGrafigi(seri) : bosDurum(baslik("dash_chart_no_data")));
-    dagilimAlani.replaceChildren(h("h4", {}, baslik("dash_pie_title")), gelir + gider > 0 ? dagilimCubugu(gelir, gider) : bosDurum(baslik("dash_chart_no_data")));
+    grafikAlani.replaceChildren(gelir + gider > 0 ? trendGrafigi(seri, (x) => { secilenAy = x; dagilimCiz(); }) : bosDurum(baslik("dash_chart_no_data")));
+    dagilimCiz();
   }
   guncelle();
   donemDinleyicileri.push(guncelle);
