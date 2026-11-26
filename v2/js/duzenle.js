@@ -353,10 +353,10 @@ export async function odemeFormu(ogrenciId, odemeId, { detaydan = false } = {}) 
   formAc({
     baslik: "Ödemeyi düzenle", deger: { ...eski, yontem: eski.yontem || "nakit" },
     alanlar: [
-      { ad: "tutar", etiket: "Tutar", tur: "para", zorunlu: true, zorunluPozitif: true },
-      { ad: "tarih", etiket: "Tarih", tur: "tarih", zorunlu: true },
-      { ad: "yontem", etiket: "Yöntem", tur: "segment", secenekler: [["nakit", mb("tah_yontem_nakit")], ["iban", mb("tah_yontem_iban")], ["kart", mb("tah_yontem_kart")]] },
-      { ad: "not", etiket: "Not" },
+      { ad: "tutar", etiket: me("okul_tutar_lbl"), tur: "para", zorunlu: true, zorunluPozitif: true },
+      { ad: "tarih", etiket: me("okul_odeme_tarih_lbl"), tur: "tarih", zorunlu: true },
+      { ad: "yontem", etiket: me("tah_yontem_lbl"), tur: "segment", secenekler: [["nakit", mb("tah_yontem_nakit")], ["iban", mb("tah_yontem_iban")], ["kart", mb("tah_yontem_kart")]] },
+      { ad: "not", etiket: mb("okul_gecmis_col_not") },
     ],
     kaydet: async (g) => {
       const t = tarihCoz(g.tarih);
