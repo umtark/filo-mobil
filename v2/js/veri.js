@@ -140,6 +140,29 @@ export const tabloTazele = (...tablolar) => { for (const t of tablolar) onbellek
 const kimlikFiltresi = (id) => `isletme_id=eq.${baglam.isletme}&id=eq.${encodeURIComponent(id)}`;
 const CAKISMA = "Bu kayıt başka biri tarafından değiştirilmiş. Yenileyip tekrar deneyin.";
 
+// Telefondan yapılan işlem, masaüstündeki gibi işletme sahibine bildirilir (zil listesi + anlık bildirim). Sahibin kendi işlemi bildirilmez;
+// bildirim gitmese de işlem etkilenmez.
+const BILDIRIM = {
+  faturalar: ["Fatura", (k) => k.Firma],
+  araclar: ["Araç", (k) => k.plaka],
+  esnaflar: ["Esnaf", (k) => k.isim],
+  akaryakit: ["Akaryakıt", (k) => k.plaka_yedek || k.istasyon],
+  ic_hizmetler: ["İç Hizmet", (k) => k.gidilen_yer],
+  okul_ogrenciler: ["Okul", (k) => k.ad_soyad || k.plaka],
+  sirket_evraklari: ["Şirket Evrakı", (k) => k.baslik],
+};
+
+export function sahibeBildir(kategori, mesaj) {
+  if (!baglam.isletme || !baglam.uye || baglam.uye.rol === "sahip") return;
+  api.fonksiyon("bildirim", { isletme: baglam.isletme, kategori, mesaj, kaynak: "mobil" }).catch(() => {});
+}
+
+function kayitBildir(tablo, eylem, kayit) {
+  const [kategori, ad] = BILDIRIM[tablo] || [tablo, () => ""];
+  const kim = String((kayit && ad(kayit)) || "").trim();
+  sahibeBildir(kategori, `${kim ? kim + " " : ""}kaydını ${eylem}`.trim());
+}
+
 // id verilmezse yeni kayıt: degistir({}) kaydı üretir ("id" alanını kendisi koymazsa atanır).
 export async function kayitKaydet(tablo, id, degistir) {
   try {
@@ -148,6 +171,7 @@ export async function kayitKaydet(tablo, id, degistir) {
       yeni.id = yeni.id || yeniKimlik();
       const donen = await api.ekle(tablo, { isletme_id: baglam.isletme, id: yeni.id, data: yeni });
       if (!donen || !donen.length) throw new Error("Kayıt eklenemedi.");
+      kayitBildir(tablo, "ekledi", yeni);
       return yeni;
     }
     const s = await api.sorgu(`${tablo}?select=data,surum&${kimlikFiltresi(id)}&silindi=eq.false`);
@@ -156,6 +180,7 @@ export async function kayitKaydet(tablo, id, degistir) {
     veri.id = id;
     const donen = await api.guncelle(tablo, `${kimlikFiltresi(id)}&surum=eq.${s[0].surum}`, { data: veri });
     if (!donen || !donen.length) throw new Error(CAKISMA);
+    kayitBildir(tablo, "güncelledi", veri);
     return veri;
   } finally {
     tabloTazele(tablo);
@@ -170,6 +195,7 @@ export async function topluEkle(tablo, kayitlar, ilerle = () => {}) {
       await api.ekle(tablo, parca);
       ilerle(Math.min(i + 100, kayitlar.length), kayitlar.length);
     }
+    if (kayitlar.length) sahibeBildir((BILDIRIM[tablo] || [tablo])[0], `Excel'den ${kayitlar.length} kayıt aktardı`);
   } finally {
     tabloTazele(tablo);
   }
@@ -177,10 +203,11 @@ export async function topluEkle(tablo, kayitlar, ilerle = () => {}) {
 
 export async function kayitSil(tablo, id) {
   try {
-    const s = await api.sorgu(`${tablo}?select=surum&${kimlikFiltresi(id)}&silindi=eq.false`);
+    const s = await api.sorgu(`${tablo}?select=surum,data&${kimlikFiltresi(id)}&silindi=eq.false`);
     if (!s.length) return;
     const donen = await api.guncelle(tablo, `${kimlikFiltresi(id)}&surum=eq.${s[0].surum}`, { silindi: true });
     if (!donen || !donen.length) throw new Error(CAKISMA);
+    kayitBildir(tablo, "sildi", s[0].data);
   } finally {
     tabloTazele(tablo);
   }
@@ -194,6 +221,8 @@ export async function ogrenciTazele(id) {
   if (yeni && i >= 0) liste[i] = yeni;
 }
 
-export function odemeEkle({ ogrenci, tutar, tarih, yontem, not, mobilId }) {
-  return api.rpc("okul_odeme_ekle", { p_isletme: baglam.isletme, p_ogrenci: ogrenci, p_tutar: tutar, p_tarih: tarih, p_yontem: yontem, p_not: not || "", p_mobil_id: mobilId });
+export async function odemeEkle({ ogrenci, ad, tutar, tarih, yontem, not, mobilId }) {
+  const sonuc = await api.rpc("okul_odeme_ekle", { p_isletme: baglam.isletme, p_ogrenci: ogrenci, p_tutar: tutar, p_tarih: tarih, p_yontem: yontem, p_not: not || "", p_mobil_id: mobilId });
+  sahibeBildir("Okul", `${ad ? ad + " öğrencisinin" : "Öğrenci"} ödemesini aldı (${Math.round(tutar)} ₺)`);
+  return sonuc;
 }

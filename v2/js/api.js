@@ -125,6 +125,7 @@ export async function depoBaglantisi(kova, yol, saniye = 600) {
   return `${SUPABASE_URL}/storage/v1${v.signedURL}`;
 }
 export const rpc = (ad, govde) => cagir("/rest/v1/rpc/" + ad, { yontem: "POST", govde });
+export const fonksiyon = (ad, govde) => cagir("/functions/v1/" + ad, { yontem: "POST", govde });
 const DONUS = { Prefer: "return=representation" };
 export const ekle = (tablo, satir) => cagir("/rest/v1/" + tablo, { yontem: "POST", govde: satir, ust: DONUS });
 export const guncelle = (tablo, filtre, govde) => cagir(`/rest/v1/${tablo}?${filtre}`, { yontem: "PATCH", govde, ust: DONUS });

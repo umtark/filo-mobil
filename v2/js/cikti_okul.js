@@ -171,7 +171,7 @@ export function tahsilatOzetPdf(ctx, liste) {
   const l = tahsilatListesi(liste), b = ctx.belge;
   ctx.ust("Tahsilat Raporu — Dönem Özeti", { donem: false });
   const tUcret = toplamla(l, (o) => o.ucret), tOdenen = toplamla(l, (o) => o.odenen), tKalan = toplamla(l, (o) => o.kalan);
-  b.paragraf(`Öğrenci: ${l.length} · Tam ödeyen: ${l.filter((o) => o.durum === "odendi").length} · Kısmi: ${l.filter((o) => o.durum === "kismi").length} · Ödemeyen: ${l.filter((o) => o.durum === "bekliyor").length}`, { boyut: 9, renk: "#334155", sonrasi: 6 });
+  b.paragraf(`Servis Öğrencisi: ${l.length} · Tam Ödeyen: ${l.filter((o) => o.durum === "odendi").length} · Kısmi Ödeyen: ${l.filter((o) => o.durum === "kismi").length} · Hiç Ödemeyen: ${l.filter((o) => o.durum === "bekliyor").length}`, { boyut: 9, renk: "#334155", sonrasi: 6 });
   b.tablo({
     boyut: 8.5, baslikArka: "#334155",
     sutunlar: [{ b: "No", a: 4.5 }, { b: "Adı Soyadı", a: 28.5, hiza: "sol" }, { b: "Sınıf", a: 11 }, { b: "Servis", a: 14 }, { b: "Dönem Ücreti", a: 14, hiza: "sag" }, { b: "Ödenen", a: 14, hiza: "sag" }, { b: "Kalan", a: 14, hiza: "sag" }],
