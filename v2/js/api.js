@@ -126,6 +126,10 @@ export const aracEvrakIndir = (isletme, aracId, tur, ad) => driveIndir({ "x-isle
 export const dekontDriveIndir = (isletme, ogrenci, yol) => driveIndir({ "x-islem": "dekont", "x-isletme": isletme, "x-kayit": encodeURIComponent(ogrenci), "x-dosya": encodeURIComponent(yol) });
 // Telefondan dekont ekleme: dosya Drive'daki Evraklar/Okul_Dekont/<öğrenci adı> klasörüne konur. Dönen: { yol } (ödeme kaydına yazılacak göreli yol).
 export const dekontDriveYukle = (isletme, ogrenci, dosya) => cagir("/functions/v1/evrak_drive", { yontem: "POST", govde: dosya, ust: { "Content-Type": dosya.type || "application/octet-stream", "x-islem": "dekont_yukle", "x-isletme": isletme, "x-kayit": encodeURIComponent(ogrenci), "x-ad": encodeURIComponent(dosya.name) } });
+// Personel maaş belgesi (bordro/dekont) (Drive: Evraklar/Personel_Belge/<çalışan adı>/<dosya>); yetki kişi bazlıdır (sunucuda denetlenir).
+export const personelBelgeDriveIndir = (isletme, ad, yol) => driveIndir({ "x-islem": "personel_belge", "x-isletme": isletme, "x-kayit": encodeURIComponent(ad), "x-dosya": encodeURIComponent(yol) });
+// Telefondan personel belgesi ekleme: dosya Drive'daki Evraklar/Personel_Belge/<çalışan adı> klasörüne konur. Dönen: { yol }.
+export const personelBelgeDriveYukle = (isletme, ad, dosya) => cagir("/functions/v1/evrak_drive", { yontem: "POST", govde: dosya, ust: { "Content-Type": dosya.type || "application/octet-stream", "x-islem": "personel_belge_yukle", "x-isletme": isletme, "x-kayit": encodeURIComponent(ad), "x-ad": encodeURIComponent(dosya.name) } });
 export async function depoBaglantisi(kova, yol, saniye = 600) {
   const v = await cagir(`/storage/v1/object/sign/${kova}/${yol}`, { yontem: "POST", govde: { expiresIn: saniye } });
   return `${SUPABASE_URL}/storage/v1${v.signedURL}`;

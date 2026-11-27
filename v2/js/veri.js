@@ -49,12 +49,13 @@ export async function baglamKur() {
   // Yöneticiler işletmenin tüm üyeliklerini görebilir; yalnızca oturumdaki kullanıcının kendi üyeliği alınır.
   const kimlik = api.kullanici();
   if (!kimlik) { baglam.isletme = null; return false; }
-  const uyelikSorgusu = (isletmeAlanlari) => api.sorgu(`uyelikler?select=isletme_id,ad,rol,izinler,salt_okunur,isletmeler(${isletmeAlanlari})&kullanici_id=eq.${encodeURIComponent(kimlik.id)}&aktif=eq.true&order=olusturma`);
+  const uyelikSorgusu = (uyeAlanlari, isletmeAlanlari) => api.sorgu(`uyelikler?select=${uyeAlanlari},isletmeler(${isletmeAlanlari})&kullanici_id=eq.${encodeURIComponent(kimlik.id)}&aktif=eq.true&order=olusturma`);
+  // Yeni sütunlar (marka.sql, sofor_konum.sql, personel.sql) henüz uygulanmamışsa sorgu 400 verir: eski alanlarla devam edilir.
+  const denemeler = [["isletme_id,ad,rol,izinler,salt_okunur,sofor,izin_hakki", "ad,marka_ad,logo,lisans_bitis,omur_boyu"], ["isletme_id,ad,rol,izinler,salt_okunur,sofor", "ad,marka_ad,logo,lisans_bitis,omur_boyu"], ["isletme_id,ad,rol,izinler,salt_okunur", "ad,marka_ad,logo,lisans_bitis,omur_boyu"], ["isletme_id,ad,rol,izinler,salt_okunur", "ad,lisans_bitis,omur_boyu"]];
   let uyelikler;
-  try { uyelikler = await uyelikSorgusu("ad,marka_ad,logo,lisans_bitis,omur_boyu"); }
-  catch (e) {
-    if (e.durum !== 400) throw e;   // marka.sql henüz uygulanmamış: marka alanları olmadan devam edilir
-    uyelikler = await uyelikSorgusu("ad,lisans_bitis,omur_boyu");
+  for (const [i, [uye, isletme]] of denemeler.entries()) {
+    try { uyelikler = await uyelikSorgusu(uye, isletme); break; }
+    catch (e) { if (e.durum !== 400 || i === denemeler.length - 1) throw e; }
   }
   if (!uyelikler.length) { baglam.isletme = null; return false; }
   const u = uyelikler[0];
@@ -73,10 +74,13 @@ export async function baglamKur() {
 export async function yetkiKontrol() {
   const kimlik = api.kullanici();
   if (!kimlik || !baglam.isletme || !baglam.uye) return "ayni";
-  const s = await api.sorgu(`uyelikler?select=ad,rol,izinler,salt_okunur&isletme_id=eq.${baglam.isletme}&kullanici_id=eq.${encodeURIComponent(kimlik.id)}&aktif=eq.true`);
+  const yol = (alanlar) => `uyelikler?select=${alanlar}&isletme_id=eq.${baglam.isletme}&kullanici_id=eq.${encodeURIComponent(kimlik.id)}&aktif=eq.true`;
+  let s;
+  try { s = await api.sorgu(yol("ad,rol,izinler,salt_okunur,sofor")); }
+  catch (e) { if (e.durum !== 400) throw e; s = await api.sorgu(yol("ad,rol,izinler,salt_okunur")); }
   if (!s.length) return "kaldirildi";
   const yeni = s[0], eski = baglam.uye;
-  const imza = (u) => JSON.stringify([u.rol, [...(u.izinler || [])].sort(), Boolean(u.salt_okunur)]);
+  const imza = (u) => JSON.stringify([u.rol, [...(u.izinler || [])].sort(), Boolean(u.salt_okunur), Boolean(u.sofor)]);
   if (imza(yeni) === imza(eski)) {
     if (yeni.ad === eski.ad) return "ayni";
     baglam.uye = { ...eski, ...yeni };   // yalnızca görünen ad değişti (yönetici kullanıcıyı yeniden adlandırdı); yetkiler aynı
@@ -112,7 +116,7 @@ export function cevrimdisiBildir() {
 // Masaüstündeki "Hesabınızın erişimi kısıtlandı": sahip/yönetici dışındaki kullanıcıya hiçbir sekme izni tanımlanmamışsa.
 export function erisimYok() {
   const u = baglam.uye;
-  if (!u || baglam.platform || ["sahip", "yonetici"].includes(u.rol)) return false;
+  if (!u || baglam.platform || u.sofor || ["sahip", "yonetici"].includes(u.rol)) return false;   // şoförün tek ekranı konum paylaşımıdır
   const izinler = u.izinler || [];
   return !MENU.some((m) => izinler.includes(m.izin));
 }
@@ -216,6 +220,11 @@ export const araclar = async () => {
   const [satirlar, ayar] = await Promise.all([ham("araclar"), ayarlar().catch(() => ({}))]);
   return satirlar.map((a) => aracKaydi(a, ayar.bakim_periyodu_gun));
 };
+// Personel (maaş/izin): kişi bazlı RLS sayesinde yönetici yönettiği herkesi, çalışan yalnızca kendi kaydını görür; burada isme göre süzülür.
+export const personelMaaslari = (ad) => ham("personel_maas").then((l) => l.filter((x) => x.ad === ad).sort((a, b) => String(b.donem || "").localeCompare(String(a.donem || ""))));
+export const personelIzinleri = (ad) => ham("personel_izin").then((l) => l.filter((x) => x.ad === ad).sort((a, b) => String(b.baslangic || "").localeCompare(String(a.baslangic || ""))));
+export const izinHakkiOku = (ad) => api.rpc("izin_hakki_oku", { p_isletme: baglam.isletme, p_ad: ad });
+export const izinHakkiYaz = (ad, gun) => api.rpc("izin_hakki_yaz", { p_isletme: baglam.isletme, p_ad: ad, p_gun: gun });
 
 // ── Yazma ───────────────────────────────────────────────────────────────────
 // Kayıtlar masaüstüyle aynı biçimde (data = masaüstü kaydı) yazılır. Düzenleme sunucudaki güncel kaydı okuyup değiştirir ve

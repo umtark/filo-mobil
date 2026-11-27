@@ -1,6 +1,7 @@
 // Hesap: kim giriş yapmış, lisans durumu, çıkış.
 import { h, kart, satir, bilgiSatiri, toast, detayAc } from "../ui.js";
 import * as kullanicilar from "./kullanicilar.js";
+import * as personel from "../personel.js";
 import { metin, baslik } from "../metin.js";
 import { UYGULAMA_SURUMU } from "../surum.js";
 import * as veri from "../veri.js";
@@ -29,6 +30,7 @@ export async function ciz({ cikis, yenile }) {
       bilgiSatiri("Rol", ROL[u.rol] || u.rol), bilgiSatiri("Yetkiler", yetkiler), bilgiSatiri("Erişim", u.salt_okunur ? "Yalnızca görüntüleme" : "Görüntüleme ve ödeme girişi"),
       bilgiSatiri("Lisans", lisansMetni, lisansTon)),
     ["sahip", "yonetici"].includes(u.rol) && kart(satir({ baslik: "Kullanıcılar", onclick: () => detayAc("Kullanıcılar", () => kullanicilar.ciz()) })),
+    kart(satir({ baslik: "Maaşım ve İzinlerim", onclick: () => detayAc("Maaşım ve İzinlerim", () => personel.calisanGorunumu(u.ad)) })),
     kart(h("button", { class: "dugme ikincil genis", onclick: () => { yenile(); toast("Veriler yenilendi"); } }, "Verileri yenile"),
       h("button", { class: "dugme tehlike genis", onclick: cikis }, metin("settings_session_logout")), surum));
 }

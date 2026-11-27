@@ -587,3 +587,14 @@ button, a, [role="button"], input, select { touch-action: manipulation; }
 .cevrimici .plat-satir:empty { display: none; }
 /* Üst çubukta şirket logosu ve sayfa adı yeter; menü simgesi yan menüde durur */
 #uygulama > .ust .ust-ikon { display: none; }
+
+/* Şoför ekranı ve konum haritası */
+.harita-sayfa { gap: 8px; }
+.harita-durum { min-height: 20px; }
+.harita-alan { width: 100%; height: calc(100dvh - 220px); min-height: 320px; border-radius: 14px; overflow: hidden; border: 1px solid var(--cizgi); background: var(--yuzey2); }
+.harita-secici { display: block; }
+.konum-isaret-kap { background: none; border: 0; }
+.konum-isaret { position: relative; display: flex; align-items: center; gap: 6px; transform: translate(-8px, -8px); white-space: nowrap; }
+.konum-isaret i { width: 16px; height: 16px; border-radius: 50%; background: var(--soluk); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); flex: none; }
+.konum-isaret.canli i { background: #0f7a54; }
+.konum-isaret span { padding: 2px 8px; border-radius: 8px; background: #fff; color: #111a24; font-size: 12px; font-weight: 500; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }

@@ -2,7 +2,9 @@
 // Yetki sunucuda zorlanır (uye_kaydet / uye_sil); bu ekran yalnızca sahip ve yöneticiye gösterilir.
 import * as api from "../api.js";
 import * as veri from "../veri.js";
-import { h, kart, satir, bosDurum, panelAc, toast, animOnay, parolaAlani, segment } from "../ui.js";
+import { h, kart, satir, bosDurum, panelAc, toast, animOnay, parolaAlani, segment, detayAc } from "../ui.js";
+import { soforHaritasi, tumSoforHaritasi } from "../harita.js";
+import * as personel from "../personel.js";
 import { baslik, duz } from "../metin.js";
 
 const IZINLER = [
@@ -37,14 +39,23 @@ function formPaneli(uye, yenile) {
   const bildirimIlk = yeni ? false : (uye.bildirim_al ?? uye.rol !== "kullanici");
   const bildirim = animOnay({ etiket: "Bildirim al", isaretli: bildirimIlk });
   const bildirimAlani = h("div", {}, bildirim, h("p", { class: "ipucu" }, "Açıksa bu kişi, yetkisi olduğu modüllerde başkalarının yaptığı işlemlerin bildirimini alır."));
+  // Şoför: mobil uygulamada yalnızca Şoför sekmesini görür (sekme izni gerekmez); konum paylaşımı uygulama açılır açılmaz otomatik başlar. Sahip ve yönetici konumunu haritada izler.
+  const soforIlk = !yeni && Boolean(uye.sofor);
+  const sofor = animOnay({ etiket: "Şoför (konumunu paylaşır)", isaretli: soforIlk, degisti: () => soforCiz() });
+  const harita = soforIlk && h("button", { class: "dugme ikincil genis", type: "button", onclick: () => { panel.kapat(); detayAc(`${uye.ad} · Konum`, () => soforHaritasi(uye.ad)); } }, "Konumunu haritada gör");
+  const soforAlani = h("div", {}, sofor, h("p", { class: "ipucu" }, "Konum, uygulama açıkken yaklaşık 3 dakikada bir otomatik gönderilir; yalnızca sahip ve yöneticiler görür. Şoförü işe alırken konum paylaşımı için yazılı onayını almayı unutmayın."), harita);
+  // Maaş ve izin: gerçek verilerle yönetici doldurur; çalışan kendi kaydını (Ayarlar > Hesap üzerinden) salt okunur görür.
+  const personelDugmesi = !yeni && h("button", { class: "dugme ikincil genis", type: "button", onclick: () => { panel.kapat(); detayAc(`${uye.ad} · Maaş ve İzin`, () => personel.yoneticiPaneli(uye.ad)); } }, "Maaş ve İzin");
   const rolAlani = h("div", {});
   const izinAlani = h("div", {}, izinKap, salt);
+  const soforCiz = () => { izinKap.hidden = sofor.deger(); salt.hidden = sofor.deger(); bildirimAlani.hidden = sofor.deger(); };
   const rolCiz = () => {
     izinAlani.hidden = rol === "yonetici";
     if (!sahipMi()) return;
     rolAlani.replaceChildren(segment([["kullanici", "Kullanıcı"], ["yonetici", "Yönetici"]], rol, (k) => { rol = k; rolCiz(); }));
   };
   rolCiz();
+  soforCiz();
   const mesaj = h("p", { class: "hata-metin", role: "alert", hidden: true });
   const kaydet = h("button", { class: "dugme birincil genis", type: "submit" }, yeni ? duz("kullanici_ekle") : "Kaydet");
   const sil = !yeni && h("button", { class: "dugme tehlike genis", type: "button", onclick: () => {
@@ -64,6 +75,7 @@ function formPaneli(uye, yenile) {
         p_izinler: rol === "yonetici" ? [] : IZINLER.map(([k]) => k).filter((k) => secili.has(k)),
         p_salt_okunur: rol === "yonetici" ? false : salt.deger(), p_eski_ad: yeni ? null : uye.ad,
       });
+      if (sofor.deger() !== soforIlk) await api.rpc("sofor_yaz", { p_isletme: veri.baglam.isletme, p_ad: ad.value.trim(), p_sofor: sofor.deger() });
       if (bildirim.deger() !== bildirimIlk) await api.rpc("bildirim_tercih_yaz", { p_isletme: veri.baglam.isletme, p_ad: ad.value.trim(), p_al: bildirim.deger() });
       panel.kapat();
       toast(yeni ? "Kullanıcı eklendi" : "Kullanıcı güncellendi");
@@ -72,7 +84,7 @@ function formPaneli(uye, yenile) {
   } },
     h("label", { class: "alan" }, h("span", {}, "Kullanıcı adı"), ad),
     h("label", { class: "alan" }, h("span", {}, "Şifre"), parolaAlani(parola)),
-    rolAlani, izinAlani, bildirimAlani, mesaj, kaydet, sil);
+    rolAlani, soforAlani, izinAlani, bildirimAlani, personelDugmesi, mesaj, kaydet, sil);
   const panel = panelAc(yeni ? duz("kullanici_yeni_ekle") : uye.ad, form);
 }
 
@@ -157,7 +169,12 @@ export function cevrimiciBolumu() {
 export async function ciz() {
   const sorgu = (alanlar) => api.sorgu(`uyelikler?select=${alanlar}&isletme_id=eq.${veri.baglam.isletme}&aktif=eq.true&order=olusturma`);
   let liste;
-  try { liste = await sorgu("ad,rol,izinler,salt_okunur,son_gorulme,son_masaustu,son_mobil,masaustu_id,bildirim_al"); }
+  try { liste = await sorgu("ad,rol,izinler,salt_okunur,son_gorulme,son_masaustu,son_mobil,masaustu_id,bildirim_al,sofor"); }
+  catch (e0) {
+    if (e0.durum !== 400) throw e0;   // sofor_konum.sql henüz uygulanmamış
+    liste = null;
+  }
+  if (!liste) try { liste = await sorgu("ad,rol,izinler,salt_okunur,son_gorulme,son_masaustu,son_mobil,masaustu_id,bildirim_al"); }
   catch (e) {
     if (e.durum !== 400) throw e;   // bildirim2.sql henüz uygulanmamış: bildirim seçimi olmadan devam edilir
     try { liste = await sorgu("ad,rol,izinler,salt_okunur,son_gorulme,son_masaustu,son_mobil,masaustu_id"); }
@@ -182,12 +199,14 @@ export async function ciz() {
     } catch { /* bir sonraki turda yeniden denenir */ }
   }, 15000);
   const ozet = (u) => {
+    if (u.sofor) return "Şoför";
     if (u.rol !== "kullanici") return ROL[u.rol] || u.rol;
     const izin = (u.izinler || []).map((m) => ETIKET[m] || m).join(", ") || "İzin yok";
     return (u.salt_okunur ? `${izin} · yalnızca görüntüleme` : izin) + (u.bildirim_al ? " · bildirim açık" : "");
   };
   kap.append(...[
     kart(h("button", { class: "dugme birincil genis", onclick: () => formPaneli(null, yenile) }, duz("kullanici_ekle"))),
+    liste.some((u) => u.sofor) && kart(h("button", { class: "dugme ikincil genis", onclick: () => detayAc("Şoför konumları", () => tumSoforHaritasi()) }, "Şoförleri haritada gör")),
     nabizVar && kart(h("p", { class: "kart-etiket" }, "Çevrimiçi"), h("p", { class: "buyuk-sayi yesil" }, `${liste.filter(cevrimiciMi).length} / ${liste.length}`),
       h("p", { class: "soluk" }, `Masaüstü ${liste.filter(masaustuAcik).length} · Mobil ${liste.filter(mobilAcik).length}`)),
     liste.length

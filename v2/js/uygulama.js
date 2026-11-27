@@ -14,6 +14,8 @@ import * as evrak from "./ekranlar/evrak.js";
 import * as kullanicilar from "./ekranlar/kullanicilar.js";
 import { zilDugmesi, okunmamisTazele, bildirimGitAyarla } from "./bildirim.js";
 import * as yonetim from "./ekranlar/yonetim.js";
+import * as sofor from "./ekranlar/sofor.js";
+import * as konum from "./konum.js";
 import { durumEkrani } from "./ekranlar/durum.js";
 import { basvuruEkrani } from "./ekranlar/basvuru.js";
 import { MENU, ALT_CUBUK_SIRASI } from "./menu.js";
@@ -41,7 +43,11 @@ const EKRANLAR = {
   ayarlar: (alt) => (alt === "kullanicilar" ? kullanicilar.ciz() : alt === "yonetim" && veri.baglam.platform ? yonetim.ciz({ yenile: yeniden }) : hesap.ciz({ cikis, yenile: tazele })),
 };
 // Yönetim (yalnızca platform yöneticisi) Ayarlar'ın üçüncü alt sekmesidir: Hesap, Kullanıcılar, Yönetim.
-const SEKMELER = MENU.map((m) => ({ ...m, goster: m.id === "ayarlar" ? () => veri.izinVar(m.izin) || veri.baglam.platform : () => veri.izinVar(m.izin), ciz: EKRANLAR[m.id] }));
+const SEKMELER = [
+  ...MENU.map((m) => ({ ...m, goster: m.id === "ayarlar" ? () => veri.izinVar(m.izin) || veri.baglam.platform : () => veri.izinVar(m.izin), ciz: EKRANLAR[m.id] })),
+  // Şoför hesabının tek ekranı: mesai ve konum paylaşımı (şoför işaretli kullanıcılarda görünür)
+  { id: "sofor", ad: "Şoför", ikon: "konum", alt: [], goster: () => Boolean(veri.baglam.uye && veri.baglam.uye.sofor), ciz: () => sofor.ciz() },
+];
 const simge = (s, boyut) => (s.resim ? h("img", { class: "menu-resim", src: s.resim, alt: "", width: boyut, height: boyut, draggable: "false" }) : ikon(s.ikon, boyut));
 
 let aktif = null;
@@ -174,8 +180,9 @@ function profilPaneli(ad) {
   cekmeceKapat(false);
   panelAc("Profil fotoğrafı", h("div", { class: "form" }, profil.fotoBolumu(ad)));
 }
-function cikis() {
+async function cikis() {
   cekmeceKapat(false);
+  if (konum.durumOku().acik) await konum.bitir();   // şoför çıkış yaparken mesai kapanır (oturum kapanmadan sunucuya bildirilir)
   if (kabukAcik) veri.cevrimdisiBildir();
   api.cikisYap();
   kullanicilar.cevrimiciSifirla();
@@ -189,6 +196,7 @@ function kabuk() {
   cekmeceKapat(false);
   kabukAcik = true;
   durumAcik = false;
+  konum.surdur();   // şoför: mesai açıkken uygulama yenilenmişse paylaşım kaldığı yerden sürer
   if (yoneticiMi()) kullanicilar.cevrimiciYukle();   // menüdeki çevrimiçi listesi, menü açılmadan önce hazırlanır
   const sekmeler = SEKMELER.filter((s) => s.goster());
   gorunenSekmeler = sekmeler;
