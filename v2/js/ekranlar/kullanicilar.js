@@ -13,7 +13,7 @@ const IZINLER = [
 ];
 const ETIKET = Object.fromEntries(IZINLER);
 // "sahip" yalnızca sistemdeki ad; ekranda "Üst Yönetici" görünür. Muhasebeci ve Şoför ünvandır (yetki izinlerle belirlenir).
-const ROL = { sahip: "Üst Yönetici", yonetici: "Yönetici", kullanici: "Kullanıcı", muhasebeci: "Muhasebeci", sofor: "Şoför" };
+const ROL = { sahip: "Üst Yönetici", yonetici: "Yönetici", kullanici: "Personel", muhasebeci: "Muhasebeci", sofor: "Şoför" };
 const MUHASEBECI_IZIN = ["dashboard", "okul", "sirket_evrak", "fatura", "arac", "esnaf", "petrol", "ic_hizmet"];   // Ayarlar dışında hepsi
 
 const ben = () => veri.baglam.uye;
@@ -56,7 +56,7 @@ function formPaneli(uye, yenile) {
     izinAlani.hidden = tip === "yonetici" || tip === "sofor";
     soforAlani.hidden = tip !== "sofor";
     bildirimAlani.hidden = tip === "sofor";
-    tipAlani.replaceChildren(h("span", {}, "Kullanıcı türü"), segment([["kullanici", "Kullanıcı"], ["muhasebeci", ROL.muhasebeci], ["sofor", ROL.sofor], ...(sahipMi() ? [["yonetici", ROL.yonetici]] : [])], tip, (k) => {
+    tipAlani.replaceChildren(h("span", {}, "Kullanıcı türü"), segment([["kullanici", ROL.kullanici], ["muhasebeci", ROL.muhasebeci], ["sofor", ROL.sofor], ...(sahipMi() ? [["yonetici", ROL.yonetici]] : [])], tip, (k) => {
       tip = k;
       if (k === "muhasebeci") { secili.clear(); MUHASEBECI_IZIN.forEach((x) => secili.add(x)); izinCiz(); }
       tipCiz();

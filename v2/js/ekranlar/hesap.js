@@ -9,7 +9,7 @@ import * as api from "../api.js";
 import * as profil from "../profil.js";
 import { tarihCoz, tarihYaz } from "../bicim.js";
 
-const ROL = { sahip: "Üst Yönetici", yonetici: "Yönetici", kullanici: "Kullanıcı" };
+const ROL = { sahip: "Üst Yönetici", yonetici: "Yönetici", kullanici: "Personel" };
 const MODUL = { okul: baslik("menu_okul_servis"), sirket_evrak: baslik("menu_sirket_evrak"), fatura: baslik("menu_fatura"), arac: baslik("menu_arac"), esnaf: baslik("menu_esnaf"), petrol: baslik("menu_petrol"), ic_hizmet: baslik("menu_ic_hizmet") };
 
 export async function ciz({ cikis, yenile }) {

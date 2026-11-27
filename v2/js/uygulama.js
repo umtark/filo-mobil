@@ -234,7 +234,7 @@ function cekmeceAc() {
   const kullanici = api.kullanici();
   const ad = profil.gorunenAd();
   const u = veri.baglam.uye;
-  const rol = (u && u.sofor ? "Şoför" : u && u.unvan === "muhasebeci" ? "Muhasebeci" : { sahip: "Üst Yönetici", yonetici: "Yönetici", kullanici: "Kullanıcı" }[u && u.rol]) || "";
+  const rol = (u && u.sofor ? "Şoför" : u && u.unvan === "muhasebeci" ? "Muhasebeci" : { sahip: "Üst Yönetici", yonetici: "Yönetici", kullanici: "Personel" }[u && u.rol]) || "";
   const acik = new Set();   // alt başlıklar yalnızca oka dokununca açılır; menü her seferinde kapalı gelir
   const liste = h("nav", { class: "cekmece-liste", "aria-label": "Ana bölümler" });
 
