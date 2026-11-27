@@ -10,11 +10,14 @@ const KURAL = {
   okul_ogrenciler: { alanlar: ["ad_soyad"], atla: (r) => String(r.id).startsWith("srv_") },
   araclar: { alanlar: ["plaka"], bosluksuz: true },
   esnaflar: { alanlar: ["isim"] },
-  faturalar: { alanlar: ["Firma", "firma"], tarih: ["Tarih", "tarih"] },
-  ic_hizmetler: { alanlar: ["gidilen_yer"], tarih: ["tarih"] },
+  faturalar: { alanlar: ["Firma", "firma"], tarih: ["Tarih", "tarih"], tutar: ["Toplam", "toplam"] },
+  ic_hizmetler: { alanlar: ["gidilen_yer"], tarih: ["tarih"], tutar: ["tutar"] },
 };
+const SERVIS_KURALI = { alanlar: ["plaka"], bosluksuz: true };
 const ilkDeger = (r, adlar) => adlar.map((a) => r[a]).find((v) => v !== undefined && v !== null && String(v).trim() !== "") ?? "";
 const zaman = (r, adlar) => { const t = tarihCoz(ilkDeger(r, adlar)); return t ? t.getTime() : 0; };
+// Mesajdaki "(1500 ₺)" tutarı; aynı firma/yere ait birçok kayıttan doğrusunu seçmek için.
+const mesajTutari = (mesaj) => { const t = String(mesaj).match(/\(\s*(-?[\d.,]+)\s*₺\s*\)/); return t ? Math.round(Number(t[1].replace(/\./g, "").replace(",", "."))) : null; };
 
 function evrakBul(mesaj, kayitlar) {
   const aktif = kayitlar.filter((r) => !r.arsiv);
@@ -40,12 +43,13 @@ function evrakBul(mesaj, kayitlar) {
 export function mesajdanKayitlar(tablo, mesaj, kayitlar) {
   if (!mesaj || !kayitlar || !kayitlar.length) return [];
   if (tablo === "sirket_evraklari") return evrakBul(mesaj, kayitlar);
-  const kural = KURAL[tablo];
+  const servisMesaji = tablo === "okul_ogrenciler" && /servis ara[cç]/i.test(norm(mesaj) + " " + mesaj);
+  const kural = servisMesaji ? SERVIS_KURALI : KURAL[tablo];
   if (!kural) return [];
   const m = norm(mesaj), mb = bitisitiz(mesaj);
   let enUzun = 0, bulunan = [];
   for (const r of kayitlar) {
-    if (kural.atla && kural.atla(r)) continue;
+    if (servisMesaji ? !String(r.id).startsWith("srv_") : kural.atla && kural.atla(r)) continue;
     const ad = String(ilkDeger(r, kural.alanlar)).trim();
     if (ad.length < 3) continue;
     const eslesir = kural.bosluksuz ? mb.includes(bitisitiz(ad)) : (` ${m} `).includes(` ${norm(ad)} `);
@@ -54,6 +58,11 @@ export function mesajdanKayitlar(tablo, mesaj, kayitlar) {
     if (uzunluk > enUzun) { enUzun = uzunluk; bulunan = [r]; } else if (uzunluk === enUzun) bulunan.push(r);
   }
   if (!bulunan.length) return [];
+  const tutar = kural.tutar ? mesajTutari(mesaj) : null;
+  if (tutar !== null) {
+    const ayni = bulunan.filter((r) => Math.round(Number(ilkDeger(r, kural.tutar)) || 0) === tutar);
+    if (ayni.length) bulunan = ayni;
+  }
   if (kural.tarih) bulunan.sort((a, b) => zaman(b, kural.tarih) - zaman(a, kural.tarih));
   return [bulunan[0].id];
 }

@@ -38,6 +38,10 @@ function hataMetni(cevap, govde) {
   return m || `İşlem yapılamadı (${cevap.status}).`;
 }
 
+// Sürmekte olan yazma (GET dışı) istek sayısı: uygulama kendini yenilemeden önce işlemin bitmesini bekler.
+let yazmaSayaci = 0;
+export const yazmaSuruyor = () => yazmaSayaci > 0;
+
 async function cagir(yol, { yontem = "GET", govde, ust = {}, jetonlu = true } = {}, tekrar = true) {
   const basliklar = { apikey: ANON_KEY, ...ust };
   const ham = typeof Blob !== "undefined" && govde instanceof Blob;   // dosya yükleme: gövde olduğu gibi gider
@@ -48,10 +52,13 @@ async function cagir(yol, { yontem = "GET", govde, ust = {}, jetonlu = true } = 
     if (oturum) basliklar.Authorization = `Bearer ${oturum.access_token}`;
   }
   let cevap;
+  if (yontem !== "GET") yazmaSayaci++;
   try {
     cevap = await fetch(SUPABASE_URL + yol, { method: yontem, headers: basliklar, body: govde === undefined ? undefined : ham ? govde : JSON.stringify(govde) });
   } catch {
     throw new ApiHatasi(duz("login_hata_sunucu"), 0);
+  } finally {
+    if (yontem !== "GET") yazmaSayaci--;
   }
   let veri = null;
   try { veri = await cevap.json(); } catch { veri = null; }

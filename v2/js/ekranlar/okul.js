@@ -186,7 +186,7 @@ async function kullanmayanEkrani() {
   function guncelle() {
     const g = liste.filter((o) => !durum.kullanmayan || aramaEslesir(o.arama, durum.kullanmayan));
     ozet.textContent = doldur("okul_toplam", { sayi: g.length });
-    sonuc.replaceChildren(g.length ? sayfalamali(g, (o) => satir({ baslik: o.ad, alt: [o.sinif, o.veli].filter(Boolean).join(" · "), sag: o.neden, onclick: () => detayAc(o.ad, () => kullanmayanDetay(o.id)) })) : bosDurum("Öğrenci bulunamadı."));
+    sonuc.replaceChildren(g.length ? sayfalamali(g, (o) => satir({ baslik: o.ad, alt: [o.sinif, o.veli].filter(Boolean).join(" · "), sag: o.neden, onclick: () => detayAc(o.ad, () => kullanmayanDetay(o.id)), kayit: `okul_ogrenciler/${o.id}` })) : bosDurum("Öğrenci bulunamadı."));
   }
   guncelle();
   return h("div", {}, yeni, ciktiDugmeleri({ dosya: "servis_kullanmayanlar", xlsx: { uret: async (c) => kullanmayanXlsx(c, await okulHam()) } }), aramaKutusu(durum.kullanmayan, (v) => { durum.kullanmayan = v; guncelle(); }, mb("okul_skul_ara_ph")), ozet, sonuc);
@@ -217,7 +217,7 @@ async function servislerEkrani() {
       return satir({
         baslik: s.plaka, alt: [s.sofor, s.guzergah].filter(Boolean).join(" · "),
         sag: b ? b.ad : `${s.ogrenci} öğrenci`, sagAlt: b ? kalanYaz(b.gun) : "", ton: b ? belgeTonu(b.seviye) : "",
-        onclick: () => detayAc(s.plaka, () => servisDetay(s.id)),
+        onclick: () => detayAc(s.plaka, () => servisDetay(s.id)), kayit: `okul_ogrenciler/${s.id}`,
       });
     }) : bosDurum("Servis bulunamadı."));
   }
@@ -380,9 +380,21 @@ function ogrenciSatiri(o, tahsilat = false) {
 }
 
 export async function kayitAc(id) {
-  const r = (await okulHam()).find((x) => x.id === id && !String(x.id).startsWith("srv_"));
-  if (r) ogrenciAc(id, r.ad_soyad || "Öğrenci");
-  return Boolean(r);
+  const ham = await okulHam();
+  const s = ham.find((x) => x.id === id && String(x.id).startsWith("srv_"));
+  if (s) { detayAc(s.plaka || "Servis", () => servisDetay(id)); return true; }
+  const r = ham.find((x) => x.id === id);
+  if (!r) return false;
+  const ad = r.ad_soyad || "Öğrenci";
+  if ((await veri.okulServisKullanmayan()).some((x) => x.id === id)) detayAc(ad, () => kullanmayanDetay(id));
+  else ogrenciAc(id, ad);
+  return true;
+}
+
+// Bildirimden gelinen kaydın bulunduğu alt sekme: servis aracı, servis kullanmayan öğrenci ya da öğrenci listesi.
+export async function kayitAlti(id) {
+  if (String(id).startsWith("srv_")) return "servisler";
+  return (await veri.okulServisKullanmayan()).some((x) => x.id === id) ? "kullanmayan" : "ogrenciler";
 }
 
 export function ogrenciAc(id, ad) {

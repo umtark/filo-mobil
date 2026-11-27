@@ -438,7 +438,12 @@ function acilisKaydi() {
   history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);
   const modul = location.hash.slice(1).split("/")[0] || "";
   setTimeout(async () => {
+    const tablo = MODUL_TABLO[modul];
+    if (tablo) veri.tabloTazele(tablo);
     const hedefler = k ? [k] : await mesajdanHedefler(modul, m);
+    const [hTablo, hKimlik] = String(hedefler[0] || "").split("/");
+    const alt = hKimlik && KAYIT_ALTI[hTablo] ? await KAYIT_ALTI[hTablo](hKimlik).catch(() => undefined) : undefined;
+    if (alt && alt !== (location.hash.split("/")[1] || "")) await sekmeyeGit(modul, alt);
     if (hedefler.length && !(await kayitiVurgula(hedefler))) await kayitAc(hedefler[0]);
   }, 400);
 }
@@ -459,10 +464,16 @@ async function mesajdanHedefler(modul, mesaj) {
   try { return mesajdanKayitlar(tablo, mesaj, await veri.hamListe(tablo)).map((k) => `${tablo}/${k}`); } catch { return []; }
 }
 // Modül açılır, ilgili kayıt listede bulunup yeşilce yanıp söner; listede görünmüyorsa (süzgeç, başka ay, arşiv) kaydın detayı açılır.
+// Güncelleme bildirimlerinde kayıt az önce değişmiştir: önbellekteki eski hâliyle aranmasın diye tablo önce tazelenir.
+const KAYIT_ALTI = { okul_ogrenciler: okul.kayitAlti };
 async function bildirimdenGit(id, kayit = "", mesaj = "") {
   if (!(kabukAcik && id && gorunenSekmeler.some((s) => s.id === id))) return;
-  await sekmeyeGit(id);
+  const tablo = MODUL_TABLO[id];
+  if (tablo) veri.tabloTazele(tablo);
   const hedefler = kayit ? [kayit] : await mesajdanHedefler(id, mesaj);
+  const [hTablo, hKimlik] = String(hedefler[0] || "").split("/");
+  const alt = hKimlik && KAYIT_ALTI[hTablo] ? await KAYIT_ALTI[hTablo](hKimlik).catch(() => undefined) : undefined;
+  await sekmeyeGit(id, alt);
   if (!hedefler.length) return;
   if (await kayitiVurgula(hedefler)) return;
   await kayitAc(hedefler[0]);
@@ -473,12 +484,15 @@ if ("serviceWorker" in navigator && (location.protocol === "https:" || location.
   navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.tur === "git") bildirimdenGit(e.data.hedef, e.data.kayit, e.data.mesaj); });
   const onceden = Boolean(navigator.serviceWorker.controller);
   let yenilendi = false;
-  // Yeni sürüm devreye girince açık kalmış sayfa eski kodla çalışmasın: uygulama arka plandaysa hemen, öndeyse bir sonraki öne gelişinde yenilenir.
+  // Yeni sürüm devreye girince açık kalmış sayfa eski kodla çalışmasın: uygulama arka plandaysa, öndeyse bir sonraki öne gelişinde yenilenir.
+  // Açık form/panel ya da süren bir kayıt işlemi varsa yenileme, işlem bitene kadar ertelenir; yarım girilen veri kaybolmaz.
+  const mesgul = () => api.yazmaSuruyor() || Boolean(document.querySelector(".arka")) || /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || "");
+  const guvenliYenile = () => { if (mesgul()) setTimeout(guvenliYenile, 3000); else location.reload(); };
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (!onceden || yenilendi) return;
     yenilendi = true;
-    if (document.hidden) location.reload();
-    else document.addEventListener("visibilitychange", () => { if (!document.hidden) location.reload(); }, { once: true });
+    if (document.hidden) guvenliYenile();
+    else document.addEventListener("visibilitychange", () => { if (!document.hidden) guvenliYenile(); }, { once: true });
   });
   navigator.serviceWorker.register("sw.js").then((kayit) => {
     document.addEventListener("visibilitychange", () => { if (!document.hidden) kayit.update().catch(() => {}); });
