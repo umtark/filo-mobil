@@ -350,17 +350,17 @@ export async function donemUygula({ eski, hedef, kayitlar, sayi, yedek, ayarla =
 
 // Seçili dönem asıl dönemse ödeme sunucu fonksiyonuyla (tek adımda, çakışmasız) eklenir; başka dönemse o dönemin kaydına sürüm denetimiyle yazılır,
 // başkası arada aynı öğrenciyi değiştirirse birkaç kez yeniden denenir (aynı mobil_id ikinci kez eklenmez).
-export async function odemeEkle({ ogrenci, ad, tutar, tarih, yontem, not, mobilId }) {
+export async function odemeEkle({ ogrenci, ad, tutar, tarih, yontem, not, mobilId, pesin = false }) {
   const { secili, layout } = await okulDonemi();
   const asil = ((await ham("okul_ogrenciler")).find((o) => o.id === ogrenci) || {}).aktif_donem || layout;
   const donemEki = secili === layout ? "" : ` · ${dn.donemAdi(secili)}`;
   let sonuc;
-  if (secili === asil) {
+  if (secili === asil && !pesin) {
     sonuc = await api.rpc("okul_odeme_ekle", { p_isletme: baglam.isletme, p_ogrenci: ogrenci, p_tutar: tutar, p_tarih: tarih, p_yontem: yontem, p_not: not || "", p_mobil_id: mobilId });
   } else {
     for (let deneme = 0; ; deneme++) {
       try {
-        await kayitKaydet("okul_ogrenciler", ogrenci, (o) => { dn.odemeEkleGorunume(o, { id: yeniKimlik(), tarih, tutar, yontem, not, mobilId, kisi: baglam.uye.ad }); return o; }, { bildirimsiz: true });
+        await kayitKaydet("okul_ogrenciler", ogrenci, (o) => { dn.odemeEkleGorunume(o, { id: yeniKimlik(), tarih, tutar, yontem, not, mobilId, kisi: baglam.uye.ad, pesin }); return o; }, { bildirimsiz: true });
         break;
       } catch (e) {
         if (e.message !== CAKISMA || deneme >= 2) throw e;
@@ -368,6 +368,6 @@ export async function odemeEkle({ ogrenci, ad, tutar, tarih, yontem, not, mobilI
     }
     sonuc = { ok: true };
   }
-  sahibeBildir("Okul", `${ad ? ad + " öğrencisinin" : "Öğrenci"} ödemesini aldı (${Math.round(tutar)} ₺)${donemEki}`);
+  sahibeBildir("Okul", `${ad ? ad + " öğrencisinin" : "Öğrenci"} ödemesini aldı (${Math.round(tutar)} ₺)${pesin ? " · iki dönem birden" : ""}${donemEki}`);
   return sonuc;
 }

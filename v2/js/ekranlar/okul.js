@@ -195,9 +195,11 @@ async function kullanmayanEkrani() {
 async function kullanmayanDetay(id) {
   const o = (await veri.okulServisKullanmayan()).find((x) => x.id === id);
   if (!o) return bosDurum("Öğrenci artık bu listede değil.");
+  const r = (await okulHam()).find((x) => x.id === id) || {};
   return h("div", { class: "sayfa" },
     kart(h("p", { class: "soluk" }, o.sinif), h("p", { class: "kart-etiket" }, "Durum"), h("p", { class: "buyuk-sayi" }, o.neden)),
     o.telefonlar.length > 0 && kart(h("h3", {}, o.veli ? `Ulaş · ${o.veli}` : "Ulaş"), o.telefonlar.map(([kim, tel]) => telefonSatiri(kim, tel))),
+    bilgiKarti(r),
     veri.yazabilir("okul") && islemDugmeleri({ duzenle: () => ed.ogrenciFormu(id, { detaydan: true }) }));
 }
 
@@ -381,11 +383,22 @@ export function ogrenciAc(id, ad) {
   detayAc(ad, async () => {
     const [liste, ham] = await Promise.all([veri.okul(), okulHam()]);
     const o = liste.find((x) => x.id === id);
-    return o ? detay(o, dn.oncekiDonemBorclari(ham.find((x) => x.id === id) || {}, sayiYaz)) : bosDurum("Öğrenci bulunamadı.");
+    return o ? detay(o, dn.oncekiDonemBorclari(ham.find((x) => x.id === id) || {}, sayiYaz), ham.find((x) => x.id === id) || {}) : bosDurum("Öğrenci bulunamadı.");
   });
 }
 
-function detay(o, oncekiBorclar = []) {
+// Öğrencinin kayıtlı bilgileri (düzenleme formu açılmadan): boş olanlar gösterilmez.
+function bilgiKarti(r) {
+  const satirlar = [
+    bilgiSatiri(me("okul_col_sinif"), r.sinif), bilgiSatiri(me("okul_col_tc"), r.tc_kimlik), bilgiSatiri(me("okul_col_veli_adi"), r.veli_adi),
+    bilgiSatiri(me("okul_col_servis"), r.servis_kullanmiyor ? mb("okul_servis_kullanmiyor_rozet") : String(r.servis_plaka || "").trim()),
+    sayi(r.liste_ucreti) > 0 ? bilgiSatiri("Liste ücreti", para(r.liste_ucreti)) : null,
+    bilgiSatiri(me("okul_col_adres"), String(r.adres || "").trim()), bilgiSatiri(me("okul_col_notlar"), String(r.notlar || "").trim()),
+  ].filter(Boolean);
+  return satirlar.length ? kart(h("h3", {}, "Bilgiler"), satirlar) : null;
+}
+
+function detay(o, oncekiBorclar = [], r = {}) {
   const yazabilir = veri.yazabilir("okul");
   const ucretYok = o.ucret <= 0;
   return h("div", { class: "sayfa" },
@@ -398,6 +411,7 @@ function detay(o, oncekiBorclar = []) {
       yazabilir && h("button", { class: "dugme birincil genis", onclick: () => odemePaneli(o) }, ikon("arti", 18), "Ödeme ekle")),
     oncekiBorclar.length > 0 && kart(h("p", { class: "donem-borc" }, oncekiBorclar.join(" · ")), h("p", { class: "ipucu" }, mb("okul_onceki_donem_borc_tt"))),
     o.telefonlar.length > 0 && kart(h("h3", {}, o.veli ? `Ulaş · ${o.veli}` : "Ulaş"), o.telefonlar.map(([kim, tel]) => telefonSatiri(kim, tel))),
+    bilgiKarti(r),
     ciktiDugmeleri({ dosya: "odeme_gecmisi", pdf: { ad: "Ödeme geçmişi PDF", yatay: false, altSol: "Ödeme Geçmişi Raporu", uret: (c) => ogrenciOdemePdf(c, o) } }),
     kart(h("h3", {}, mb("tah_panel_odeme_gecmisi")),
       o.odemeler.length
@@ -433,6 +447,7 @@ function yeniKimlik() {
 function odemePaneli(o) {
   const mobilId = yeniKimlik();   // bağlantı kopup yeniden denenirse sunucu aynı ödemeyi ikinci kez eklemez
   let yontem = "nakit";
+  let tur = o.kalan > 0 ? "kalan" : "serbest";   // kalan: tam ödeyen · iki: iki dönemi birden ödeyen (peşin) · serbest: elle tutar
   const tutar = h("input", { class: "girdi", type: "text", inputmode: "decimal", autocomplete: "off", value: o.kalan > 0 ? String(o.kalan).replace(".", ",") : "", "aria-label": "Tutar", oninput: etiketle });
   const tarih = h("input", { class: "girdi", type: "date", value: isoTarih(bugun()), max: isoTarih(bugun()), "aria-label": "Tarih", oninput: etiketle });
   const not = h("input", { class: "girdi", type: "text", maxlength: "120", placeholder: "Not (isteğe bağlı)", "aria-label": "Not" });
@@ -440,13 +455,28 @@ function odemePaneli(o) {
   const secici = ed.dekontSecici(false);
   const kaydet = h("button", { class: "dugme birincil genis", onclick: gonder }, "");
   const yontemAlani = h("div");
+  const turAlani = h("div");
+  const ipucu = h("p", { class: "ipucu", hidden: true });
 
+  function turCiz() {
+    const secenekler = [["serbest", "Tutar gir"]];
+    if (o.kalan > 0) secenekler.unshift(["kalan", "Kalanı öde"]);
+    if (o.ucret > 0) secenekler.push(["iki", "2 dönemi birden"]);
+    turAlani.replaceChildren(segment(secenekler, tur, (k) => {
+      tur = k;
+      if (k === "kalan") tutar.value = String(o.kalan).replace(".", ",");
+      else if (k === "iki") tutar.value = String(Math.round((o.kalan + o.ucret) * 100) / 100).replace(".", ",");
+      turCiz(); etiketle();
+    }));
+  }
   function yontemCiz() {
     yontemAlani.replaceChildren(segment(Object.entries(YONTEM), yontem, (k) => { yontem = k; yontemCiz(); }));
   }
   function etiketle() {
     const n = sayi(tutar.value);
     kaydet.textContent = n > 0 ? `${paraKesin(n)} kaydet` : "Kaydet";
+    ipucu.hidden = tur !== "iki" || !(n > 0);
+    if (!ipucu.hidden) ipucu.textContent = `Dönem ücreti ${para(Math.max(o.ucret, o.odenen + n))} olarak güncellenir. 2. dönem açılırken ödeme iki döneme otomatik bölünür.`;
   }
   async function gonder() {
     const n = sayi(tutar.value);
@@ -456,7 +486,7 @@ function odemePaneli(o) {
     kaydet.disabled = true;
     kaydet.textContent = "Kaydediliyor";
     try {
-      await veri.odemeEkle({ ogrenci: o.id, ad: o.ad, tutar: n, tarih: tarih.value, yontem, not: not.value, mobilId });
+      await veri.odemeEkle({ ogrenci: o.id, ad: o.ad, tutar: n, tarih: tarih.value, yontem, not: not.value, mobilId, pesin: tur === "iki" });
     } catch (e) {
       kaydet.disabled = false;
       etiketle();
@@ -485,12 +515,14 @@ function odemePaneli(o) {
   function hataYaz(m) { hata.textContent = m; hata.hidden = false; }
 
   const form = h("form", { class: "form", onsubmit: (e) => { e.preventDefault(); gonder(); } },
-    h("label", { class: "alan" }, h("span", {}, me("okul_tutar_lbl")), tutar),
+    o.ucret > 0 && h("div", { class: "alan" }, h("span", {}, "Ödeme türü"), turAlani),
+    h("label", { class: "alan" }, h("span", {}, me("okul_tutar_lbl")), tutar, ipucu),
     h("label", { class: "alan" }, h("span", {}, me("okul_odeme_tarih_lbl")), tarih),
     h("div", { class: "alan" }, h("span", {}, me("tah_yontem_lbl")), yontemAlani),
     h("label", { class: "alan" }, h("span", {}, mb("okul_gecmis_col_not")), not),
     secici.kok,
     hata, kaydet);
+  turCiz();
   yontemCiz();
   etiketle();
   const panel = panelAc(`Ödeme ekle · ${o.ad}`, form);

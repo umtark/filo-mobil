@@ -221,12 +221,18 @@ export function donemAc(ogrenciler, layout, kaynak, hedef, ikiDonem = {}, kimlik
 }
 
 // Dönem görünümüne bir ödeme ekler (tekrarlı gönderim mobil_id ile engellenir). Yeni eklendiyse true.
-export function odemeEkleGorunume(o, { id, tarih, tutar, yontem, not, mobilId, kisi }) {
+// pesin: iki dönem birden ödendi. Ödeme 'pesin' işaretlenir ve dönem ücreti, öğrenci tam ödenmiş görünecek biçimde iki dönemlik toplama yükseltilir
+// (masaüstünün "2. Dönemi de Ödeyenler" geçişi ücreti ve ödemeyi buna göre böler).
+export function odemeEkleGorunume(o, { id, tarih, tutar, yontem, not, mobilId, kisi, pesin = false }) {
   const gecmis = Array.isArray(o.odeme_gecmisi) ? o.odeme_gecmisi : [];
   if (mobilId && gecmis.some((g) => g.mobil_id === mobilId)) return false;
   const [y, a, g] = String(tarih).split("-");
   const ay = `${y}-${a}`;
-  o.odeme_gecmisi = [...gecmis, { id, ay, tarih: `${g}.${a}.${y}`, tutar: yuvarla2(Number(tutar)), not: String(not || "").trim() || "Mobil ödeme", yontem, mobil_id: mobilId || null, mobil_kullanici: kisi || "" }];
+  const yazi = String(not || "").trim();
+  const kayit = { id, ay, tarih: `${g}.${a}.${y}`, tutar: yuvarla2(Number(tutar)), not: pesin ? `İki dönem birden (peşin)${yazi ? " · " + yazi : ""}` : yazi || "Mobil ödeme", yontem, mobil_id: mobilId || null, mobil_kullanici: kisi || "" };
+  if (pesin) kayit.pesin = true;
+  o.odeme_gecmisi = [...gecmis, kayit];
+  if (pesin) o.aylik_odeme = Math.max(sayiya(o.aylik_odeme), yuvarla2(odemeler(o).reduce((t, x) => t + sayiya(x.tutar), 0)));
   odemeKayitlariTazele(o, [ay]);
   return true;
 }
