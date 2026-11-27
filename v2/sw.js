@@ -1,8 +1,8 @@
 // Uygulama kabuğunu çevrimdışı açar. Veri (Supabase) ve oturum istekleri ASLA önbelleğe alınmaz.
-const SURUM = "filo2-v71";
+const SURUM = "filo2-v72";
 const KABUK = [
   "./", "index.html", "stil.css", "manifest.webmanifest",
-  "js/uygulama.js", "js/bildirim.js", "js/xlsx_oku.js", "js/xls_oku.js", "js/surum.js", "js/donem.js", "js/konum.js", "js/harita.js", "js/personel.js", "js/zip.js", "js/ice_aktar.js", "js/api.js", "js/profil.js", "js/config.js", "js/veri.js", "js/hesap.js", "js/bicim.js", "js/ui.js", "js/dosya.js", "js/goruntuleyici.js", "js/kurulum.js", "js/ozet.js", "js/grafik.js", "js/firma_suz.js", "js/marka.js", "js/marka_normal.js", "js/kimlik.js", "js/metin.js", "js/menu.js", "js/lottie.js", "js/form.js", "js/duzenle.js", "js/rapor.js", "js/puantaj.js",
+  "js/uygulama.js", "js/bildirim.js", "js/xlsx_oku.js", "js/xls_oku.js", "js/surum.js", "js/donem.js", "js/konum.js", "js/harita.js", "js/personel.js", "js/bildirim_hedef.js", "js/zip.js", "js/ice_aktar.js", "js/api.js", "js/profil.js", "js/config.js", "js/veri.js", "js/hesap.js", "js/bicim.js", "js/ui.js", "js/dosya.js", "js/goruntuleyici.js", "js/kurulum.js", "js/ozet.js", "js/grafik.js", "js/firma_suz.js", "js/marka.js", "js/marka_normal.js", "js/kimlik.js", "js/metin.js", "js/menu.js", "js/lottie.js", "js/form.js", "js/duzenle.js", "js/rapor.js", "js/puantaj.js",
   "js/cikti.js", "js/cikti_pdf.js", "js/cikti_xlsx.js", "js/cikti_yardim.js", "js/cikti_muhasebe.js", "js/cikti_filo.js", "js/cikti_okul.js", "js/cikti_genel.js",
   "js/ekranlar/bugun.js", "js/ekranlar/okul.js", "js/ekranlar/muhasebe.js", "js/ekranlar/filo.js", "js/ekranlar/evrak.js", "js/ekranlar/hesap.js", "js/ekranlar/yonetim.js", "js/ekranlar/kullanicilar.js", "js/ekranlar/sofor.js", "js/ekranlar/basvuru.js", "js/ekranlar/durum.js",
   "yazi/Nunito-Regular.ttf", "yazi/Nunito-Bold.ttf", "yazi/manrope-latin.woff2", "yazi/manrope-latin-ext.woff2", "ikon/onay-animasyon.png", "ikon/goz-acik.png", "ikon/goz-kapali.png", "ikon/bakim-modu.png", "ikon/Bloke.png", "ikon-192.png", "ikon-512.png", "favicon-32.png", "apple-touch-icon.png",
@@ -31,7 +31,7 @@ self.addEventListener("push", (e) => {
   try { v = e.data ? e.data.json() : {}; } catch { v = { mesaj: e.data ? e.data.text() : "" }; }
   e.waitUntil(self.registration.showNotification(v.baslik || "Filo Muhasebe", {
     body: v.mesaj || "", tag: v.etiket || "filo", renotify: true, icon: "ikon-192.png", badge: "favicon-32.png",
-    vibrate: [200, 100, 200], silent: false, data: { hedef: hedefBul(v.etiket), kayit: v.hedef || "" },
+    vibrate: [200, 100, 200], silent: false, data: { hedef: hedefBul(v.etiket), kayit: v.hedef || "", mesaj: v.mesaj || "" },
   }));
 });
 
@@ -39,9 +39,11 @@ self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const hedef = (e.notification.data && e.notification.data.hedef) || "";
   const kayit = (e.notification.data && e.notification.data.kayit) || "";
+  const mesaj = (e.notification.data && e.notification.data.mesaj) || "";
   e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((l) => {
-    for (const c of l) if ("focus" in c) { c.postMessage({ tur: "git", hedef, kayit }); return c.focus(); }
-    return self.clients.openWindow("./" + (kayit ? "?k=" + encodeURIComponent(kayit) : "") + (hedef ? "#" + hedef : ""));
+    for (const c of l) if ("focus" in c) { c.postMessage({ tur: "git", hedef, kayit, mesaj }); return c.focus(); }
+    const sorgu = [kayit && "k=" + encodeURIComponent(kayit), !kayit && mesaj && "m=" + encodeURIComponent(mesaj)].filter(Boolean).join("&");
+    return self.clients.openWindow("./" + (sorgu ? "?" + sorgu : "") + (hedef ? "#" + hedef : ""));
   }));
 });
 

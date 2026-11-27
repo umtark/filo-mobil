@@ -9,7 +9,8 @@ export const trdenIso = (s) => { const d = tarihCoz(s); return d ? isoTarih(d) :
 export const isodanTr = (s) => { const d = tarihCoz(s); return d ? trTarih(d) : ""; };
 export const yuvarla = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
-export const ekleDugmesi = (etiket, tikla) => h("button", { class: "dugme birincil genis", type: "button", onclick: tikla }, ikon("arti", 18), etiket);
+// Yeni veri girişi düğmeleri her ekranda aynı: yeşil zemin, beyaz yazı.
+export const ekleDugmesi = (etiket, tikla) => h("button", { class: "dugme ekle genis", type: "button", onclick: tikla }, ikon("arti", 18), etiket);
 
 // Detay ekranının altındaki Düzenle / Sil düğmeleri; yazma yetkisi yoksa hiç gösterilmez.
 export function islemDugmeleri({ duzenle, sil }) {

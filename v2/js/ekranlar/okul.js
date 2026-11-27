@@ -375,7 +375,7 @@ function ogrenciSatiri(o, tahsilat = false) {
   return satir({
     baslik: o.ad, alt: [o.sinif, o.plaka, sonOdeme].filter(Boolean).join(" · "), ton: ucretYok ? "" : TON[o.durum],
     sag: ucretYok ? "Ücret yok" : o.durum === "odendi" ? mb("okul_odendi") : para(o.kalan), sagAlt: ucretYok ? (o.odenen ? `${para(o.odenen)} ödendi` : "") : `${para(o.odenen)} / ${para(o.ucret)}`,
-    onclick: () => ogrenciAc(o.id, o.ad),
+    onclick: () => ogrenciAc(o.id, o.ad), kayit: `okul_ogrenciler/${o.id}`,
   });
 }
 
@@ -414,7 +414,7 @@ function detay(o, oncekiBorclar = [], r = {}) {
       h("p", { class: "buyuk-sayi " + (ucretYok ? "" : TON[o.durum]) }, ucretYok ? "Ücret girilmemiş" : o.durum === "odendi" ? mb("okul_odendi") : para(o.kalan)),
       !ucretYok && h("div", { class: "havuz-ortala" }, havuz(o.odenen / o.ucret, { boyut: 144 })),
       h("div", { class: "bilgi-grid" }, bilgiSatiri(mb("tah_col_donem"), para(o.ucret)), bilgiSatiri(mb("tah_col_odenen"), para(o.odenen))),
-      yazabilir && h("button", { class: "dugme birincil genis", onclick: () => odemePaneli(o) }, ikon("arti", 18), "Ödeme ekle")),
+      yazabilir && h("button", { class: "dugme ekle genis", onclick: () => odemePaneli(o) }, ikon("arti", 18), "Ödeme ekle")),
     oncekiBorclar.length > 0 && kart(h("p", { class: "donem-borc" }, oncekiBorclar.join(" · ")), h("p", { class: "ipucu" }, mb("okul_onceki_donem_borc_tt"))),
     o.telefonlar.length > 0 && kart(h("h3", {}, o.veli ? `Ulaş · ${o.veli}` : "Ulaş"), o.telefonlar.map(([kim, tel]) => telefonSatiri(kim, tel))),
     bilgiKarti(r),

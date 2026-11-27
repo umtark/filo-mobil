@@ -92,6 +92,11 @@ body.detay-acik { overflow: hidden; }
 .dugme.genis { width: 100%; }
 .dugme.birincil { background: var(--yazi); color: var(--zemin); }   /* ana düğme: koyu temada kırık beyaz, açık temada mürekkep; vurgu rengi yalnızca seçimde */
 .dugme.ikincil { background: var(--yuzey2); border-color: var(--cizgi); }
+.dugme.ekle { background: #0f7a54; border-color: #0f7a54; color: #fff; }   /* yeni veri girişi: yeşil zemin, beyaz yazı (iki temada da yeterli karşıtlık) */
+/* Bildirimden gelinen kayıt: satır üç kez yeşilce yanıp söner */
+@keyframes vurgu-yan { 0%, 100% { background-color: transparent; } 50% { background-color: color-mix(in srgb, var(--yesil) 32%, transparent); } }
+.satir.vurgu { animation: vurgu-yan .9s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) { .satir.vurgu { animation: none; background-color: color-mix(in srgb, var(--yesil) 28%, transparent); } }
 .dugme.tehlike { background: none; border-color: var(--kirmizi); color: var(--kirmizi); }
 .dugme:disabled { opacity: .55; cursor: default; }
 .dugme.mesgul:disabled { opacity: 1; }

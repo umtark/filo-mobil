@@ -93,7 +93,7 @@ function aracSatiri(a) {
   return satir({
     baslik: a.plaka, alt: [a.firma, `${a.marka} ${a.model}`.trim()].filter(Boolean).join(" · "),
     sag: b && b.seviye !== "iyi" ? b.ad : "", sagAlt: b && b.seviye !== "iyi" ? kalanYaz(b.gun) : "", ton: b ? belgeTonu(b.seviye) : "",
-    onclick: () => aracAc(a.id, a.plaka),
+    onclick: () => aracAc(a.id, a.plaka), kayit: `araclar/${a.id}`,
   });
 }
 
@@ -111,7 +111,7 @@ export async function aracKayitAc(id) {
 }
 
 // Kart başlığı: sağda "Ekle" düğmesi (yazma yetkisi varsa).
-const kartBasligi = (ad, ekle) => h("div", { class: "kart-baslik" }, h("h3", {}, ad), ekle && h("button", { class: "dugme ikincil kucuk", type: "button", onclick: ekle }, ikon("arti", 16), "Ekle"));
+const kartBasligi = (ad, ekle) => h("div", { class: "kart-baslik" }, h("h3", {}, ad), ekle && h("button", { class: "dugme ekle kucuk", type: "button", onclick: ekle }, ikon("arti", 16), "Ekle"));
 
 // Her iki kart aynı listeyi kullanır: tek istek atılır; aynı araca kısa süre sonra dönülürse önbellekten anında gelir.
 const evrakOnbellek = new Map();
@@ -223,7 +223,7 @@ async function icHizmetEkrani() {
     const g = (aylar.get(d.ay) || []).filter((s) => !d.arama || eslesir(`${s.plaka} ${s.sofor} ${s.guzergah} ${s.yer} ${s.personel}`, d.arama));
     kap.querySelector("#ic-liste").replaceChildren(g.length ? sayfalamali(g, (s) => satir({
       baslik: [s.plaka, s.guzergah].filter(Boolean).join(" · "), alt: [`${tarihKisa(s.tarih)} ${s.saat}`.trim(), s.yer].filter(Boolean).join(" · "),
-      sag: para(s.tutar), sagAlt: s.kisi ? `${s.kisi} kişi` : "", onclick: () => detayAc(s.plaka || "Sefer", () => seferDetay(s.id)),
+      sag: para(s.tutar), sagAlt: s.kisi ? `${s.kisi} kişi` : "", onclick: () => detayAc(s.plaka || "Sefer", () => seferDetay(s.id)), kayit: `ic_hizmetler/${s.id}`,
     })) : bosDurum("Sefer bulunamadı."));
   }
   guncelle();

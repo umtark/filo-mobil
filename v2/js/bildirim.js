@@ -184,7 +184,7 @@ async function listePaneli() {
         ? kart(l.map((b) => {
           const hedef = bildirimHedefi(b.kategori);
           return satir({ baslik: b.kullanici_ad || "Kullanıcı", alt: b.kategori ? `${b.kategori}: ${b.mesaj}` : b.mesaj, sag: zamanMetni(b.olusturma), ton: yeniMi(b) ? "yesil" : "",
-            onclick: hedef ? () => { panel.kapat(); git(hedef, b.hedef); } : undefined });
+            onclick: hedef ? () => { panel.kapat(); git(hedef, b.hedef, b.mesaj); } : undefined });
         }))
         : bosDurum("Bildirim yok"));
     rozetYaz(0);

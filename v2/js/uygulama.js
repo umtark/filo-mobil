@@ -4,7 +4,8 @@ import * as veri from "./veri.js";
 import { marka, markaDinle, markaOnbellektenYukle, sirketBaslangici, sirketBilgisiYukle, sirketKaydet } from "./marka.js";
 import { sirketKodunuNormalle } from "./kimlik.js";
 import { VARSAYILAN_MARKA } from "./marka_normal.js";
-import { h, ikon, toast, panelAc, yukleniyor, hataGoster, kokYenileyiciAyarla, tumDetaylariKapat, detayYenile, sayfalamaHatirla, sayfalamaBirak, uyariKutusu, animOnay, parolaAlani, cipler, telif } from "./ui.js";
+import { h, ikon, toast, panelAc, yukleniyor, hataGoster, kokYenileyiciAyarla, tumDetaylariKapat, detayYenile, sayfalamaHatirla, sayfalamaBirak, uyariKutusu, animOnay, parolaAlani, cipler, telif, kayitiVurgula } from "./ui.js";
+import { mesajdanKayitlar } from "./bildirim_hedef.js";
 import * as bugun from "./ekranlar/bugun.js";
 import * as okul from "./ekranlar/okul.js";
 import * as muhasebe from "./ekranlar/muhasebe.js";
@@ -431,11 +432,15 @@ window.addEventListener("online", yetkiIzle);
 
 // Uygulama kapalıyken bildirime dokunulduysa adreste ?k=tablo/kimlik bulunur: kabuk kurulunca o kayıt açılır.
 function acilisKaydi() {
-  const k = new URLSearchParams(location.search).get("k");
-  if (!k) return;
-  const temiz = new URLSearchParams(location.search); temiz.delete("k");
-  history.replaceState(null, "", location.pathname + (temiz.toString() ? "?" + temiz : "") + location.hash);
-  setTimeout(() => kayitAc(k), 400);
+  const q = new URLSearchParams(location.search), k = q.get("k"), m = q.get("m");
+  if (!k && !m) return;
+  q.delete("k"); q.delete("m");
+  history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);
+  const modul = location.hash.slice(1).split("/")[0] || "";
+  setTimeout(async () => {
+    const hedefler = k ? [k] : await mesajdanHedefler(modul, m);
+    if (hedefler.length && !(await kayitiVurgula(hedefler))) await kayitAc(hedefler[0]);
+  }, 400);
 }
 
 // Bildirime dokununca (zil listesi ya da sistem bildirimi): ilgili modül açılır, bildirim bir kayda aitse (tablo/kimlik) o kaydın detayı da açılır;
@@ -446,15 +451,26 @@ async function kayitAc(hedef) {
   const ac = KAYIT_ACICI[tablo];
   if (ac && kimlik) await ac(kimlik).catch(() => {});
 }
-async function bildirimdenGit(id, kayit = "") {
+// Masaüstü bildirimleri kayıt kimliği taşımaz: ilgili kayıt bildirim metninden bulunur (bildirim_hedef.js).
+const MODUL_TABLO = { okul: "okul_ogrenciler", arac: "araclar", esnaf: "esnaflar", fatura: "faturalar", ic_hizmet: "ic_hizmetler", sirket_evrak: "sirket_evraklari" };
+async function mesajdanHedefler(modul, mesaj) {
+  const tablo = MODUL_TABLO[modul];
+  if (!tablo || !mesaj) return [];
+  try { return mesajdanKayitlar(tablo, mesaj, await veri.hamListe(tablo)).map((k) => `${tablo}/${k}`); } catch { return []; }
+}
+// Modül açılır, ilgili kayıt listede bulunup yeşilce yanıp söner; listede görünmüyorsa (süzgeç, başka ay, arşiv) kaydın detayı açılır.
+async function bildirimdenGit(id, kayit = "", mesaj = "") {
   if (!(kabukAcik && id && gorunenSekmeler.some((s) => s.id === id))) return;
   await sekmeyeGit(id);
-  await kayitAc(kayit);
+  const hedefler = kayit ? [kayit] : await mesajdanHedefler(id, mesaj);
+  if (!hedefler.length) return;
+  if (await kayitiVurgula(hedefler)) return;
+  await kayitAc(hedefler[0]);
 }
 bildirimGitAyarla(bildirimdenGit);
 
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
-  navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.tur === "git") bildirimdenGit(e.data.hedef, e.data.kayit); });
+  navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.tur === "git") bildirimdenGit(e.data.hedef, e.data.kayit, e.data.mesaj); });
   const onceden = Boolean(navigator.serviceWorker.controller);
   let yenilendi = false;
   // Yeni sürüm devreye girince açık kalmış sayfa eski kodla çalışmasın: uygulama arka plandaysa hemen, öndeyse bir sonraki öne gelişinde yenilenir.

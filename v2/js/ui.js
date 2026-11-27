@@ -211,13 +211,32 @@ export function kartBasligi(ad, meta = null) {
   return h("header", { class: "kart-ust" }, h("h3", {}, ad), meta && (meta instanceof Node ? meta : h("span", { class: "kart-meta" }, meta)));
 }
 
-export function satir({ baslik, alt, sag, sagAlt, ton = "", onclick }) {
+// kayit: "tablo/kimlik" (isteğe bağlı); bildirimden gelinince satır bulunup yanıp sönmesi için (kayitiVurgula).
+export function satir({ baslik, alt, sag, sagAlt, ton = "", onclick, kayit }) {
   const govde = [
     h("span", { class: "satir-metin" }, h("span", { class: "satir-baslik" }, baslik), alt && h("span", { class: "satir-alt" }, alt)),
     (sag || sagAlt) && h("span", { class: "satir-sag " + ton }, sag && h("span", { class: "satir-tutar" }, sag), sagAlt && h("span", { class: "satir-alt" }, sagAlt)),
     onclick && h("span", { class: "satir-ok" }, ikon("sag", 18)),
   ];
-  return onclick ? h("button", { class: "satir", onclick }, govde) : h("div", { class: "satir" }, govde);
+  return onclick ? h("button", { class: "satir", onclick, "data-kayit": kayit }, govde) : h("div", { class: "satir", "data-kayit": kayit }, govde);
+}
+
+// Listede "tablo/kimlik" satırlarını bulur, ilkine kaydırır ve yanıp söndürür. Listeler "Daha fazla göster" ile sayfalıysa satır görünene kadar açılır;
+// ekran henüz çizilmediyse kısa süre beklenir. Hiçbiri bulunamazsa (süzgeç, başka ay...) false döner.
+export async function kayitiVurgula(hedefler, bekleMs = 3000) {
+  const liste = [...new Set(hedefler)].filter(Boolean);
+  const bul = () => liste.map((k) => document.querySelector(`#icerik [data-kayit="${CSS.escape(k)}"]`)).filter(Boolean);
+  const baslangic = Date.now();
+  let bulunan = bul();
+  while (!bulunan.length && Date.now() - baslangic < bekleMs) {
+    const daha = [...document.querySelectorAll("#icerik .liste > button.dugme")].find((b) => !b.hidden && /^Daha fazla göster/.test(b.textContent));
+    if (daha) daha.click(); else await new Promise((r) => setTimeout(r, 120));
+    bulunan = bul();
+  }
+  if (!bulunan.length) return false;
+  bulunan[0].scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  for (const el of bulunan) { el.classList.remove("vurgu"); void el.offsetWidth; el.classList.add("vurgu"); setTimeout(() => el.classList.remove("vurgu"), 3200); }
+  return true;
 }
 
 export function bilgiSatiri(etiket, deger, ton = "") {

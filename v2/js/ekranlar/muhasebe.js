@@ -68,7 +68,7 @@ async function faturaOzeti() {
 function faturaSatiri(f) {
   return satir({
     baslik: f.firma || mb("firma_hdr"), alt: [tarihYaz(f.tarih), f.no].filter(Boolean).join(" · "),
-    sag: para(f.toplam), sagAlt: f.giden ? mb("tip_giden") : mb("tip_gelen"), ton: f.giden ? "yesil" : "", onclick: () => detayAc(f.firma || "Fatura", () => faturaDetay(f.id)),
+    sag: para(f.toplam), sagAlt: f.giden ? mb("tip_giden") : mb("tip_gelen"), ton: f.giden ? "yesil" : "", onclick: () => detayAc(f.firma || "Fatura", () => faturaDetay(f.id)), kayit: `faturalar/${f.id}`,
   });
 }
 
@@ -115,7 +115,7 @@ async function esnafEkrani() {
 
 function esnafSatiri(e) {
   const borcVar = e.bakiye > 0.01;
-  return satir({ baslik: e.isim, alt: `${e.islemler.length} işlem`, sag: borcVar ? para(e.bakiye) : mb("cari_status_settled"), ton: borcVar ? "kirmizi" : "yesil", onclick: () => detayAc(e.isim, () => esnafDetay(e.id)) });
+  return satir({ baslik: e.isim, alt: `${e.islemler.length} işlem`, sag: borcVar ? para(e.bakiye) : mb("cari_status_settled"), ton: borcVar ? "kirmizi" : "yesil", onclick: () => detayAc(e.isim, () => esnafDetay(e.id)), kayit: `esnaflar/${e.id}` });
 }
 
 export async function esnafKayitAc(id) {

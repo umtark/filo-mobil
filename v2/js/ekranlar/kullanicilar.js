@@ -2,7 +2,7 @@
 // Yetki sunucuda zorlanır (uye_kaydet / uye_sil); bu ekran yalnızca sahip ve yöneticiye gösterilir.
 import * as api from "../api.js";
 import * as veri from "../veri.js";
-import { h, kart, satir, bosDurum, panelAc, toast, animOnay, parolaAlani, segment, detayAc } from "../ui.js";
+import { h, ikon, kart, satir, bosDurum, panelAc, toast, animOnay, parolaAlani, segment, detayAc } from "../ui.js";
 import { soforHaritasi, tumSoforHaritasi } from "../harita.js";
 import * as personel from "../personel.js";
 import { baslik, duz } from "../metin.js";
@@ -216,7 +216,7 @@ export async function ciz() {
     return (u.salt_okunur ? `${izin} · yalnızca görüntüleme` : izin) + (u.bildirim_al ? " · bildirim açık" : "");
   };
   kap.append(...[
-    kart(h("button", { class: "dugme birincil genis", onclick: () => formPaneli(null, yenile) }, duz("kullanici_ekle"))),
+    kart(h("button", { class: "dugme ekle genis", onclick: () => formPaneli(null, yenile) }, ikon("arti", 18), duz("kullanici_ekle"))),
     liste.some((u) => u.sofor) && kart(h("button", { class: "dugme ikincil genis", onclick: () => detayAc("Şoför konumları", () => tumSoforHaritasi()) }, "Şoförleri haritada gör")),
     nabizVar && kart(h("p", { class: "kart-etiket" }, "Çevrimiçi"), h("p", { class: "buyuk-sayi yesil" }, `${liste.filter(cevrimiciMi).length} / ${liste.length}`),
       h("p", { class: "soluk" }, `Masaüstü ${liste.filter(masaustuAcik).length} · Mobil ${liste.filter(mobilAcik).length}`)),

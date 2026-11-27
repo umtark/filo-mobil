@@ -70,7 +70,7 @@ function evrakSatiri(r) {
   return satir({
     baslik: r.baslik || r.dosya_adi, alt: [r.firma, r.kategori, r.yil, bekliyor(r) && "Aktarım bekliyor"].filter(Boolean).join(" · "),
     sag: r.gecerlilikTarihi ? kalanMetni(r.gun) : "", sagAlt: r.gecerlilikTarihi ? tarihYaz(r.gecerlilikTarihi) : "", ton: ton(r.gun),
-    onclick: () => detayAc(r.baslik || r.dosya_adi, () => evrakDetay(r.id)),
+    onclick: () => detayAc(r.baslik || r.dosya_adi, () => evrakDetay(r.id)), kayit: `sirket_evraklari/${r.id}`,
   });
 }
 
