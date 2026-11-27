@@ -375,7 +375,7 @@ async function sekmeCiz(id, kaydirmayiKoru = false) {
 }
 
 // ── Canlı veri ──────────────────────────────────────────────────────────────
-// Masaüstünde ya da başka telefonda yapılan değişiklik, bu ekran açıkken 10 saniye içinde görünür (yetkiIzle her 10 saniyede çalışır).
+// Masaüstünde ya da başka telefonda yapılan değişiklik, bu ekran açıkken en geç yaklaşık 30 saniyede görünür (yetkiIzle).
 // Form/panel açıksa yazılanlar bozulmasın diye yenileme panel kapanana kadar bekler.
 let yenilemeBekliyor = false;
 async function canliTazele() {
@@ -390,8 +390,12 @@ async function canliTazele() {
 // ── Yetki izleme ────────────────────────────────────────────────────────────
 // Yönetici yetkiyi değiştirince ya da hesabı kaldırınca açık oturum yeniden giriş beklemeden güncellenir.
 let yetkiKontrolSuruyor = false;
-async function yetkiIzle() {
+let sonYetkiKontrolu = 0;
+const YETKI_ARALIGI = 30000;   // tam kontrol (yetki, lisans, değişen tablolar) en sık 30 sn'de bir; 10 sn'lik zamanlayıcı yalnızca engelli ekranı açık tutar
+async function yetkiIzle(zorla = false) {
   if ((!kabukAcik && !durumAcik) || yetkiKontrolSuruyor || document.hidden) return;
+  if (!durumAcik && zorla !== true && Date.now() - sonYetkiKontrolu < YETKI_ARALIGI - 1000) return;
+  sonYetkiKontrolu = Date.now();
   yetkiKontrolSuruyor = true;
   try {
     if (durumAcik) {   // bloke kalkınca, bakım bitince ya da yönetici izin verince ekran kendiliğinden açılır
@@ -426,9 +430,9 @@ async function yetkiIzle() {
   } finally { yetkiKontrolSuruyor = false; }
 }
 setInterval(yetkiIzle, 10000);
-document.addEventListener("visibilitychange", yetkiIzle);
-window.addEventListener("focus", yetkiIzle);
-window.addEventListener("online", yetkiIzle);
+document.addEventListener("visibilitychange", () => yetkiIzle(true));
+window.addEventListener("focus", () => yetkiIzle(true));
+window.addEventListener("online", () => yetkiIzle(true));
 
 // Uygulama kapalıyken bildirime dokunulduysa adreste ?k=tablo/kimlik bulunur: kabuk kurulunca o kayıt açılır.
 function acilisKaydi() {
