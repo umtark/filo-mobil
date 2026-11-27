@@ -165,7 +165,8 @@ export async function aracKayitFormu(aracId, tur, kayitId, { detaydan = false } 
       { ad: "km", etiket: me("hr_km2"), uzunluk: 12 },
       { yan: [{ ad: "yag_cinsi", etiket: me("yag_cinsi_lbl"), liste: ["5/30", "10/40", "15/40"] }, { ad: "yag_lt", etiket: me("yag_lt_lbl") }] },
       { yan: [{ ad: "yag_filtresi", etiket: me("yag_filtresi_lbl"), liste: ["DEĞİŞTİ"] }, { ad: "mazot_filtresi", etiket: me("mazot_filtresi_lbl"), liste: ["DEĞİŞTİ"] }] },
-      { yan: [{ ad: "hava_filtresi", etiket: me("hava_filtresi_lbl"), liste: ["DEĞİŞTİ"] }, { ad: "hava_kompresoru", etiket: me("hava_kompresoru_lbl"), liste: ["DEĞİŞTİ"] }] },
+      { yan: [{ ad: "hava_filtresi", etiket: me("hava_filtresi_lbl"), liste: ["DEĞİŞTİ"] }, { ad: "hava_sase_filtresi", etiket: me("hava_sase_filtresi_lbl"), liste: ["DEĞİŞTİ"] }] },
+      { ad: "hava_kompresoru", etiket: me("hava_kompresoru_lbl"), liste: ["DEĞİŞTİ"] },
       { yan: [{ ad: "usta", etiket: me("usta_lbl") }, { ad: "yaptiran", etiket: mb("isi_yaptiran") }] },
       { ad: "notlar", etiket: "Not", tur: "uzun" },
     ] : [
@@ -184,7 +185,7 @@ export async function aracKayitFormu(aracId, tur, kayitId, { detaydan = false } 
         let kayit;
         if (tur === "yag") {
           kayit = { usta: g.usta, notlar: g.notlar, yag_lt: g.yag_lt, tarih_km: g.km ? `${g.tarih} / ${g.km}` : g.tarih, yaptiran: g.yaptiran, yag_cinsi: g.yag_cinsi,
-            yag_filtresi: g.yag_filtresi, hava_filtresi: g.hava_filtresi, mazot_filtresi: g.mazot_filtresi, hava_kompresoru: g.hava_kompresoru };
+            yag_filtresi: g.yag_filtresi, hava_filtresi: g.hava_filtresi, hava_sase_filtresi: g.hava_sase_filtresi, mazot_filtresi: g.mazot_filtresi, hava_kompresoru: g.hava_kompresoru };
         } else if (tur === "bakim") kayit = { tarih: g.tarih, tutar: g.tutar, iscilik: g.iscilik, aciklama: g.aciklama };
         else kayit = { tarih: g.tarih, tutar: g.tutar, aciklama: g.aciklama };
         const i = eski ? liste.findIndex((x) => x.id === kayitId) : -1;

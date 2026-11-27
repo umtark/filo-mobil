@@ -56,9 +56,9 @@ function bakimSayfasi(l) {
   const hucre = (v, ek = {}) => ({ v, kenar: true, ...ek });
   const para = { fmt: "para", hiza: "sag" };
   if (yag.length) {
-    bolum("YAĞ BAKIMI KAYITLARI", ["Plaka", "Tarih/KM", "Yağ Cinsi", "Yağ Lt", "Hava Komp.", "Yağ Filtre", "Mazot Filtre", "Hava Filtre", "Usta", "Yaptıran", "Notlar"]);
+    bolum("YAĞ BAKIMI KAYITLARI", ["Plaka", "Tarih/KM", "Yağ Cinsi", "Yağ Lt", "Hava Komp.", "Yağ Filtre", "Mazot Filtre", "Hava Filtre", "Hava Şase Filtre", "Usta", "Yaptıran", "Notlar"]);
     for (const { a, k } of yag) {
-      [a.plaka, k.tarih_km, k.yag_cinsi, k.yag_lt, k.hava_kompresoru, k.yag_filtresi, k.mazot_filtresi, k.hava_filtresi, k.usta, k.yaptiran, k.notlar].forEach((v, i) => m.koy(r, i + 1, hucre(dolu(v))));
+      [a.plaka, k.tarih_km, k.yag_cinsi, k.yag_lt, k.hava_kompresoru, k.yag_filtresi, k.mazot_filtresi, k.hava_filtresi, k.hava_sase_filtresi, k.usta, k.yaptiran, k.notlar].forEach((v, i) => m.koy(r, i + 1, hucre(dolu(v))));
       r++;
     }
     r++;
@@ -111,8 +111,8 @@ export function aracPdf(ctx, araclar) {
       if (yag.length) {
         b.baslik(`${a.plaka} — Yağ Bakımı Kayıtları`);
         b.tablo({
-          boyut: 8, sutunlar: [["Tarih/KM", 28], ["Yağ Cinsi", 30], ["Yağ Lt", 18], ["Hava Komp.", 22], ["Yağ Filtre", 20], ["Mazot Filtre", 22], ["Hava Filtre", 20], ["Usta", 28], ["Yaptıran", 28], ["Notlar", 53]].map(([x, w]) => ({ b: x, g: w })),
-          satirlar: yag.map((k) => [k.tarih_km, k.yag_cinsi, k.yag_lt, k.hava_kompresoru, k.yag_filtresi, k.mazot_filtresi, k.hava_filtresi, k.usta, k.yaptiran, k.notlar].map(dolu)),
+          boyut: 8, sutunlar: [["Tarih/KM", 28], ["Yağ Cinsi", 30], ["Yağ Lt", 18], ["Hava Komp.", 22], ["Yağ Filtre", 20], ["Mazot Filtre", 22], ["Hava Filtre", 20], ["Hava Şase Filtre", 22], ["Usta", 28], ["Yaptıran", 28], ["Notlar", 45]].map(([x, w]) => ({ b: x, g: w })),
+          satirlar: yag.map((k) => [k.tarih_km, k.yag_cinsi, k.yag_lt, k.hava_kompresoru, k.yag_filtresi, k.mazot_filtresi, k.hava_filtresi, k.hava_sase_filtresi, k.usta, k.yaptiran, k.notlar].map(dolu)),
         });
       }
       if (bakim.length) {

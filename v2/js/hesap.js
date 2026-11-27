@@ -155,7 +155,7 @@ export function aracKaydi(a, periyot) {
   const yagKayitlari = (a.yakit_kayitlari || []).map((b) => {
     const [tarihMetni, ...km] = String(b.tarih_km || "").split("/");
     return { id: b.id, tur: baslik("tab_yakt_kaytlar"), tarihKm: String(b.tarih_km || ""), tarih: tarihCoz(tarihMetni.trim().split(/\s+/)[0]), km: km.join("/").trim(), yag: b.yag_cinsi || "", litre: b.yag_lt || "", usta: b.usta || "", yaptiran: b.yaptiran || "", not: b.notlar || "",
-      degisenler: [[baslik("hava_kompresoru_hdr"), b.hava_kompresoru], [baslik("yag_filtre"), b.yag_filtresi], [baslik("mazot_filtre"), b.mazot_filtresi], [baslik("hava_filtre"), b.hava_filtresi]].filter(([, d]) => String(d || "").trim()).map(([ad, d]) => `${ad}: ${d}`) };
+      degisenler: [[baslik("hava_kompresoru_hdr"), b.hava_kompresoru], [baslik("yag_filtre"), b.yag_filtresi], [baslik("mazot_filtre"), b.mazot_filtresi], [baslik("hava_filtre"), b.hava_filtresi], [baslik("hava_sase_filtre"), b.hava_sase_filtresi]].filter(([, d]) => String(d || "").trim()).map(([ad, d]) => `${ad}: ${d}`) };
   }).sort(yeniden);
   const kayitlar = [...bakimKayitlari, ...harcamaKayitlari].sort(yeniden);
   return {
