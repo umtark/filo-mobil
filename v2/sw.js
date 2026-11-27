@@ -1,5 +1,5 @@
 // Uygulama kabuğunu çevrimdışı açar. Veri (Supabase) ve oturum istekleri ASLA önbelleğe alınmaz.
-const SURUM = "filo2-v76";
+const SURUM = "filo2-v77";
 const KABUK = [
   "./", "index.html", "stil.css", "manifest.webmanifest",
   "js/uygulama.js", "js/bildirim.js", "js/xlsx_oku.js", "js/xls_oku.js", "js/surum.js", "js/donem.js", "js/konum.js", "js/harita.js", "js/personel.js", "js/bildirim_hedef.js", "js/zip.js", "js/sure.js", "js/kalici_depo.js", "js/ice_aktar.js", "js/api.js", "js/profil.js", "js/config.js", "js/veri.js", "js/hesap.js", "js/bicim.js", "js/ui.js", "js/dosya.js", "js/goruntuleyici.js", "js/kurulum.js", "js/ozet.js", "js/grafik.js", "js/firma_suz.js", "js/marka.js", "js/marka_normal.js", "js/kimlik.js", "js/metin.js", "js/menu.js", "js/lottie.js", "js/form.js", "js/duzenle.js", "js/rapor.js", "js/puantaj.js",

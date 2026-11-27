@@ -303,6 +303,15 @@ function secimAlani(etiket, secenekler, deger, degisti) {
 }
 const tekil = (liste) => [...new Set(liste.filter(Boolean))].sort(sirala);
 
+// Öğrenciler listesinin sıralaması: varsayılan ada göre; "sıra no" masaüstündeki kayıt sırasıdır.
+const OGRENCI_SIRALARI = {
+  ad: (a, b) => sirala(a.ad, b.ad),
+  sira: (a, b) => a.sira - b.sira || sirala(a.ad, b.ad),
+  sinif: (a, b) => sirala(a.sinif, b.sinif) || sirala(a.ad, b.ad),
+  borc: (a, b) => b.kalan - a.kalan || sirala(a.ad, b.ad),
+};
+const OGRENCI_SIRA_SECENEKLERI = [["ad", "Ada göre (A-Z)"], ["sira", "Sıra no"], ["sinif", "Sınıfa göre"], ["borc", "Kalan borç (çoktan aza)"]];
+
 // Masaüstündeki "Ödeme Yöntemi" filtresi: yöntem, birden fazla yöntem (pozitif tutarlı ödemelerde 2+ farklı yöntem) ve 2. dönemi peşin ödeyenler (donem.js: pesinIdleri).
 const yontemUyar = (o, y, pesin = new Set()) => !y || (y === "coklu" ? new Set(o.odemeler.filter((x) => x.tutar > 0).map((x) => x.yontem)).size > 1
   : y === "pesin" ? pesin.has(o.id) : o.odemeler.some((x) => x.yontem === y));
@@ -321,6 +330,7 @@ async function ogrencilerEkrani(tahsilat) {
   durum.ogrSinif = gecerli(sinifSecenekleri, durum.ogrSinif || "");
   const servisKutusu = secimAlani(mb(tahsilat ? "tah_servis_lbl" : "okul_servis_label"), servisSecenekleri, durum[servisAnahtar], (v) => { durum[servisAnahtar] = v; guncelle(); });
   const sinifKutusu = !tahsilat && secimAlani(me("okul_sinif_label"), sinifSecenekleri, durum.ogrSinif, (v) => { durum.ogrSinif = v; guncelle(); });
+  const siraKutusu = !tahsilat && secimAlani("Sıralama", OGRENCI_SIRA_SECENEKLERI, durum.ogrSira || "ad", (v) => { durum.ogrSira = v; guncelle(); });
   const yontemKutusu = tahsilat && secimAlani(mb("tah_yontem_lbl"), [["", mb("tah_yontem_hepsi")], ["nakit", mb("tah_yontem_nakit")], ["iban", mb("tah_yontem_iban")], ["kart", mb("tah_yontem_kart")], ["coklu", mb("tah_yontem_coklu")], ["pesin", mb("tah_yontem_pesin")]],
     durum.yontem, (v) => { durum.yontem = v; yontemKartlariniEsitle(); guncelle(); });
   let yontemKartlari = null;
@@ -337,6 +347,7 @@ async function ogrencilerEkrani(tahsilat) {
       durum.filtre, (k) => { durum.filtre = k; guncelle(); }));
     const g = temel.filter((o) => durum.filtre === "hepsi" || o.durum === durum.filtre);
     if (tahsilat) g.sort(tahsilatSirasi);
+    else g.sort(OGRENCI_SIRALARI[durum.ogrSira] || OGRENCI_SIRALARI.ad);
     sonuc.replaceChildren(g.length ? sayfalamali(g, (o) => ogrenciSatiri(o, tahsilat)) : bosDurum("Bu filtreyle eşleşen öğrenci yok."));
   }
 
@@ -363,7 +374,7 @@ async function ogrencilerEkrani(tahsilat) {
   const arama = aramaKutusu(durum.arama, (v) => { durum.arama = v; guncelle(); }, mb("okul_arama_placeholder"));
   const yeni = !tahsilat && veri.yazabilir("okul") && ekleDugmesi(duz("okul_yeni_ogrenci"), () => ed.ogrenciFormu(null));
   if (!tahsilat) return h("div", { class: "sayfa" }, yeni, ciktiDugmeleri({ dosya: "ogrenci_listesi", xlsx: { uret: async (c) => ogrenciListesiXlsx(c, await okulHam()) } }), arama,
-    h("div", { class: "iki-sutun" }, sinifKutusu.kok, servisKutusu.kok), cipAlani, sonuc);
+    h("div", { class: "iki-sutun" }, sinifKutusu.kok, servisKutusu.kok), siraKutusu.kok, cipAlani, sonuc);
   const aktar = tahsilatCiktilari(liste);
   return h("div", { class: "sayfa" }, ozet, yontemKartlari, aktar, h("p", { class: "ipucu" }, duz("tah_kpi_not_tekil")), arama,
     h("div", { class: "iki-sutun" }, servisKutusu.kok, yontemKutusu.kok), cipAlani, sonuc);
