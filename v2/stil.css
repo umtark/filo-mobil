@@ -223,6 +223,10 @@ body.detay-acik { overflow: hidden; }
 }
 .cip.secili { background: var(--yuzey2); border-color: color-mix(in srgb, var(--yazi) 34%, transparent); color: var(--yazi); font-weight: 600; }
 .cip-adet { font-size: 12px; opacity: .75; font-variant-numeric: tabular-nums; }
+/* Çok seçimli süzgeç (Evrak gönderimi): çipler alt satıra sarılır, kaydırma yok */
+.cipler.cipler-sar { flex-wrap: wrap; overflow: visible; margin: 0; padding: 2px 0; mask-image: none; -webkit-mask-image: none; }
+.cipler-sar .cip { min-height: 40px; padding: 0 14px; }
+.satir.secili-satir { background: var(--yuzey2); box-shadow: inset 3px 0 0 var(--yesil); }
 .segment { display: flex; padding: 4px; gap: 4px; border-radius: 14px; background: var(--yuzey2); }
 .segment-dugme { flex: 1; min-height: 44px; border: 0; border-radius: 10px; background: none; color: var(--soluk); font-weight: 600; }
 .segment-dugme.secili { background: var(--yuzey); color: var(--yazi); box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
