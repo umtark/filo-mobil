@@ -72,6 +72,13 @@ function faturaSatiri(f) {
   });
 }
 
+// Bildirimden: faturayı doğrudan açar (kayıt silinmişse false).
+export async function faturaKayitAc(id) {
+  const f = (await veri.faturalar()).find((x) => x.id === id);
+  if (f) detayAc(f.firma || "Fatura", () => faturaDetay(id));
+  return Boolean(f);
+}
+
 async function faturaDetay(id) {
   const f = (await veri.faturalar()).find((x) => x.id === id);
   if (!f) return bosDurum("Fatura bulunamadı.");
@@ -109,6 +116,12 @@ async function esnafEkrani() {
 function esnafSatiri(e) {
   const borcVar = e.bakiye > 0.01;
   return satir({ baslik: e.isim, alt: `${e.islemler.length} işlem`, sag: borcVar ? para(e.bakiye) : mb("cari_status_settled"), ton: borcVar ? "kirmizi" : "yesil", onclick: () => detayAc(e.isim, () => esnafDetay(e.id)) });
+}
+
+export async function esnafKayitAc(id) {
+  const e = (await veri.esnaflar()).find((x) => x.id === id);
+  if (e) detayAc(e.isim, () => esnafDetay(id));
+  return Boolean(e);
 }
 
 async function esnafDetay(id) {

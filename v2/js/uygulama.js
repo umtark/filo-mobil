@@ -197,6 +197,7 @@ function kabuk() {
   kabukAcik = true;
   durumAcik = false;
   konum.surdur();   // şoför: mesai açıkken uygulama yenilenmişse paylaşım kaldığı yerden sürer
+  acilisKaydi();
   if (yoneticiMi()) kullanicilar.cevrimiciYukle();   // menüdeki çevrimiçi listesi, menü açılmadan önce hazırlanır
   const sekmeler = SEKMELER.filter((s) => s.goster());
   gorunenSekmeler = sekmeler;
@@ -232,7 +233,8 @@ function cekmeceAc() {
   if (cekmece) return cekmeceKapat();
   const kullanici = api.kullanici();
   const ad = profil.gorunenAd();
-  const rol = { sahip: "Sahip", yonetici: "Yönetici", kullanici: "Kullanıcı" }[veri.baglam.uye && veri.baglam.uye.rol] || "";
+  const u = veri.baglam.uye;
+  const rol = (u && u.sofor ? "Şoför" : u && u.unvan === "muhasebeci" ? "Muhasebeci" : { sahip: "Üst Yönetici", yonetici: "Yönetici", kullanici: "Kullanıcı" }[u && u.rol]) || "";
   const acik = new Set();   // alt başlıklar yalnızca oka dokununca açılır; menü her seferinde kapalı gelir
   const liste = h("nav", { class: "cekmece-liste", "aria-label": "Ana bölümler" });
 
@@ -427,14 +429,32 @@ document.addEventListener("visibilitychange", yetkiIzle);
 window.addEventListener("focus", yetkiIzle);
 window.addEventListener("online", yetkiIzle);
 
-// Bildirim (zil listesi ya da sistem bildirimine dokunma) ilgili ekrana götürür.
-function bildirimdenGit(id) {
-  if (kabukAcik && id && gorunenSekmeler.some((s) => s.id === id)) sekmeyeGit(id);
+// Uygulama kapalıyken bildirime dokunulduysa adreste ?k=tablo/kimlik bulunur: kabuk kurulunca o kayıt açılır.
+function acilisKaydi() {
+  const k = new URLSearchParams(location.search).get("k");
+  if (!k) return;
+  const temiz = new URLSearchParams(location.search); temiz.delete("k");
+  history.replaceState(null, "", location.pathname + (temiz.toString() ? "?" + temiz : "") + location.hash);
+  setTimeout(() => kayitAc(k), 400);
+}
+
+// Bildirime dokununca (zil listesi ya da sistem bildirimi): ilgili modül açılır, bildirim bir kayda aitse (tablo/kimlik) o kaydın detayı da açılır;
+// kayıt silinmişse modül ekranında kalınır.
+const KAYIT_ACICI = { okul_ogrenciler: okul.kayitAc, araclar: filo.aracKayitAc, ic_hizmetler: filo.seferKayitAc, faturalar: muhasebe.faturaKayitAc, esnaflar: muhasebe.esnafKayitAc, sirket_evraklari: evrak.kayitAc };
+async function kayitAc(hedef) {
+  const [tablo, kimlik] = String(hedef || "").split("/");
+  const ac = KAYIT_ACICI[tablo];
+  if (ac && kimlik) await ac(kimlik).catch(() => {});
+}
+async function bildirimdenGit(id, kayit = "") {
+  if (!(kabukAcik && id && gorunenSekmeler.some((s) => s.id === id))) return;
+  await sekmeyeGit(id);
+  await kayitAc(kayit);
 }
 bildirimGitAyarla(bildirimdenGit);
 
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
-  navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.tur === "git") bildirimdenGit(e.data.hedef); });
+  navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.tur === "git") bildirimdenGit(e.data.hedef, e.data.kayit); });
   const onceden = Boolean(navigator.serviceWorker.controller);
   let yenilendi = false;
   // Yeni sürüm devreye girince açık kalmış sayfa eski kodla çalışmasın: uygulama arka plandaysa hemen, öndeyse bir sonraki öne gelişinde yenilenir.

@@ -70,6 +70,12 @@ function evrakSatiri(r) {
   });
 }
 
+export async function kayitAc(id) {
+  const r = (await veri.sirketEvraklari()).find((x) => x.id === id);
+  if (r) detayAc(r.baslik || r.dosya_adi, () => evrakDetay(id));
+  return Boolean(r);
+}
+
 async function evrakDetay(id) {
   const bulunan = (await veri.sirketEvraklari()).find((x) => x.id === id);
   if (!bulunan) return bosDurum("Evrak bulunamadı.");

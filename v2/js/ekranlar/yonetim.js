@@ -118,7 +118,7 @@ function basvuruPaneli(b, yenile) {
     lisans.dugumler, mesaj, onayla, neden, reddet));
 }
 
-const ROL = { sahip: "Sahip", yonetici: "Yönetici", kullanici: "Kullanıcı" };
+const ROL = { sahip: "Üst Yönetici", yonetici: "Yönetici", kullanici: "Kullanıcı" };
 const isoTarih = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const bugunIso = () => isoTarih(new Date());
 const gunEkle = (iso, gun) => { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + gun); return isoTarih(d); };

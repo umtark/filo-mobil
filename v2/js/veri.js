@@ -51,7 +51,7 @@ export async function baglamKur() {
   if (!kimlik) { baglam.isletme = null; return false; }
   const uyelikSorgusu = (uyeAlanlari, isletmeAlanlari) => api.sorgu(`uyelikler?select=${uyeAlanlari},isletmeler(${isletmeAlanlari})&kullanici_id=eq.${encodeURIComponent(kimlik.id)}&aktif=eq.true&order=olusturma`);
   // Yeni sütunlar (marka.sql, sofor_konum.sql, personel.sql) henüz uygulanmamışsa sorgu 400 verir: eski alanlarla devam edilir.
-  const denemeler = [["isletme_id,ad,rol,izinler,salt_okunur,sofor,izin_hakki", "ad,marka_ad,logo,lisans_bitis,omur_boyu"], ["isletme_id,ad,rol,izinler,salt_okunur,sofor", "ad,marka_ad,logo,lisans_bitis,omur_boyu"], ["isletme_id,ad,rol,izinler,salt_okunur", "ad,marka_ad,logo,lisans_bitis,omur_boyu"], ["isletme_id,ad,rol,izinler,salt_okunur", "ad,lisans_bitis,omur_boyu"]];
+  const denemeler = [["isletme_id,ad,rol,izinler,salt_okunur,sofor,izin_hakki,unvan", "ad,marka_ad,logo,lisans_bitis,omur_boyu"], ["isletme_id,ad,rol,izinler,salt_okunur,sofor,izin_hakki", "ad,marka_ad,logo,lisans_bitis,omur_boyu"], ["isletme_id,ad,rol,izinler,salt_okunur,sofor", "ad,marka_ad,logo,lisans_bitis,omur_boyu"], ["isletme_id,ad,rol,izinler,salt_okunur", "ad,marka_ad,logo,lisans_bitis,omur_boyu"], ["isletme_id,ad,rol,izinler,salt_okunur", "ad,lisans_bitis,omur_boyu"]];
   let uyelikler;
   for (const [i, [uye, isletme]] of denemeler.entries()) {
     try { uyelikler = await uyelikSorgusu(uye, isletme); break; }
@@ -246,15 +246,16 @@ const BILDIRIM = {
   sirket_evraklari: ["Şirket Evrakı", (k) => k.baslik],
 };
 
-export function sahibeBildir(kategori, mesaj) {
+// hedef: "tablo/kayıt kimliği" (isteğe bağlı); bildirime dokunan, ilgili kaydı doğrudan açar.
+export function sahibeBildir(kategori, mesaj, hedef = "") {
   if (!baglam.isletme || !baglam.uye) return;
-  api.fonksiyon("bildirim", { isletme: baglam.isletme, kategori, mesaj, kaynak: "mobil" }).catch(() => {});
+  api.fonksiyon("bildirim", { isletme: baglam.isletme, kategori, mesaj, kaynak: "mobil", hedef }).catch(() => {});
 }
 
-function kayitBildir(tablo, eylem, kayit) {
+function kayitBildir(tablo, eylem, kayit, hedefKimlik = "") {
   const [kategori, ad] = BILDIRIM[tablo] || [tablo, () => ""];
   const kim = String((kayit && ad(kayit)) || "").trim();
-  sahibeBildir(kategori, `${kim ? kim + " " : ""}kaydını ${eylem}`.trim());
+  sahibeBildir(kategori, `${kim ? kim + " " : ""}kaydını ${eylem}`.trim(), hedefKimlik && BILDIRIM[tablo] ? `${tablo}/${hedefKimlik}` : "");
 }
 
 // id verilmezse yeni kayıt: degistir({}) kaydı üretir ("id" alanını kendisi koymazsa atanır).
@@ -270,7 +271,7 @@ export async function kayitKaydet(tablo, id, degistir, { bildirimsiz = false } =
       if (donemli && !String(yeni.id).startsWith("srv_")) yeni = dn.gorunumdenDon(yeni, null, secili, layout);
       const donen = await api.ekle(tablo, { isletme_id: baglam.isletme, id: yeni.id, data: yeni });
       if (!donen || !donen.length) throw new Error("Kayıt eklenemedi.");
-      if (!bildirimsiz) kayitBildir(tablo, "ekledi", yeni);
+      if (!bildirimsiz) kayitBildir(tablo, "ekledi", yeni, yeni.id);
       return yeni;
     }
     const s = await api.sorgu(`${tablo}?select=data,surum&${kimlikFiltresi(id)}&silindi=eq.false`);
@@ -281,7 +282,7 @@ export async function kayitKaydet(tablo, id, degistir, { bildirimsiz = false } =
     veri.id = id;
     const donen = await api.guncelle(tablo, `${kimlikFiltresi(id)}&surum=eq.${s[0].surum}`, { data: veri });
     if (!donen || !donen.length) throw new Error(CAKISMA);
-    if (!bildirimsiz) kayitBildir(tablo, "güncelledi", veri);
+    if (!bildirimsiz) kayitBildir(tablo, "güncelledi", veri, id);
     return veri;
   } finally {
     tabloTazele(tablo);
@@ -368,6 +369,6 @@ export async function odemeEkle({ ogrenci, ad, tutar, tarih, yontem, not, mobilI
     }
     sonuc = { ok: true };
   }
-  sahibeBildir("Okul", `${ad ? ad + " öğrencisinin" : "Öğrenci"} ödemesini aldı (${Math.round(tutar)} ₺)${pesin ? " · iki dönem birden" : ""}${donemEki}`);
+  sahibeBildir("Okul", `${ad ? ad + " öğrencisinin" : "Öğrenci"} ödemesini aldı (${Math.round(tutar)} ₺)${pesin ? " · iki dönem birden" : ""}${donemEki}`, `okul_ogrenciler/${ogrenci}`);
   return sonuc;
 }

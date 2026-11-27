@@ -14,7 +14,7 @@ let rozet = null;
 let sonZaman = null;      // bu oturumda görülen en yeni bildirimin zamanı (yeni gelen için toast)
 let sonSorgu = 0;
 let tabloYok = false;
-let git = () => {};       // bildirimin ilgili ekranına gider (uygulama.js kaydeder)
+let git = () => {};       // bildirimin ilgili ekranına (ve varsa kaydına) gider (uygulama.js kaydeder)
 export const bildirimGitAyarla = (f) => { git = f; };
 
 export const uyeMi = () => Boolean(veri.baglam.uye);
@@ -77,8 +77,10 @@ async function okumaZamani() {
 
 // İşletme bildirimleri (sunucu yalnızca bu kullanıcının alıcı olduğu ve yetkisi olduğu modüllerin kayıtlarını verir) ile platform duyuruları birlikte, yeniden eskiye.
 async function bildirimSorgusu(filtre = "") {
+  // "hedef" sütunu (unvan_bildirim.sql) yoksa sorgu 400 verir: sütunsuz yeniden denenir.
+  const bildirimler = (alanlar) => api.sorgu(`bildirimler?select=${alanlar}&isletme_id=eq.${veri.baglam.isletme}${filtre}&order=olusturma.desc&limit=${SAYFA}`);
   const [b, d] = await Promise.all([
-    api.sorgu(`bildirimler?select=id,kullanici_ad,kategori,mesaj,olusturma&isletme_id=eq.${veri.baglam.isletme}${filtre}&order=olusturma.desc&limit=${SAYFA}`),
+    bildirimler("id,kullanici_ad,kategori,mesaj,olusturma,hedef").catch((e) => { if (e.durum !== 400) throw e; return bildirimler("id,kullanici_ad,kategori,mesaj,olusturma"); }),
     api.sorgu(`duyurular?select=id,baslik,mesaj,olusturma${filtre}&order=olusturma.desc&limit=${SAYFA}`).catch(() => []),
   ]);
   return [...b, ...d.map((x) => ({ id: x.id, kullanici_ad: x.baslik || "Duyuru", kategori: "Duyuru", mesaj: x.mesaj, olusturma: x.olusturma }))]
@@ -182,7 +184,7 @@ async function listePaneli() {
         ? kart(l.map((b) => {
           const hedef = bildirimHedefi(b.kategori);
           return satir({ baslik: b.kullanici_ad || "Kullanıcı", alt: b.kategori ? `${b.kategori}: ${b.mesaj}` : b.mesaj, sag: zamanMetni(b.olusturma), ton: yeniMi(b) ? "yesil" : "",
-            onclick: hedef ? () => { panel.kapat(); git(hedef); } : undefined });
+            onclick: hedef ? () => { panel.kapat(); git(hedef, b.hedef); } : undefined });
         }))
         : bosDurum("Bildirim yok"));
     rozetYaz(0);

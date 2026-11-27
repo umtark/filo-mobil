@@ -9,7 +9,7 @@ import * as api from "../api.js";
 import * as profil from "../profil.js";
 import { tarihCoz, tarihYaz } from "../bicim.js";
 
-const ROL = { sahip: "Sahip", yonetici: "Yönetici", kullanici: "Kullanıcı" };
+const ROL = { sahip: "Üst Yönetici", yonetici: "Yönetici", kullanici: "Kullanıcı" };
 const MODUL = { okul: baslik("menu_okul_servis"), sirket_evrak: baslik("menu_sirket_evrak"), fatura: baslik("menu_fatura"), arac: baslik("menu_arac"), esnaf: baslik("menu_esnaf"), petrol: baslik("menu_petrol"), ic_hizmet: baslik("menu_ic_hizmet") };
 
 export async function ciz({ cikis, yenile }) {
@@ -27,7 +27,7 @@ export async function ciz({ cikis, yenile }) {
   const surum = h("p", { class: "soluk" }, `Sürüm ${UYGULAMA_SURUMU}`);
   return h("div", { class: "sayfa" },
     kart(h("h3", {}, "Hesap"), profil.fotoBolumu(profil.gorunenAd()), bilgiSatiri("Kullanıcı", profil.gorunenAd()), bilgiSatiri("İşletme", veri.baglam.isletmeAdi),
-      bilgiSatiri("Rol", ROL[u.rol] || u.rol), bilgiSatiri("Yetkiler", yetkiler), bilgiSatiri("Erişim", u.salt_okunur ? "Yalnızca görüntüleme" : "Görüntüleme ve ödeme girişi"),
+      bilgiSatiri("Rol", u.sofor ? "Şoför" : u.unvan === "muhasebeci" ? "Muhasebeci" : ROL[u.rol] || u.rol), bilgiSatiri("Yetkiler", yetkiler), bilgiSatiri("Erişim", u.salt_okunur ? "Yalnızca görüntüleme" : "Görüntüleme ve ödeme girişi"),
       bilgiSatiri("Lisans", lisansMetni, lisansTon)),
     ["sahip", "yonetici"].includes(u.rol) && kart(satir({ baslik: "Kullanıcılar", onclick: () => detayAc("Kullanıcılar", () => kullanicilar.ciz()) })),
     kart(satir({ baslik: "Maaşım ve İzinlerim", onclick: () => detayAc("Maaşım ve İzinlerim", () => personel.calisanGorunumu(u.ad)) })),

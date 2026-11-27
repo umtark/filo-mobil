@@ -379,6 +379,12 @@ function ogrenciSatiri(o, tahsilat = false) {
   });
 }
 
+export async function kayitAc(id) {
+  const r = (await okulHam()).find((x) => x.id === id && !String(x.id).startsWith("srv_"));
+  if (r) ogrenciAc(id, r.ad_soyad || "Öğrenci");
+  return Boolean(r);
+}
+
 export function ogrenciAc(id, ad) {
   detayAc(ad, async () => {
     const [liste, ham] = await Promise.all([veri.okul(), okulHam()]);

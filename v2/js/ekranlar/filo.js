@@ -104,6 +104,12 @@ export function aracAc(id, plaka) {
   });
 }
 
+export async function aracKayitAc(id) {
+  const a = (await veri.araclar()).find((x) => x.id === id);
+  if (a) aracAc(id, a.plaka);
+  return Boolean(a);
+}
+
 // Kart başlığı: sağda "Ekle" düğmesi (yazma yetkisi varsa).
 const kartBasligi = (ad, ekle) => h("div", { class: "kart-baslik" }, h("h3", {}, ad), ekle && h("button", { class: "dugme ikincil kucuk", type: "button", onclick: ekle }, ikon("arti", 16), "Ekle"));
 
@@ -222,6 +228,12 @@ async function icHizmetEkrani() {
   }
   guncelle();
   return kap;
+}
+
+export async function seferKayitAc(id) {
+  const s = (await veri.icHizmet()).find((x) => x.id === id);
+  if (s) detayAc(s.plaka || "Sefer", () => seferDetay(id));
+  return Boolean(s);
 }
 
 async function seferDetay(id) {
