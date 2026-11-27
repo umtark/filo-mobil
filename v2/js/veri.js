@@ -4,6 +4,7 @@ import { markaUygula } from "./marka.js";
 import { MENU } from "./menu.js";
 import { okulListesi, servisKullanmayanListesi, servisListesi, faturaKaydi, esnafKaydi, aracKaydi, akaryakitListesi, icHizmetListesi } from "./hesap.js";
 import * as dn from "./donem.js";
+import * as kalici from "./kalici_depo.js";
 
 export const baglam = { isletme: null, uye: null, lisans: null, isletmeAdi: "", platform: false, bakim: null };
 
@@ -12,7 +13,15 @@ const onbellek = new Map();   // anahtar -> { t, sonuc: Promise }
 const izlenen = new Map();    // yüklü tablo -> son bilinen değişiklik zamanı (canlı güncelleme için)
 
 const hamDepo = new Map();    // tablo -> { liste, imlec, t, tam, bayat, surucu }: tablo bir kez tamamen indirilir, sonra yalnızca değişen satırlar çekilir
-const TAM_YENILEME = 30 * 60 * 1000;
+const TAM_YENILEME = 24 * 60 * 60 * 1000;   // tam indirme yalnızca güvenlik ağı: günde bir (silinen satırlar zaten "silindi" işaretiyle artımlı gelir)
+
+// Cihazdaki kalıcı kopya yalnızca "beni hatırla" açıkken tutulur; maaş/izin (personel_*) gibi kişisel kayıtlar cihaza kaydedilmez.
+const kopyaAnahtari = (tablo) => {
+  const k = api.kullanici();
+  return api.kalicimi() && k && baglam.isletme && !tablo.startsWith("personel_") ? `${k.id}|${baglam.isletme}|${tablo}` : null;
+};
+// Kullanıcının cihazdaki tüm tablo kopyalarını siler (çıkış, hesabın kaldırılması, yetki değişimi).
+export const kopyalariSil = () => { const k = api.kullanici(); return k ? kalici.sil(`${k.id}|`) : Promise.resolve(); };
 
 // Tablo verisi bayatladı: bir sonraki okuma tamamını değil yalnızca değişenleri indirir.
 const bayatla = (...tablolar) => { for (const t of tablolar) { const d = hamDepo.get(t); if (d) d.bayat = true; izlenen.delete(t); } };
@@ -87,6 +96,7 @@ export async function yetkiKontrol() {
     return "ad";
   }
   baglam.uye = { ...eski, ...yeni };
+  kopyalariSil();   // yetki değişti: cihazdaki kopya silinir, tablolar yeni yetkiyle baştan indirilir
   onbellekTemizle();
   return "degisti";
 }
@@ -152,15 +162,27 @@ async function hamYukle(tablo) {
   if (d.t && !d.bayat && Date.now() - d.t < SURE) return d.liste;
   if (d.surucu) return d.surucu;
   d.surucu = (async () => {
+    const kopya = kopyaAnahtari(tablo);
+    if (kopya && !d.imlec) {   // uygulama yeni açıldı: cihazdaki kopyadan başlanır, yalnızca değişenler indirilir
+      const k = await kalici.oku(kopya);
+      if (k && k.imlec) { d.liste = k.liste; d.imlec = k.imlec; d.tam = k.tam; }
+    }
     const temel = await sonDegisim(tablo).catch(() => null);   // veriden ÖNCE alınır: okuma sırasındaki bir değişiklik bir sonraki kontrolde yakalanır
-    if (!d.t || !d.imlec || Date.now() - d.tam > TAM_YENILEME) {   // ilk okuma ve her 30 dakikada bir tam indirme (artımlı yenilemenin güvenlik ağı)
+    let degisti = false;
+    if (!d.imlec || Date.now() - d.tam > TAM_YENILEME) {   // ilk okuma ve günde bir tam indirme (artımlı yenilemenin güvenlik ağı)
       d.liste = await api.hepsi(tablo, baglam.isletme);
       d.tam = Date.now();
+      degisti = true;
     } else {
       const satirlar = await api.degisenSatirlar(tablo, baglam.isletme, d.imlec);
       if (satirlar.length) {
         const harita = new Map(d.liste.map((x) => [x.id, x]));
-        for (const s of satirlar) { if (s.silindi) harita.delete(s.id); else harita.set(s.id, { ...s.data, id: s.id }); }
+        for (const s of satirlar) {   // imleç sınırındaki satır her seferinde yeniden gelir: yalnızca gerçekten değişenler kopyayı yeniden yazdırır
+          if (s.silindi) { if (harita.delete(s.id)) degisti = true; continue; }
+          const yeni = { ...s.data, id: s.id }, eski = harita.get(s.id);
+          if (!eski || JSON.stringify(eski) !== JSON.stringify(yeni)) degisti = true;
+          harita.set(s.id, yeni);
+        }
         d.liste = [...harita.values()];
       }
     }
@@ -168,6 +190,7 @@ async function hamYukle(tablo) {
     d.bayat = false;
     d.t = Date.now();
     if (temel !== null) izlenen.set(tablo, temel);
+    if (kopya && degisti) kalici.yaz(kopya, { liste: d.liste, imlec: d.imlec, tam: d.tam });
     return d.liste;
   })();
   try { return await d.surucu; }

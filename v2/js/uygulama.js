@@ -185,6 +185,7 @@ async function cikis() {
   cekmeceKapat(false);
   if (konum.durumOku().acik) await konum.bitir();   // şoför çıkış yaparken mesai kapanır (oturum kapanmadan sunucuya bildirilir)
   if (kabukAcik) veri.cevrimdisiBildir();
+  if (!api.kalicimi()) veri.kopyalariSil();   // "beni hatırla" kapalıysa cihazda veri bırakılmaz
   api.cikisYap();
   kullanicilar.cevrimiciSifirla();
   veri.onbellekTemizle();
@@ -400,7 +401,7 @@ async function yetkiIzle(zorla = false) {
   try {
     if (durumAcik) {   // bloke kalkınca, bakım bitince ya da yönetici izin verince ekran kendiliğinden açılır
       if ((await veri.yetkiKontrol()) === "kaldirildi") {
-        api.cikisYap(); veri.onbellekTemizle(); kullanicilar.cevrimiciSifirla(); aktif = null; tumDetaylariKapat();
+        veri.kopyalariSil(); api.cikisYap(); veri.onbellekTemizle(); kullanicilar.cevrimiciSifirla(); aktif = null; tumDetaylariKapat();
         return girisEkrani("Hesabınızın bu işletmeye erişimi kaldırıldı.");
       }
       if (!(await veri.durumTazele())) baslat();
@@ -414,7 +415,7 @@ async function yetkiIzle(zorla = false) {
     const yeniDurum = await veri.durumTazele();
     if (yeniDurum) return durumGoster(yeniDurum);
     if (durum === "kaldirildi") {
-      api.cikisYap(); veri.onbellekTemizle(); kullanicilar.cevrimiciSifirla(); aktif = null; tumDetaylariKapat();
+      veri.kopyalariSil(); api.cikisYap(); veri.onbellekTemizle(); kullanicilar.cevrimiciSifirla(); aktif = null; tumDetaylariKapat();
       return girisEkrani("Hesabınızın bu işletmeye erişimi kaldırıldı.");
     }
     if (durum === "degisti") { tumDetaylariKapat(); kabuk(); toast("Yetkileriniz güncellendi"); }

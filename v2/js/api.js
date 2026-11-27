@@ -21,6 +21,7 @@ export class ApiHatasi extends Error {
 export const yapilandirildi = () => Boolean(ANON_KEY);
 export const girisVar = () => Boolean(oturum && oturum.refresh_token);
 export const kullanici = () => (oturum && oturum.user) || null;
+export const kalicimi = () => kalici;
 
 function oturumKaydet(o) {
   oturum = o;
